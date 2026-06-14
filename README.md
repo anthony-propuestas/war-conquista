@@ -1,0 +1,104 @@
+# 🌍 WAR · Conquista del Mundo
+
+Juego de estrategia por turnos inspirado en el clásico juego de mesa **WAR** (estilo *Risk*).
+Conquista territorios, domina continentes y elimina a tus rivales. **Multijugador local**
+(hotseat) directamente en el navegador, sin instalar nada.
+
+> Hecho con HTML, CSS y JavaScript puro (sin frameworks) y desplegado en **Cloudflare Pages**
+> con un salón de la fama persistido en **Cloudflare D1**.
+
+---
+
+## ✨ Características
+
+- 🗺️ **Mapa de 42 territorios** repartidos en 6 continentes con bonus por dominio.
+- 🎲 **Combate con dados** fiel al original (hasta 3 dados de ataque, 2 de defensa).
+- ♻️ **Fases de turno**: despliegue → refuerzo → ataque → fortificación.
+- 🃏 **Cartas de territorio** canjeables por ejércitos extra (valor creciente).
+- 👥 **2 a 6 jugadores** en la misma máquina, cada uno con su color.
+- 🏆 **Salón de la fama** global persistido en Cloudflare D1.
+- 📱 Interfaz responsive y sin dependencias externas.
+
+---
+
+## 🎮 Cómo se juega
+
+1. **Despliegue:** cada jugador coloca sus ejércitos iniciales en sus territorios.
+2. **Refuerzo:** recibes tropas según los territorios y continentes que domines. Puedes
+   canjear sets de cartas (3 iguales o 3 distintas) por ejércitos extra.
+3. **Ataque:** elige un territorio propio con 2+ ejércitos y ataca a un vecino enemigo.
+   Se comparan los dados más altos; el empate favorece al defensor.
+4. **Fortificación:** mueve tropas entre dos territorios propios conectados.
+5. **Victoria:** el primero en conquistar **todos** los territorios gana.
+
+---
+
+## 🚀 Desarrollo local
+
+Requisitos: [Node.js](https://nodejs.org) 18+.
+
+```bash
+npm install
+npm run dev          # arranca Cloudflare Pages en local (incluye /api)
+```
+
+El juego es 100% estático: también puedes abrir `index.html` con cualquier servidor
+estático; el salón de la fama simplemente no aparecerá sin el backend.
+
+---
+
+## ☁️ Despliegue en Cloudflare
+
+### 1. Crear la base de datos D1
+
+```bash
+npm run db:create                 # crea la DB "war-scores"
+# copia el database_id que imprime y pégalo en wrangler.toml
+npm run db:init:remote            # crea la tabla en la DB remota
+```
+
+### 2. Publicar en Cloudflare Pages
+
+**Opción A — desde la terminal:**
+
+```bash
+npx wrangler login
+npm run deploy
+```
+
+**Opción B — CI/CD desde GitHub (recomendado):**
+
+1. En el panel de Cloudflare → **Workers & Pages → Create → Pages → Connect to Git**.
+2. Selecciona este repositorio.
+3. Build command: *(vacío)* · Output directory: `/`
+4. En **Settings → Functions → D1 database bindings** añade el binding
+   `DB` → `war-scores`.
+5. Cada `git push` a `main` despliega automáticamente a producción.
+
+---
+
+## 🧱 Arquitectura
+
+```
+WAR/
+├── index.html              # estructura (pantalla inicio + juego)
+├── css/style.css           # estilos
+├── js/
+│   ├── map-data.js         # territorios, continentes, adyacencias
+│   ├── game.js             # motor del juego (lógica pura)
+│   ├── ui.js               # render del mapa SVG e interacción
+│   └── main.js             # arranque y leaderboard
+├── functions/api/scores.js # Cloudflare Pages Function (D1)
+├── schema.sql              # esquema de la base de datos
+├── wrangler.toml           # configuración de Cloudflare
+└── _headers                # cabeceras de seguridad/caché
+```
+
+**Servicios de Cloudflare usados:** Pages (hosting), Pages Functions (API),
+D1 (base de datos del salón de la fama).
+
+---
+
+## 📄 Licencia
+
+MIT.

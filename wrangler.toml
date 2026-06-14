@@ -1,0 +1,11 @@
+name = "war-conquista"
+pages_build_output_dir = "."
+compatibility_date = "2025-06-01"
+
+# Base de datos D1 para el salon de la fama.
+# Crea la DB con:  npm run db:create
+# y pega aqui el database_id que devuelve el comando.
+[[d1_databases]]
+binding = "DB"
+database_name = "war-scores"
+database_id = "REEMPLAZAR_CON_TU_DATABASE_ID"

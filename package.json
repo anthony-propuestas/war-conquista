@@ -1,0 +1,19 @@
+{
+  "name": "war-conquista",
+  "version": "1.0.0",
+  "description": "WAR - Juego de estrategia y conquista de territorios. Multijugador local en el navegador. Desplegado en Cloudflare Pages.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler pages dev .",
+    "deploy": "wrangler pages deploy .",
+    "db:create": "wrangler d1 create war-scores",
+    "db:init": "wrangler d1 execute war-scores --local --file=./schema.sql",
+    "db:init:remote": "wrangler d1 execute war-scores --remote --file=./schema.sql"
+  },
+  "keywords": ["juego", "estrategia", "war", "risk", "cloudflare-pages"],
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

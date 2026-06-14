@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="WAR - Juego de estrategia y conquista de territorios. Multijugador local en el navegador." />
+  <meta name="theme-color" content="#0d1b2a" />
+  <title>WAR · Conquista del Mundo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ============ PANTALLA DE INICIO ============ -->
+  <section id="screen-start" class="screen active">
+    <div class="start-card">
+      <h1 class="logo">WAR<span>·</span></h1>
+      <p class="tagline">Conquista el mundo. Domina cada continente.</p>
+
+      <div class="setup">
+        <label class="field">
+          <span>Numero de jugadores</span>
+          <select id="player-count">
+            <option value="2">2 jugadores</option>
+            <option value="3">3 jugadores</option>
+            <option value="4" selected>4 jugadores</option>
+            <option value="5">5 jugadores</option>
+            <option value="6">6 jugadores</option>
+          </select>
+        </label>
+
+        <div id="player-fields" class="player-fields"></div>
+
+        <button id="btn-start" class="btn btn-primary btn-big">Iniciar partida</button>
+      </div>
+
+      <details class="rules">
+        <summary>Como se juega</summary>
+        <ol>
+          <li><b>Despliegue:</b> coloca tus ejercitos en tus territorios.</li>
+          <li><b>Refuerzo:</b> recibes ejercitos segun territorios y continentes que domines. Canjea cartas por mas tropas.</li>
+          <li><b>Ataque:</b> elige un territorio propio (2+ ejercitos) y ataca a un vecino enemigo. Gana quien saque dados mas altos.</li>
+          <li><b>Fortificacion:</b> mueve ejercitos entre tus territorios conectados.</li>
+          <li><b>Victoria:</b> conquista todos los territorios del mapa.</li>
+        </ol>
+      </details>
+
+      <div id="leaderboard" class="leaderboard"></div>
+    </div>
+  </section>
+
+  <!-- ============ PANTALLA DE JUEGO ============ -->
+  <section id="screen-game" class="screen">
+    <header class="topbar">
+      <div class="brand">WAR</div>
+      <div id="turn-banner" class="turn-banner"></div>
+      <button id="btn-quit" class="btn btn-ghost">Salir</button>
+    </header>
+
+    <div class="game-layout">
+      <!-- Mapa -->
+      <div class="map-wrap">
+        <svg id="map" viewBox="0 0 1100 640" preserveAspectRatio="xMidYMid meet"
+             role="img" aria-label="Mapa del mundo"></svg>
+        <div id="dice-tray" class="dice-tray hidden"></div>
+      </div>
+
+      <!-- Panel lateral -->
+      <aside class="sidebar">
+        <div id="phase-box" class="phase-box"></div>
+
+        <div id="action-box" class="action-box"></div>
+
+        <div class="cards-box">
+          <h3>Cartas <span id="cards-count" class="pill">0</span></h3>
+          <div id="cards-list" class="cards-list"></div>
+          <button id="btn-trade" class="btn btn-small" disabled>Canjear set</button>
+        </div>
+
+        <div class="players-box">
+          <h3>Jugadores</h3>
+          <ul id="players-list"></ul>
+        </div>
+
+        <div class="log-box">
+          <h3>Registro</h3>
+          <ul id="log-list"></ul>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ============ MODAL GENERICO ============ -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-card" id="modal-card"></div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
