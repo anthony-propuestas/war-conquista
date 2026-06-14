@@ -1,5 +1,7 @@
 # 🌍 WAR · Conquista del Mundo
 
+### ▶️ Jugar ahora: **https://war-conquista.pages.dev**
+
 Juego de estrategia por turnos inspirado en el clásico juego de mesa **WAR** (estilo *Risk*).
 Conquista territorios, domina continentes y elimina a tus rivales. **Multijugador local**
 (hotseat) directamente en el navegador, sin instalar nada.

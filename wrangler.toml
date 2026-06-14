@@ -8,4 +8,4 @@ compatibility_date = "2025-06-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "war-scores"
-database_id = "REEMPLAZAR_CON_TU_DATABASE_ID"
+database_id = "405ca0f4-51eb-48bf-8d56-a1040bfb7c06"
