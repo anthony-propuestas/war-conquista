@@ -48,3 +48,39 @@ Todas las respuestas son `application/json`.
 
 Ver también: [database.md](database.md) (queries y esquema), [architecture.md](architecture.md).
 Las ramas de error de este endpoint están cubiertas por tests — ver [testing.md](testing.md).
+
+---
+
+# API — Autenticación (`/api/auth/*`)
+
+Dos Pages Functions que implementan el flujo OAuth 2.0 con Google.
+Requieren los secrets `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` (ver [environment.md](environment.md)).
+Para el flujo completo y la estructura de la sesión ver [auth.md](auth.md).
+
+## `GET /api/auth/google` — iniciar login
+
+Sin parámetros. Construye la URL de autorización de Google y responde con redirect 302.
+
+| Caso | Status | Destino |
+|---|---|---|
+| `GOOGLE_CLIENT_ID` presente | `302` | `accounts.google.com/o/oauth2/v2/auth?…` |
+| `GOOGLE_CLIENT_ID` ausente | `500` | — (texto plano de error) |
+
+Parámetros enviados a Google: `client_id`, `redirect_uri` (`<origen>/api/auth/callback`),
+`response_type=code`, `scope=openid email profile`.
+
+## `GET /api/auth/callback?code=<code>` — completar login
+
+Google redirige aquí tras la autorización del usuario.
+
+| Caso | Status | Destino |
+|---|---|---|
+| Flujo exitoso | `302` | `/` con `Set-Cookie: war_session=…` |
+| Sin `?code` | `302` | `/login?error=no_code` |
+| Env vars ausentes | `500` | — |
+| Google devuelve error de token | `302` | `/login?error=<error_de_google>` |
+| Error al obtener userinfo | `302` | `/login?error=userinfo_fetch` |
+
+La cookie `war_session` es `HttpOnly; SameSite=Lax; Max-Age=604800` (7 días).
+Su valor es un JSON base64 con `{ sub, name, email, picture }`.
+Todos los redirects de error usan URLs absolutas (`<origen>/login?error=…`).

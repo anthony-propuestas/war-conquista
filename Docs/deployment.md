@@ -38,6 +38,11 @@ Sube todo el directorio (`pages_build_output_dir = "."`). `tests/` se excluye v�
 - **`_headers`** se aplica en el deploy (seguridad + caché de `/assets/*`); ver
   [environment.md](environment.md).
 - **Demo en vivo:** https://war-conquista.pages.dev
-- No hay variables de entorno ni secrets que configurar.
+- **Secrets de Google OAuth:** antes del primer deploy con auth activo, ejecutar:
+  ```bash
+  wrangler pages secret put GOOGLE_CLIENT_ID --project-name war-conquista
+  wrangler pages secret put GOOGLE_CLIENT_SECRET --project-name war-conquista
+  ```
+  Ver [environment.md](environment.md) para obtener las credenciales de Google Cloud Console.
 
 Ver también: [database.md](database.md) (migraciones), [stack.md](stack.md) (scripts).

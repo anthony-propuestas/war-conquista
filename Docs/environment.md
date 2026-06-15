@@ -1,7 +1,8 @@
 # Entorno y configuración
 
-WAR **no tiene secrets ni variables de entorno de aplicación**. La única
-configuración de entorno es el binding D1 que conecta la Pages Function con la base.
+WAR usa un **binding D1** para el salón de la fama y **dos secrets de Google OAuth**
+para la autenticación. Ambos se configuran de forma diferente (binding en `wrangler.toml`,
+secrets fuera del repo).
 
 ## `wrangler.toml`
 
@@ -22,6 +23,32 @@ database_id = "405ca0f4-51eb-48bf-8d56-a1040bfb7c06"
 | `compatibility_date` | Fija el runtime de Workers/Functions. |
 | `[[d1_databases]]` | Declara el binding **`DB`** → base `war-scores`. La Function accede vía `env.DB`. |
 | `database_id` | ID de la D1 remota (de `npm run db:create`). |
+
+## Secrets de Google OAuth
+
+`functions/api/auth/google.js` y `functions/api/auth/callback.js` leen
+`env.GOOGLE_CLIENT_ID` y `env.GOOGLE_CLIENT_SECRET`.
+
+**En local** (`npm run dev`): crear `.dev.vars` en la raíz (ya en `.gitignore`) con los
+valores reales:
+```
+GOOGLE_CLIENT_ID=<tu-client-id>
+GOOGLE_CLIENT_SECRET=<tu-client-secret>
+```
+
+**En producción** (Pages → proyecto `war-conquista`):
+```bash
+wrangler pages secret put GOOGLE_CLIENT_ID --project-name war-conquista
+wrangler pages secret put GOOGLE_CLIENT_SECRET --project-name war-conquista
+```
+Wrangler pide el valor de forma interactiva (no queda en el historial del shell).
+Para listar los secrets configurados: `wrangler pages secret list --project-name war-conquista`.
+
+Los secrets se obtienen de **Google Cloud Console → Credenciales → OAuth 2.0 → ID de cliente**.
+URI de redirección autorizado: `<origen>/api/auth/callback` (añadir tanto el origen de
+producción como `http://localhost:8788`).
+
+Ver flujo completo en [auth.md](auth.md).
 
 ## El binding `DB`
 

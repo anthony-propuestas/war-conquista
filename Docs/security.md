@@ -5,11 +5,13 @@ qué riesgos se aceptan por diseño. Mantenido por `workflow-security.md`.
 
 ## Modelo de seguridad / alcance
 
-WAR es un juego **hotseat local**: toda la partida ocurre en el navegador. La única
-superficie de red es el endpoint `/api/scores` (salón de la fama).
+WAR es un juego **hotseat local**: toda la partida ocurre en el navegador. La
+superficie de red comprende:
+- `/api/scores` — salón de la fama (público y anónimo por diseño)
+- `/api/auth/google` y `/api/auth/callback` — login con Google OAuth 2.0 (nuevo)
 
-Por diseño **no hay**: autenticación, sesiones, cookies, tokens, uploads/archivos,
-OAuth, ni blockchain. El salón de la fama es **público y anónimo** a propósito.
+La sesión se guarda en una cookie `war_session` (`HttpOnly; SameSite=Lax`).
+**No hay** uploads/archivos, blockchain ni WebSockets.
 
 ## Backend — `functions/api/scores.js`
 
@@ -25,6 +27,21 @@ OAuth, ni blockchain. El salón de la fama es **público y anónimo** a propósi
 - **Degradación segura:** sin `env.DB` responde `[]` (GET) o `{ok:false,"no-db"}` (POST)
   en vez de fallar; los errores de DB devuelven `[]` / `{ok:false,"db-error"}` sin filtrar
   detalles internos. Ver [api.md](api.md) y [database.md](database.md).
+
+## Auth — `functions/api/auth/`
+
+- **Secrets fuera del repo:** `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` se leen de
+  `env` (Cloudflare Secrets); `.dev.vars` está en `.gitignore`. No hay secrets en
+  `wrangler.toml` ni en ningún archivo versionado.
+- **Métodos correctos:** ambas functions son `GET` (redirigen; no mutan datos del servidor).
+- **Sin queries D1:** no hay acceso a base de datos en el flujo de auth.
+- **XSS:** los campos de `userInfo` (`name`, `email`, `picture`, `sub`) solo se escriben en
+  la cookie — **no se renderizan en el DOM** en el callback. Cuando en el futuro se use la
+  sesión para mostrar el nombre en la UI, debe pasar por `escapeHtml`.
+- **Redirects seguros:** todos los redirects de error usan `${url.origin}/login?error=…`
+  (origen fijado por el runtime de Cloudflare, no controlado por el cliente) → sin open redirect.
+- **Cookie:** `HttpOnly; SameSite=Lax; Path=/; Max-Age=604800`. `HttpOnly` impide acceso
+  desde JS; `SameSite=Lax` mitiga CSRF de formularios cross-site.
 
 ## Frontend — `js/main.js` y `js/ui.js`
 
@@ -55,11 +72,11 @@ Baseline aplicado a todo el sitio (no debilitar):
 
 ## Configuración y secretos
 
-- `database_id` en `wrangler.toml` **no es un secreto**: es un identificador de recurso;
-  el acceso lo controla el binding `DB` y la cuenta de Cloudflare, no el ID.
-- **No hay** tokens ni API keys en el repo. `.gitignore` excluye `.dev.vars*`, `.env*`,
-  `*.pem`, `*.key`, `secrets.json`, `.cloudflare/`.
-- Cualquier secret futuro va en **Secrets de Pages**, nunca versionado.
+- `database_id` en `wrangler.toml` **no es un secreto**: el acceso lo controla el
+  binding `DB` y la cuenta de Cloudflare, no el ID.
+- `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` van en **Secrets de Pages** (no en el repo).
+  `.gitignore` excluye `.dev.vars*`, `.env*`, `*.pem`, `*.key`, `secrets.json`, `.cloudflare/`.
+- Ningún token ni API key está versionado.
 
 ## Riesgos aceptados / vectores conocidos
 
@@ -71,6 +88,23 @@ No son vulnerabilidades confirmadas, pero se registran:
   a importar: Cloudflare Turnstile, rate-limit en la Function, o un token de partida
   emitido y verificado server-side.
 - **Sin rate-limiting** en el endpoint en general (abuso/spam de escrituras).
+- **Cookie `war_session` sin firma (HMAC):** el valor es JSON base64 sin verificación
+  criptográfica. Alguien con acceso al dispositivo (o con JS malicioso ya ejecutándose)
+  puede forjar o alterar la cookie y suplantar otro `sub`/`email`. En HTTPS (Cloudflare
+  Pages) requiere compromiso previo del cliente. La cookie hoy solo guarda datos de
+  presentación; **no controla acceso a recursos protegidos**. Mitigación futura: HMAC
+  con un secret de Cloudflare Workers. **Aceptado para MVP.**
+- **Sin parámetro `state` en OAuth (Login CSRF):** `/api/auth/google` no genera un
+  `state` ni `/api/auth/callback` lo verifica. Permite **Login CSRF**: un atacante
+  puede hacer que una víctima complete el flujo OAuth con la cuenta del atacante (la
+  víctima queda logueada como el atacante). Impacto bajo en WAR (leaderboard de vanidad,
+  sin datos personales expuestos). **Pendiente de corrección:** generar un `state`
+  aleatorio en `/api/auth/google` (guardarlo en cookie temporal), verificarlo en el
+  callback y rechazar si no coincide.
+- **`tokenData.error` sin `encodeURIComponent` en redirect:** en `callback.js`,
+  `${url.origin}/login?error=${tokenData.error}` no escapa el valor de `error` de Google.
+  Si contiene `&` o `=` podría contaminar el query string del redirect. No es XSS ni SQL
+  (no se renderiza en DOM), pero es un defecto menor de encoding. Riesgo muy bajo.
 - **XSS por nombre de jugador en el modal de victoria (`main.js`, `onGameOver`):** el modal
   inyecta `winner.name` con `innerHTML` **sin** `escapeHtml` (a diferencia del banner y el
   leaderboard, que sí escapan). El nombre es input local de la pantalla de inicio, así que
@@ -91,6 +125,9 @@ Para cada cambio que toque la superficie de ataque:
 - [ ] Todo dato de DB renderizado en el DOM pasa por `escapeHtml`.
 - [ ] `_headers` conserva las cuatro cabeceras de seguridad.
 - [ ] No se añaden secretos en texto plano al repo.
+- [ ] (Si toca auth) El flujo OAuth envía y verifica el parámetro `state`.
+- [ ] (Si toca auth) Los redirects de error usan `encodeURIComponent` para el valor de `error`.
+- [ ] (Si toca auth) Todo campo de `userInfo` renderizado en el DOM pasa por `escapeHtml`.
 
 ## Historial de revisiones
 
@@ -102,6 +139,12 @@ Para cada cambio que toque la superficie de ataque:
   **Hallazgo:** `winner.name` se renderiza **sin escapar** en el modal de victoria de
   `main.js` (`onGameOver`) — self-XSS de bajo impacto en hotseat; registrado en *Riesgos
   conocidos* a la espera de decisión. Sin cambios en backend, queries ni cabeceras.
+- **2026-06-15** — Google OAuth login: `login.html`, `functions/api/auth/google.js`,
+  `functions/api/auth/callback.js`. Secrets (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`)
+  fuera del repo. Cookie `HttpOnly; SameSite=Lax`. **Hallazgos:** (1) cookie sin firma
+  HMAC — aceptado MVP; (2) sin parámetro `state` → Login CSRF posible, impacto bajo,
+  pendiente de corrección; (3) `tokenData.error` sin `encodeURIComponent` en redirect —
+  riesgo muy bajo, registrado. Sin cambios en `/api/scores`, D1, esquema ni cabeceras.
 - **2026-06-15** — Mapa con geometría real: `ui.js` deja de generar costas procedurales y
   consume paths pregenerados de `js/map-shapes.js` (nuevo, generado por
   `scripts/build-map-shapes.mjs`); nuevas `devDependencies` de build (`d3-geo`,

@@ -18,6 +18,7 @@ Conquista territorios, domina continentes y elimina a tus rivales. **Multijugado
 - ♻️ **Fases de turno**: despliegue → refuerzo → ataque → fortificación.
 - 👥 **2 a 6 jugadores** en la misma máquina, cada uno con su color.
 - 🏆 **Salón de la fama** global persistido en Cloudflare D1.
+- 🔐 **Login con Google** para vincular tus victorias a tu cuenta.
 - 📱 Interfaz responsive, sin librerías JS ni frameworks (única dependencia externa en
   runtime: las fuentes **Cinzel** y **Oswald** de Google Fonts).
 
@@ -59,7 +60,18 @@ npm run db:create                 # crea la DB "war-scores"
 npm run db:init:remote            # crea la tabla en la DB remota
 ```
 
-### 2. Publicar en Cloudflare Pages
+### 2. Configurar secrets de Google OAuth
+
+```bash
+wrangler pages secret put GOOGLE_CLIENT_ID --project-name war-conquista
+wrangler pages secret put GOOGLE_CLIENT_SECRET --project-name war-conquista
+```
+
+Obtén las credenciales en **Google Cloud Console → Credenciales → OAuth 2.0**.
+URI de redirección autorizado: `https://war-conquista.pages.dev/api/auth/callback`
+(y `http://localhost:8788/api/auth/callback` para desarrollo local en `.dev.vars`).
+
+### 3. Publicar en Cloudflare Pages
 
 **Opción A — desde la terminal:**
 
@@ -91,7 +103,11 @@ WAR/
 │   ├── game.js             # motor del juego (lógica pura)
 │   ├── ui.js               # render del mapa SVG e interacción
 │   └── main.js             # arranque y leaderboard
-├── functions/api/scores.js # Cloudflare Pages Function (D1)
+├── login.html              # pantalla de login con Google OAuth
+├── functions/api/scores.js # Pages Function: /api/scores (D1)
+├── functions/api/auth/
+│   ├── google.js           # inicia OAuth con Google
+│   └── callback.js         # completa OAuth, guarda cookie de sesión
 ├── scripts/build-map-shapes.mjs # genera js/map-shapes.js (npm run build:map)
 ├── tests/                  # tests unitarios (node --test)
 ├── Docs/                   # documentación del proyecto
