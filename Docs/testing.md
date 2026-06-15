@@ -16,10 +16,10 @@ Los tests viven en `tests/` (versionados, excluidos del deploy vía `.assetsigno
 | Suite | Archivo bajo prueba | Casos | Estado |
 |---|---|---|---|
 | tests/map-data.test.js | js/map-data.js | 5 | ✅ |
-| tests/game.test.js | js/game.js | 19 | ✅ |
+| tests/game.test.js | js/game.js | 14 | ✅ |
 | tests/api/scores.test.js | functions/api/scores.js | 9 | ✅ |
 | tests/map-shapes.test.js | js/map-shapes.js | 4 | ✅ |
-| **Total** | | **37** | ✅ |
+| **Total** | | **32** | ✅ |
 
 ## Pendiente (diferido)
 

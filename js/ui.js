@@ -6,7 +6,6 @@ import { TERRITORIES, CONTINENTS, ADJACENCY } from "./map-data.js";
 import { TERRITORY_SHAPES, TERRITORY_CENTERS, MAP_VIEWBOX, SEA_ROUTES, TERRITORY_CLIPS } from "./map-shapes.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
-const CARD_ICON = { infanteria: "🪖", caballeria: "🐎", artilleria: "💣" };
 
 function svg(tag, attrs = {}) {
   const e = document.createElementNS(SVG_NS, tag);
@@ -24,12 +23,10 @@ export class UI {
     this.game = game;
     this.onGameOver = onGameOver;
     this.selected = null;       // territorio seleccionado
-    this.selectedCards = new Set();
     this.nodes = {};            // id -> { g, circle, count }
     this.gameOverHandled = false;
 
     this.buildMap();
-    this.bindStatic();
     this.refresh();
   }
 
@@ -99,10 +96,6 @@ export class UI {
       contLabels.appendChild(label);
     }
     map.appendChild(contLabels);
-  }
-
-  bindStatic() {
-    $("#btn-trade").addEventListener("click", () => this.tradeSelectedCards());
   }
 
   // ---------- refresco completo ----------
@@ -210,7 +203,6 @@ export class UI {
     const g = this.game;
     this.renderPhaseBox();
     this.renderActions();
-    this.renderCards();
     this.renderPlayers();
     this.renderLog();
   }
@@ -267,37 +259,6 @@ export class UI {
     } else if (g.phase === "fortify") {
       addBtn("Saltar y terminar turno", "btn-small",
         () => { this.selected = null; this.hideDice(); g.skipFortify(); this.refresh(); });
-    }
-  }
-
-  renderCards() {
-    const g = this.game;
-    const list = $("#cards-list");
-    list.innerHTML = "";
-    $("#cards-count").textContent = g.current.cards.length;
-    g.current.cards.forEach((c, i) => {
-      const el = document.createElement("div");
-      el.className = "card" + (this.selectedCards.has(i) ? " sel" : "");
-      el.textContent = CARD_ICON[c.symbol] || "★";
-      el.title = c.symbol;
-      el.addEventListener("click", () => {
-        if (this.selectedCards.has(i)) this.selectedCards.delete(i);
-        else this.selectedCards.add(i);
-        this.renderCards();
-      });
-      list.appendChild(el);
-    });
-    const trade = $("#btn-trade");
-    const valid = g.phase === "reinforce" && g.isValidSet([...this.selectedCards]);
-    trade.disabled = !valid;
-    trade.textContent = g.mustTradeCards() && g.phase === "reinforce"
-      ? "Canjear (obligatorio)" : "Canjear set";
-  }
-
-  tradeSelectedCards() {
-    if (this.game.tradeCards([...this.selectedCards])) {
-      this.selectedCards.clear();
-      this.refresh();
     }
   }
 

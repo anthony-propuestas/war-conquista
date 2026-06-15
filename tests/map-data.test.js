@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   CONTINENTS, TERRITORIES, ADJACENCY, buildAdjacency,
-  INITIAL_ARMIES, CARD_TRADE_VALUES, CARD_SYMBOLS,
+  INITIAL_ARMIES,
 } from "../js/map-data.js";
 
 test("hay 42 territorios y cada continente existe", () => {
@@ -41,6 +41,4 @@ test("buildAdjacency devuelve arrays y coincide con la export ADJACENCY", () => 
 
 test("constantes de reglas con la forma esperada", () => {
   assert.deepEqual(Object.keys(INITIAL_ARMIES).map(Number).sort((a, b) => a - b), [2, 3, 4, 5, 6]);
-  assert.deepEqual(CARD_TRADE_VALUES, [4, 6, 8, 10, 12, 15]);
-  assert.deepEqual(CARD_SYMBOLS, ["infanteria", "caballeria", "artilleria"]);
 });

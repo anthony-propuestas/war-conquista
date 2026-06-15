@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import { Game } from "../js/game.js";
 import {
-  TERRITORIES, INITIAL_ARMIES, CARD_TRADE_VALUES,
+  TERRITORIES, INITIAL_ARMIES,
 } from "../js/map-data.js";
 
 const ALL_IDS = Object.keys(TERRITORIES);
@@ -64,69 +64,6 @@ test("reinforcementsFor: base >3 sin completar continente", () => {
   ownOnly(g, 0, [...byCont("asia", 8), ...byCont("africa", 4)]); // 12, ninguno completo
   // max(3, floor(12/3)) + 0 = 4
   assert.equal(g.reinforcementsFor(0), 4);
-});
-
-// ---------- cartas ----------
-test("isValidSet: 3 iguales o 3 distintas validan; lo demas no", () => {
-  const g = newGame();
-  g.players[0].cards = [
-    { symbol: "infanteria" }, { symbol: "infanteria" }, { symbol: "infanteria" },
-    { symbol: "caballeria" }, { symbol: "artilleria" },
-  ];
-  assert.equal(g.isValidSet([0, 1, 2]), true);   // 3 iguales
-  assert.equal(g.isValidSet([0, 3, 4]), true);   // 3 distintas
-  assert.equal(g.isValidSet([0, 1, 3]), false);  // 2+1
-  assert.equal(g.isValidSet([0, 1]), false);     // longitud != 3
-  assert.equal(g.isValidSet([0, 1, 99]), false); // indice inexistente
-});
-
-test("tradeCards: otorga el primer valor de la secuencia y remueve las cartas", () => {
-  const g = newGame();
-  g.phase = "reinforce";
-  g.reinforcements = 0;
-  g.cardTradeCount = 0;
-  g.players[0].cards = [
-    { symbol: "infanteria" }, { symbol: "infanteria" }, { symbol: "infanteria" },
-  ];
-  assert.equal(g.tradeCards([0, 1, 2]), true);
-  assert.equal(g.reinforcements, CARD_TRADE_VALUES[0]); // 4
-  assert.equal(g.players[0].cards.length, 0);
-  assert.equal(g.cardTradeCount, 1);
-});
-
-test("tradeCards: escala +5 tras agotar la secuencia", () => {
-  const g = newGame();
-  g.phase = "reinforce";
-  g.reinforcements = 0;
-  g.cardTradeCount = CARD_TRADE_VALUES.length; // 6
-  g.players[0].cards = [
-    { symbol: "caballeria" }, { symbol: "caballeria" }, { symbol: "caballeria" },
-  ];
-  g.tradeCards([0, 1, 2]);
-  // ultimo valor (15) + 5*(6-6+1) = 20
-  assert.equal(g.reinforcements, CARD_TRADE_VALUES.at(-1) + 5);
-});
-
-test("tradeCards: +2 de bonus por carta de territorio propio", () => {
-  const g = newGame();
-  g.phase = "reinforce";
-  g.reinforcements = 0;
-  g.cardTradeCount = 0;
-  g.board["brasil"] = { owner: 0, armies: 1 };
-  g.players[0].cards = [
-    { symbol: "infanteria", territory: "brasil" },
-    { symbol: "infanteria" }, { symbol: "infanteria" },
-  ];
-  g.tradeCards([0, 1, 2]);
-  assert.equal(g.reinforcements, CARD_TRADE_VALUES[0] + 2); // 4 + 2
-});
-
-test("mustTradeCards con 5 o mas cartas", () => {
-  const g = newGame();
-  g.players[0].cards = Array.from({ length: 5 }, () => ({ symbol: "infanteria" }));
-  assert.equal(g.mustTradeCards(), true);
-  g.players[0].cards.pop();
-  assert.equal(g.mustTradeCards(), false);
 });
 
 // ---------- combate ----------
@@ -231,23 +168,18 @@ test("skipFortify avanza al siguiente turno", () => {
   ownOnly(g, 0, byCont("america_norte", 9)); // ambos jugadores con territorios
   g.phase = "fortify";
   g.currentIndex = 0;
-  g.conqueredThisTurn = false;
   assert.equal(g.skipFortify(), true);
   assert.equal(g.currentIndex, 1);
   assert.equal(g.phase, "reinforce");
 });
 
 // ---------- victoria / eliminacion ----------
-test("_checkElimination elimina al jugador sin territorios y transfiere cartas", () => {
+test("_checkElimination elimina al jugador sin territorios", () => {
   const g = newGame();
   ownOnly(g, 0, ALL_IDS); // jugador 1 se queda sin nada
   g.currentIndex = 0;
-  g.players[0].cards = [];
-  g.players[1].cards = [{ symbol: "infanteria" }];
   g._checkElimination();
   assert.equal(g.players[1].alive, false);
-  assert.deepEqual(g.players[1].cards, []);
-  assert.equal(g.players[0].cards.length, 1);
 });
 
 test("_checkWin declara ganador al poseer los 42 territorios", () => {

@@ -147,6 +147,3 @@ export const PLAYER_COLORS = [
   "#212529", // negro
 ];
 
-// Secuencia de canje de cartas (ejercitos otorgados)
-export const CARD_TRADE_VALUES = [4, 6, 8, 10, 12, 15];
-export const CARD_SYMBOLS = ["infanteria", "caballeria", "artilleria"];

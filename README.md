@@ -16,7 +16,6 @@ Conquista territorios, domina continentes y elimina a tus rivales. **Multijugado
 - 🗺️ **Mapa de 42 territorios** repartidos en 6 continentes con bonus por dominio.
 - 🎲 **Combate con dados** fiel al original (hasta 3 dados de ataque, 2 de defensa).
 - ♻️ **Fases de turno**: despliegue → refuerzo → ataque → fortificación.
-- 🃏 **Cartas de territorio** canjeables por ejércitos extra (valor creciente).
 - 👥 **2 a 6 jugadores** en la misma máquina, cada uno con su color.
 - 🏆 **Salón de la fama** global persistido en Cloudflare D1.
 - 📱 Interfaz responsive, sin librerías JS ni frameworks (única dependencia externa en
@@ -27,8 +26,7 @@ Conquista territorios, domina continentes y elimina a tus rivales. **Multijugado
 ## 🎮 Cómo se juega
 
 1. **Despliegue:** cada jugador coloca sus ejércitos iniciales en sus territorios.
-2. **Refuerzo:** recibes tropas según los territorios y continentes que domines. Puedes
-   canjear sets de cartas (3 iguales o 3 distintas) por ejércitos extra.
+2. **Refuerzo:** recibes tropas según los territorios y continentes que domines.
 3. **Ataque:** elige un territorio propio con 2+ ejércitos y ataca a un vecino enemigo.
    Se comparan los dados más altos; el empate favorece al defensor.
 4. **Fortificación:** mueve tropas entre dos territorios propios conectados.

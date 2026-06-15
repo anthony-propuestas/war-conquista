@@ -33,7 +33,7 @@ Convención: `js/<archivo>.js` → `tests/<archivo>.test.js`; `functions/api/<ar
 | Archivo eliminado | Eliminar su test |
 | Archivo modificado sin test | Evaluar si amerita test; documentar la decisión |
 
-Prioridad de cobertura: `game.js` (combate por dados, canje de cartas, refuerzos, condición de victoria) y `functions/api/scores.js` (validación de `name`, ramas de error, degradación sin `DB`) por ser la lógica de mayor riesgo. `ui.js`/`main.js` solo si el cambio es testeable de forma estable con `jsdom`.
+Prioridad de cobertura: `game.js` (combate por dados, refuerzos, condición de victoria) y `functions/api/scores.js` (validación de `name`, ramas de error, degradación sin `DB`) por ser la lógica de mayor riesgo. `ui.js`/`main.js` solo si el cambio es testeable de forma estable con `jsdom`.
 
 ## Paso 3 — Ejecutar los tests una sola vez (modo CI, sin watch)
 

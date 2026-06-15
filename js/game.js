@@ -1,11 +1,10 @@
 // ============================================================
 //  WAR - Motor del juego (logica pura, sin DOM)
-//  Maneja estado, turnos, fases, combate, cartas y victoria.
+//  Maneja estado, turnos, fases, combate y victoria.
 // ============================================================
 
 import {
   TERRITORIES, CONTINENTS, ADJACENCY, INITIAL_ARMIES,
-  CARD_TRADE_VALUES, CARD_SYMBOLS,
 } from "./map-data.js";
 
 const ALL_IDS = Object.keys(TERRITORIES);
@@ -28,7 +27,6 @@ export class Game {
       id: i,
       name: p.name,
       color: p.color,
-      cards: [],
       alive: true,
     }));
     // estado de cada territorio
@@ -38,8 +36,6 @@ export class Game {
     this.currentIndex = 0;
     this.phase = "setup";          // setup | reinforce | attack | fortify | gameover
     this.reinforcements = 0;       // ejercitos por colocar (refuerzo o setup)
-    this.cardTradeCount = 0;       // canjes globales realizados
-    this.conqueredThisTurn = false;
     this.pendingConquest = null;   // { from, to, min, max }
     this.fortifyDone = false;
     this.winner = null;
@@ -127,7 +123,6 @@ export class Game {
   // ---------- inicio de turno / refuerzo ----------
   _beginTurn() {
     this.phase = "reinforce";
-    this.conqueredThisTurn = false;
     this.pendingConquest = null;
     this.fortifyDone = false;
     this.reinforcements = this.reinforcementsFor(this.current.id);
@@ -161,49 +156,6 @@ export class Game {
     if (this.phase !== "reinforce" || this.reinforcements > 0) return false;
     this.phase = "attack";
     this._log(`${this.current.name} pasa a la fase de ataque.`);
-    return true;
-  }
-
-  // ---------- cartas ----------
-  mustTradeCards() {
-    return this.current.cards.length >= 5;
-  }
-
-  isValidSet(indices) {
-    if (indices.length !== 3) return false;
-    const cards = indices.map((i) => this.current.cards[i]);
-    if (cards.some((c) => c === undefined)) return false;
-    const syms = cards.map((c) => c.symbol);
-    const allSame = syms.every((s) => s === syms[0]);
-    const allDiff = new Set(syms).size === 3;
-    return allSame || allDiff;
-  }
-
-  tradeCards(indices) {
-    if (this.phase !== "reinforce") return false;
-    if (!this.isValidSet(indices)) return false;
-    // valor del canje
-    const idx = Math.min(this.cardTradeCount, CARD_TRADE_VALUES.length - 1);
-    let value = CARD_TRADE_VALUES[idx];
-    if (this.cardTradeCount >= CARD_TRADE_VALUES.length) {
-      value = CARD_TRADE_VALUES[CARD_TRADE_VALUES.length - 1] +
-        5 * (this.cardTradeCount - CARD_TRADE_VALUES.length + 1);
-    }
-    // bonus: +2 si alguna carta es de un territorio propio
-    let bonus = 0;
-    const cards = indices.map((i) => this.current.cards[i]);
-    for (const c of cards) {
-      if (c.territory && this.board[c.territory].owner === this.current.id) {
-        bonus = 2; break;
-      }
-    }
-    // remover cartas (de mayor a menor indice)
-    [...indices].sort((a, b) => b - a).forEach((i) => this.current.cards.splice(i, 1));
-    this.cardTradeCount++;
-    this.reinforcements += value + bonus;
-    this._log(
-      `${this.current.name} canjea cartas: +${value}${bonus ? ` (+${bonus} bonus)` : ""} ejercitos.`
-    );
     return true;
   }
 
@@ -254,7 +206,6 @@ export class Game {
       const min = atkCount;                       // al menos los dados usados
       const max = this.board[fromId].armies - 1;  // dejar 1 atras
       this.board[toId].owner = this.current.id;
-      this.conqueredThisTurn = true;
       this.pendingConquest = { from: fromId, to: toId, min, max };
       this._log(`${this.current.name} conquista ${TERRITORIES[toId].name}!`);
     }
@@ -311,14 +262,6 @@ export class Game {
 
   // ---------- fin de turno ----------
   endTurn() {
-    // otorgar carta si conquisto al menos un territorio
-    if (this.conqueredThisTurn) {
-      const symbol = CARD_SYMBOLS[Math.floor(Math.random() * CARD_SYMBOLS.length)];
-      const mine = this.territoriesOf(this.current.id);
-      const territory = mine[Math.floor(Math.random() * mine.length)];
-      this.current.cards.push({ symbol, territory });
-      this._log(`${this.current.name} gana una carta de territorio.`);
-    }
     // siguiente jugador vivo
     do {
       this.currentIndex = (this.currentIndex + 1) % this.players.length;
@@ -330,9 +273,6 @@ export class Game {
     for (const p of this.players) {
       if (p.alive && this.territoriesOf(p.id).length === 0) {
         p.alive = false;
-        // transferir sus cartas al jugador actual
-        this.current.cards.push(...p.cards);
-        p.cards = [];
         this._log(`${p.name} ha sido eliminado!`);
       }
     }

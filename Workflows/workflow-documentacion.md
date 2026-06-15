@@ -25,7 +25,7 @@
 | `Docs/testing.md` | Lo crea/mantiene `workflow-test-despues-de-cambios.md`. Este workflow solo lo enlaza. |
 
 **Docs opcionales** (agregar solo si el proyecto los necesita):
-- `Docs/game-engine.md` — solo si la lógica de `game.js` (combate por dados, canje de cartas, cálculo de refuerzos, fases de turno) crece lo bastante para no caber en `architecture.md`.
+- `Docs/game-engine.md` — solo si la lógica de `game.js` (combate por dados, cálculo de refuerzos, fases de turno) crece lo bastante para no caber en `architecture.md`.
 - `Docs/data-flow.md` — solo si el flujo `main.js → game.js → ui.js → /api/scores → D1` deja de ser obvio.
 - El resto de opcionales de la plantilla (auth, onchain, storage, realtime) **no aplican**: no hay autenticación, blockchain, uploads ni websockets en este proyecto.
 
