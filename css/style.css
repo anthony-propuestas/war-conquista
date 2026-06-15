@@ -9,8 +9,8 @@
   --ink: #e8edf3;
   --ink-dim: #9fb2c6;
   --line: #2f4a66;
-  --sea: #143b5a;
-  --sea-2: #0f2c44;
+  --sea: #3a7ca5;
+  --sea-2: #1f5478;
   --accent: #e9c46a;
   --accent-2: #f4a261;
   --danger: #e63946;
@@ -164,7 +164,7 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 0;
 .game-layout { display: grid; grid-template-columns: 1fr 340px; height: calc(100vh - 56px); }
 
 .map-wrap { position: relative; overflow: hidden; background:
-  radial-gradient(1200px 800px at 50% 30%, var(--sea) 0%, var(--sea-2) 70%, #081b2c 100%); }
+  radial-gradient(1200px 800px at 50% 30%, var(--sea) 0%, var(--sea-2) 70%, #123a55 100%); }
 .map-wrap::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
   box-shadow: inset 0 0 160px 30px rgba(3,12,22,.65);
@@ -176,18 +176,18 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 0;
 .sea-route { stroke: rgba(150,210,235,.5); stroke-width: 2; stroke-dasharray: 4 6; fill: none; }
 .terr { cursor: pointer; }
 .terr path.region {
-  stroke: rgba(255,255,255,.55); stroke-width: 0.8; stroke-linejoin: round;
+  stroke: rgba(0,0,0,.55); stroke-width: 0.8; stroke-linejoin: round;
   transition: filter .12s ease, stroke .12s ease, stroke-width .12s ease;
 }
 .terr:hover path.region { filter: brightness(1.18) drop-shadow(0 2px 5px rgba(0,0,0,.5)); }
 .terr text.count {
-  fill: #fff; font-weight: 800; font-size: 13px; text-anchor: middle;
+  fill: #fff; font-weight: 800; font-size: 11px; text-anchor: middle;
   dominant-baseline: central; pointer-events: none;
   paint-order: stroke; stroke: rgba(0,0,0,.85); stroke-width: 3px;
 }
 .terr text.label {
-  fill: rgba(255,255,255,.9); font-size: 9px; text-anchor: middle; pointer-events: none;
-  paint-order: stroke; stroke: rgba(0,0,0,.75); stroke-width: 2.5px; font-weight: 700;
+  fill: #fff; font-size: 7px; text-anchor: middle; pointer-events: none;
+  font-weight: 700;
 }
 .terr.selected path.region { stroke: #fff; stroke-width: 3.5; filter: brightness(1.2) drop-shadow(0 0 6px #fff); }
 .terr.target path.region { stroke: var(--danger); stroke-width: 2.5; stroke-dasharray: 4 2; filter: drop-shadow(0 0 5px var(--danger)); }

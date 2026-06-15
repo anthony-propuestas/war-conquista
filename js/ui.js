@@ -77,7 +77,9 @@ export class UI {
       const region = svg("path", { class: "region", d: TERRITORY_SHAPES[id] || "" });
       if (TERRITORY_CLIPS[id]) region.setAttribute("clip-path", `url(#clip-${id})`);
       const count = svg("text", { class: "count", x: c[0], y: c[1] });
-      g.append(region, count);
+      const label = svg("text", { class: "label", x: c[0], y: c[1] - 9 });
+      label.textContent = t.name;
+      g.append(region, label, count);
       g.addEventListener("click", (e) => this.onTerritoryClick(id, e));
       layer.appendChild(g);
       this.nodes[id] = { g, region, count };

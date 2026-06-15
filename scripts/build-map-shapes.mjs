@@ -117,14 +117,7 @@ const SPLITS = {
 // Ajustes manuales del centro de la etiqueta (coords proyectadas del viewBox).
 // Normalmente vacio: polylabel ya garantiza un punto interior. Usar solo si
 // alguna etiqueta concreta queda esteticamente mal pese a estar dentro.
-const CENTER_OVERRIDES = {
-  // polylabel dejo estas etiquetas sobre el vecino: yakutsk caia en el borde
-  // oeste (encima de siberia) y este_eeuu pegado a oeste_eeuu. Centradas a mano.
-  este_eeuu: [292, 150],
-  yakutsk: [749, 76],
-  australia_oeste: [821, 360],
-  australia_este: [866, 356],
-};
+const CENTER_OVERRIDES = {};
 
 // ---------- utilidades de geometria ----------
 function polygonsOf(feature) {
@@ -317,9 +310,19 @@ function buildSplit(def) {
     return { d: "", center: [0, 0], clip: null };
   }
 
-  // etiqueta = punto interior del mayor trozo recortado (visible), no el centro
-  // de la caja lon/lat (que cae sobre la costa estrecha)
-  const center = labelPointFromPolys(rings.map((r) => [r])) ?? [0, 0];
+  // etiqueta: los splits son rectangulos geograficos, asi que el CENTRO del
+  // bounding-box de la mayor pieza queda visualmente centrado. polylabel (max
+  // holgura) lo dejaba pegado a un lado / sobre el vecino. Si el centro del bbox
+  // cae dentro de la pieza lo usamos; si no (p.ej. Canada -> Bahia de Hudson),
+  // caemos al polo de inaccesibilidad, que garantiza un punto interior.
+  let biggest = null, bigA = -Infinity;
+  for (const r of rings) { const a = ringAreaProj(r); if (a > bigA) { bigA = a; biggest = r; } }
+  const xs2 = biggest.map((p) => p[0]), ys2 = biggest.map((p) => p[1]);
+  const bx = (Math.min(...xs2) + Math.max(...xs2)) / 2;
+  const by = (Math.min(...ys2) + Math.max(...ys2)) / 2;
+  const center = pointToPolyDist(bx, by, [biggest]) > 0
+    ? [fmt(bx), fmt(by)]
+    : labelPointFromPolys(rings.map((r) => [r])) ?? [0, 0];
   return { d: rings.map(ringToPath).join(" "), center, clip: null };
 }
 
