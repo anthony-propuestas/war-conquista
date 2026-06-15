@@ -173,31 +173,27 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 0;
 
 /* ---------- Mapa SVG ---------- */
 .graticule line { stroke: rgba(120,180,220,.07); stroke-width: 1; }
-.shoreline { fill: none; stroke: rgba(150,210,235,.45); stroke-width: 10; filter: blur(6px); }
-.landmass { stroke: rgba(8,18,28,.55); stroke-width: 1.5; stroke-linejoin: round; }
-.adj-line { stroke: rgba(255,255,255,.13); stroke-width: 1.3; stroke-dasharray: 3 5; }
+.sea-route { stroke: rgba(150,210,235,.5); stroke-width: 2; stroke-dasharray: 4 6; fill: none; }
 .terr { cursor: pointer; }
-.terr circle.node {
-  stroke: rgba(255,255,255,.85); stroke-width: 2.5;
-  filter: drop-shadow(0 2px 3px rgba(0,0,0,.55));
-  transition: r .12s ease, filter .12s ease, stroke .12s ease;
+.terr path.region {
+  stroke: rgba(255,255,255,.55); stroke-width: 0.8; stroke-linejoin: round;
+  transition: filter .12s ease, stroke .12s ease, stroke-width .12s ease;
 }
-.terr:hover circle.node { filter: brightness(1.15) drop-shadow(0 2px 5px rgba(0,0,0,.6)); }
+.terr:hover path.region { filter: brightness(1.18) drop-shadow(0 2px 5px rgba(0,0,0,.5)); }
 .terr text.count {
-  fill: #fff; font-weight: 800; font-size: 16px; text-anchor: middle;
+  fill: #fff; font-weight: 800; font-size: 13px; text-anchor: middle;
   dominant-baseline: central; pointer-events: none;
-  text-shadow: 0 1px 3px rgba(0,0,0,.9);
+  paint-order: stroke; stroke: rgba(0,0,0,.85); stroke-width: 3px;
 }
 .terr text.label {
-  fill: #eef4fb; font-size: 10.5px; text-anchor: middle; pointer-events: none;
-  paint-order: stroke; stroke: rgba(0,0,0,.7); stroke-width: 3px; font-weight: 600;
+  fill: rgba(255,255,255,.9); font-size: 9px; text-anchor: middle; pointer-events: none;
+  paint-order: stroke; stroke: rgba(0,0,0,.75); stroke-width: 2.5px; font-weight: 700;
 }
-.terr.selectable circle.node { stroke: var(--accent); stroke-width: 4; filter: drop-shadow(0 0 5px var(--accent)); }
-.terr.selected circle.node { stroke: #fff; stroke-width: 5; filter: brightness(1.2) drop-shadow(0 0 7px #fff); }
-.terr.target circle.node { stroke: var(--danger); stroke-width: 4; stroke-dasharray: 3 2; filter: drop-shadow(0 0 5px var(--danger)); }
-.terr.dim { opacity: .35; }
+.terr.selected path.region { stroke: #fff; stroke-width: 3.5; filter: brightness(1.2) drop-shadow(0 0 6px #fff); }
+.terr.target path.region { stroke: var(--danger); stroke-width: 2.5; stroke-dasharray: 4 2; filter: drop-shadow(0 0 5px var(--danger)); }
+.terr.dim { opacity: .3; }
 .continent-label {
-  fill: rgba(255,255,255,.82); font-size: 12px; font-weight: 700; letter-spacing: 2px;
+  fill: rgba(255,255,255,.82); font-size: 11px; font-weight: 700; letter-spacing: 2px;
   text-anchor: middle; pointer-events: none; text-transform: uppercase;
   paint-order: stroke; stroke: rgba(6,16,26,.55); stroke-width: 3px;
 }

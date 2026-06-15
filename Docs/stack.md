@@ -9,7 +9,7 @@ bundler. El navegador carga los ES Modules directamente.
 |---|---|---|
 | Lenguaje | HTML + CSS + JavaScript puro | Juego pequeño; un framework sería sobrepeso. |
 | Módulos | ES Modules nativos (`"type": "module"`) | `import`/`export` en el navegador sin transpilar. |
-| Render del mapa | SVG construido por DOM API en `js/ui.js` | Vectorial, escalable, sin librería de gráficos. |
+| Render del mapa | SVG por DOM API en `js/ui.js`, con paths **pregenerados** en `js/map-shapes.js` | Vectorial y escalable. Las formas reales del mundo se calculan offline (ver build abajo); el navegador no carga ninguna librería de gráficos. |
 | Estilos | CSS plano (`css/style.css`) | Sin preprocesador ni utilidades. |
 | Tipografía | **Google Fonts** (`Cinzel`, `Oswald`) vía `<link>` en `index.html` | Títulos/UI; se cargan desde el CDN de Google (con `preconnect`), no están auto-hospedadas. Única dependencia externa en runtime. |
 
@@ -27,13 +27,24 @@ estático basta para jugar (sin salón de la fama); las fuentes requieren conexi
 
 ## Dependencias
 
-`package.json` declara **una sola devDependency**: `wrangler ^4` (CLI de Cloudflare
-para dev local y deploy). No hay dependencias de runtime.
+**Ninguna dependencia de runtime**: el navegador no descarga librerías (solo las
+fuentes de Google). Las `devDependencies` existen para tareas locales:
+
+| devDependency | Para qué |
+|---|---|
+| `wrangler ^4` | CLI de Cloudflare: dev local, deploy y gestión de D1. |
+| `d3-geo`, `d3-geo-projection` | Proyección `geoNaturalEarth1` y recorte por antimeridiano al generar el mapa. |
+| `topojson-client` | Disuelve fronteras internas (`merge`) y decodifica TopoJSON al generar el mapa. |
+| `world-atlas` | Datos Natural Earth (dominio público) que alimentan el generador. |
+
+Las cuatro últimas solo las usa `scripts/build-map-shapes.mjs` (build del mapa, ver
+abajo); no llegan al cliente ni al deploy.
 
 ## Scripts (`package.json`)
 
 | Script | Acción |
 |---|---|
+| `npm run build:map` | `node scripts/build-map-shapes.mjs` — regenera `js/map-shapes.js` desde Natural Earth. Dev-only; correr solo si cambia el reparto de territorios. |
 | `npm run dev` | `wrangler pages dev .` — sirve estáticos + Functions + D1 local. |
 | `npm run deploy` | `wrangler pages deploy .` — publica a Pages. |
 | `npm test` | `node --test` sobre `tests/**/*.test.js` (runner integrado, sin deps). |

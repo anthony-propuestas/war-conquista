@@ -102,3 +102,13 @@ Para cada cambio que toque la superficie de ataque:
   **Hallazgo:** `winner.name` se renderiza **sin escapar** en el modal de victoria de
   `main.js` (`onGameOver`) — self-XSS de bajo impacto en hotseat; registrado en *Riesgos
   conocidos* a la espera de decisión. Sin cambios en backend, queries ni cabeceras.
+- **2026-06-15** — Mapa con geometría real: `ui.js` deja de generar costas procedurales y
+  consume paths pregenerados de `js/map-shapes.js` (nuevo, generado por
+  `scripts/build-map-shapes.mjs`); nuevas `devDependencies` de build (`d3-geo`,
+  `d3-geo-projection`, `topojson-client`, `world-atlas`). **Hallazgo: ninguno en runtime.**
+  Las formas son datos estáticos del repo (no input de usuario) asignadas vía `setAttribute`,
+  no introducen sink de DOM nuevo; el sink de `name` en `updateBanner()` sigue escapado. Las
+  cuatro dependencias nuevas son **superficie de cadena de suministro solo en build** (las
+  usa exclusivamente el script `.mjs` dev-only; no se cargan en el cliente ni se despliegan).
+  Sin cambios en backend, queries, esquema ni cabeceras. El self-XSS de `winner.name` sigue
+  pendiente (no tocado en esta sesión).

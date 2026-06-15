@@ -89,10 +89,12 @@ WAR/
 ├── css/style.css           # estilos
 ├── js/
 │   ├── map-data.js         # territorios, continentes, adyacencias
+│   ├── map-shapes.js       # formas SVG del mapa (generado, no editar a mano)
 │   ├── game.js             # motor del juego (lógica pura)
 │   ├── ui.js               # render del mapa SVG e interacción
 │   └── main.js             # arranque y leaderboard
 ├── functions/api/scores.js # Cloudflare Pages Function (D1)
+├── scripts/build-map-shapes.mjs # genera js/map-shapes.js (npm run build:map)
 ├── tests/                  # tests unitarios (node --test)
 ├── Docs/                   # documentación del proyecto
 ├── schema.sql              # esquema de la base de datos

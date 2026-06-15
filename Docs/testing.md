@@ -18,7 +18,8 @@ Los tests viven en `tests/` (versionados, excluidos del deploy vía `.assetsigno
 | tests/map-data.test.js | js/map-data.js | 5 | ✅ |
 | tests/game.test.js | js/game.js | 19 | ✅ |
 | tests/api/scores.test.js | functions/api/scores.js | 9 | ✅ |
-| **Total** | | **33** | ✅ |
+| tests/map-shapes.test.js | js/map-shapes.js | 4 | ✅ |
+| **Total** | | **37** | ✅ |
 
 ## Pendiente (diferido)
 
@@ -26,9 +27,9 @@ Los tests viven en `tests/` (versionados, excluidos del deploy vía `.assetsigno
 requieren un DOM simulado (p. ej. jsdom). Se testearán cuando un cambio en ellos
 lo amerite y sea estable bajo DOM simulado.
 
-`js/ui.js` incorporó helpers de geometría/color **puros** (`convexHull`,
-`expandCoast`, `smoothClosedPath`, `mixColor`/`lighten`/`darken`) que sí serían
-testeables sin DOM, pero hoy son privados del módulo (no exportados) y conviven con
-código que toca `document`. **Decisión:** no se añaden tests ni se instala jsdom
-todavía; si esta geometría crece, extraerla a un módulo propio (p. ej. `js/geo.js`)
-y cubrirla con `node --test`. El total de la suite no cambia (sigue en 33).
+La geometría del mapa se extrajo de `js/ui.js` a `js/map-shapes.js` (datos generados
+por `scripts/build-map-shapes.mjs` a partir de Natural Earth). `ui.js` ya solo consume
+esas formas, así que los helpers puros que antes vivían inline (`convexHull`,
+`expandCoast`, `smoothClosedPath`, `mixColor`/`lighten`/`darken`) desaparecieron. La
+validación de las formas (todas dentro del viewBox, la etiqueta cae dentro de su zona,
+sin formas huérfanas, rutas marítimas adyacentes) la cubre `tests/map-shapes.test.js`.

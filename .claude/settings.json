@@ -1,7 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git -C \"c:/Users/dell/Desktop/PPORGAMACION/proyectos de prueva/WAR\" remote -v)"
+      "Bash(git -C \"c:/Users/dell/Desktop/PPORGAMACION/proyectos de prueva/WAR\" remote -v)",
+      "Bash(node -e ' *)",
+      "Bash(node scripts/build-map-shapes.mjs)",
+      "Bash(curl -s http://localhost:8788/js/map-shapes.js)",
+      "Bash(curl -s http://localhost:8788/)",
+      "Bash(node -e \"console.log\\(require\\('d3-geo-projection/package.json'\\).version\\)\")",
+      "Read(//tmp/**)",
+      "Read(//c/tmp/**)",
+      "Bash(node -e \"import\\('./js/map-shapes.js'\\).then\\(m=>console.log\\('oeste_eeuu center=',m.TERRITORY_CENTERS.oeste_eeuu\\)\\)\")"
     ]
   }
 }

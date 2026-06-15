@@ -3,6 +3,7 @@
 // ============================================================
 
 import { TERRITORIES, CONTINENTS, ADJACENCY } from "./map-data.js";
+import { TERRITORY_SHAPES, TERRITORY_CENTERS, MAP_VIEWBOX, SEA_ROUTES, TERRITORY_CLIPS } from "./map-shapes.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const CARD_ICON = { infanteria: "🪖", caballeria: "🐎", artilleria: "💣" };
@@ -13,67 +14,6 @@ function svg(tag, attrs = {}) {
   return e;
 }
 const $ = (sel) => document.querySelector(sel);
-
-// ----- geometria del mapa: costas organicas por continente -----
-function convexHull(points) {
-  const pts = points.slice().sort((a, b) => a.x - b.x || a.y - b.y);
-  if (pts.length <= 3) return pts;
-  const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
-  const lower = [];
-  for (const p of pts) {
-    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop();
-    lower.push(p);
-  }
-  const upper = [];
-  for (let i = pts.length - 1; i >= 0; i--) {
-    const p = pts[i];
-    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop();
-    upper.push(p);
-  }
-  lower.pop(); upper.pop();
-  return lower.concat(upper);
-}
-
-// expande el casco hacia afuera (mas puntos + ruido) -> costa irregular
-function expandCoast(hull, pad) {
-  const cx = hull.reduce((s, p) => s + p.x, 0) / hull.length;
-  const cy = hull.reduce((s, p) => s + p.y, 0) / hull.length;
-  const dense = [];
-  for (let i = 0; i < hull.length; i++) {
-    const a = hull[i], b = hull[(i + 1) % hull.length];
-    dense.push(a, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
-  }
-  return dense.map((p) => {
-    const dx = p.x - cx, dy = p.y - cy;
-    const len = Math.hypot(dx, dy) || 1;
-    const noise = Math.sin(p.x * 12.9898 + p.y * 78.233) * 43758.5453;
-    const jit = ((noise - Math.floor(noise)) - 0.5) * 30;
-    const dist = pad + jit;
-    return { x: p.x + (dx / len) * dist, y: p.y + (dy / len) * dist };
-  });
-}
-
-// spline cerrada Catmull-Rom -> path SVG suave
-function smoothClosedPath(pts) {
-  const n = pts.length;
-  let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)} `;
-  for (let i = 0; i < n; i++) {
-    const p0 = pts[(i - 1 + n) % n], p1 = pts[i], p2 = pts[(i + 1) % n], p3 = pts[(i + 2) % n];
-    const c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6;
-    const c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
-    d += `C ${c1x.toFixed(1)} ${c1y.toFixed(1)} ${c2x.toFixed(1)} ${c2y.toFixed(1)} ${p2.x.toFixed(1)} ${p2.y.toFixed(1)} `;
-  }
-  return d + "Z";
-}
-
-function hexToRgb(h) { h = h.replace("#", ""); return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; }
-function mixColor(hex, target, t) {
-  const c = hexToRgb(hex);
-  const ch = (i) => Math.round(c[i] + (target[i] - c[i]) * t);
-  return `rgb(${ch(0)},${ch(1)},${ch(2)})`;
-}
-const lighten = (hex, t) => mixColor(hex, [255, 255, 255], t);
-const darken = (hex, t) => mixColor(hex, [12, 22, 34], t);
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -97,80 +37,66 @@ export class UI {
   buildMap() {
     const map = $("#map");
     map.innerHTML = "";
+    map.setAttribute("viewBox", MAP_VIEWBOX);
+    const [, , W, H] = MAP_VIEWBOX.split(" ").map(Number);
 
-    // 0) defs: sombra de tierra + degradado de relieve por continente
+    // 0) defs: sombra de tierra + clipPaths para territorios partidos
     const defs = svg("defs");
-    const shadow = svg("filter", { id: "landShadow", x: "-25%", y: "-25%", width: "150%", height: "150%" });
+    const shadow = svg("filter", { id: "landShadow", x: "-20%", y: "-20%", width: "140%", height: "140%" });
     shadow.appendChild(svg("feDropShadow", {
-      dx: 0, dy: 7, stdDeviation: 11, "flood-color": "#03101c", "flood-opacity": "0.5",
+      dx: 0, dy: 5, stdDeviation: 7, "flood-color": "#03101c", "flood-opacity": "0.45",
     }));
     defs.appendChild(shadow);
-    for (const [cid, cont] of Object.entries(CONTINENTS)) {
-      const lg = svg("linearGradient", { id: `grad-${cid}`, x1: 0, y1: 0, x2: 0, y2: 1 });
-      lg.appendChild(svg("stop", { offset: "0%", "stop-color": lighten(cont.color, 0.45) }));
-      lg.appendChild(svg("stop", { offset: "52%", "stop-color": cont.color }));
-      lg.appendChild(svg("stop", { offset: "100%", "stop-color": darken(cont.color, 0.4) }));
-      defs.appendChild(lg);
+    for (const [id, r] of Object.entries(TERRITORY_CLIPS)) {
+      const cp = svg("clipPath", { id: `clip-${id}` });
+      cp.appendChild(svg("rect", { x: r[0], y: r[1], width: r[2] - r[0], height: r[3] - r[1] }));
+      defs.appendChild(cp);
     }
     map.appendChild(defs);
 
     // 1) oceano: reticula de meridianos y paralelos
     const grid = svg("g", { class: "graticule" });
-    for (let x = 0; x <= 1100; x += 100) grid.appendChild(svg("line", { x1: x, y1: 0, x2: x, y2: 640 }));
-    for (let y = 0; y <= 640; y += 80) grid.appendChild(svg("line", { x1: 0, y1: y, x2: 1100, y2: y }));
+    for (let x = 0; x <= W; x += 100) grid.appendChild(svg("line", { x1: x, y1: 0, x2: x, y2: H }));
+    for (let y = 0; y <= H; y += 70) grid.appendChild(svg("line", { x1: 0, y1: y, x2: W, y2: y }));
     map.appendChild(grid);
 
-    // 2) masas de tierra: casco convexo suavizado por continente
-    const land = svg("g", { filter: "url(#landShadow)" });
-    const labels = svg("g");
-    for (const [cid, cont] of Object.entries(CONTINENTS)) {
-      const ids = Object.keys(TERRITORIES).filter((id) => TERRITORIES[id].continent === cid);
-      const pts = ids.map((id) => ({ x: TERRITORIES[id].x, y: TERRITORIES[id].y }));
-      const coast = expandCoast(convexHull(pts), 58);
-      const d = smoothClosedPath(coast);
-      land.appendChild(svg("path", { d, class: "shoreline" }));
-      land.appendChild(svg("path", { d, class: "landmass", fill: `url(#grad-${cid})` }));
-      const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
-      const minY = Math.min(...pts.map((p) => p.y));
-      const label = svg("text", { x: cx, y: minY - 30, class: "continent-label" });
-      label.textContent = `${cont.name.toUpperCase()}  +${cont.bonus}`;
-      labels.appendChild(label);
+    // 2) rutas maritimas (conexiones por agua; van debajo de la tierra)
+    const sea = svg("g", { class: "sea-routes" });
+    for (const [a, b] of SEA_ROUTES) {
+      const ca = TERRITORY_CENTERS[a], cb = TERRITORY_CENTERS[b];
+      if (!ca || !cb) continue;
+      sea.appendChild(svg("line", { x1: ca[0], y1: ca[1], x2: cb[0], y2: cb[1], class: "sea-route" }));
     }
-    map.appendChild(land);
-    map.appendChild(labels);
+    map.appendChild(sea);
 
-    // 3) rutas de adyacencia (cada par una vez)
-    const lines = svg("g");
-    const seen = new Set();
-    for (const [from, neighbors] of Object.entries(ADJACENCY)) {
-      for (const to of neighbors) {
-        const key = [from, to].sort().join("|");
-        if (seen.has(key)) continue;
-        seen.add(key);
-        const a = TERRITORIES[from], b = TERRITORIES[to];
-        // no dibujar lineas que cruzan todo el mapa (ej. Alaska-Kamchatka)
-        if (Math.abs(a.x - b.x) > 520) continue;
-        lines.appendChild(svg("line", {
-          x1: a.x, y1: a.y, x2: b.x, y2: b.y, class: "adj-line",
-        }));
-      }
-    }
-    map.appendChild(lines);
-
-    // 4) territorios
-    const layer = svg("g");
+    // 3) territorios: silueta geografica real (path) + contador + nombre
+    const layer = svg("g", { filter: "url(#landShadow)" });
     for (const [id, t] of Object.entries(TERRITORIES)) {
+      const c = TERRITORY_CENTERS[id] || [0, 0];
       const g = svg("g", { class: "terr", "data-id": id });
-      const circle = svg("circle", { class: "node", cx: t.x, cy: t.y, r: 20 });
-      const count = svg("text", { class: "count", x: t.x, y: t.y });
-      const label = svg("text", { class: "label", x: t.x, y: t.y + 34 });
-      label.textContent = t.name;
-      g.append(circle, count, label);
+      const region = svg("path", { class: "region", d: TERRITORY_SHAPES[id] || "" });
+      if (TERRITORY_CLIPS[id]) region.setAttribute("clip-path", `url(#clip-${id})`);
+      const count = svg("text", { class: "count", x: c[0], y: c[1] });
+      g.append(region, count);
       g.addEventListener("click", (e) => this.onTerritoryClick(id, e));
       layer.appendChild(g);
-      this.nodes[id] = { g, circle, count };
+      this.nodes[id] = { g, region, count };
     }
     map.appendChild(layer);
+
+    // 4) etiquetas de continente (sobre el centroide de sus territorios)
+    const contLabels = svg("g");
+    for (const [cid, cont] of Object.entries(CONTINENTS)) {
+      const ids = Object.keys(TERRITORIES).filter((id) => TERRITORIES[id].continent === cid);
+      const cs = ids.map((id) => TERRITORY_CENTERS[id]).filter(Boolean);
+      if (!cs.length) continue;
+      const cx = cs.reduce((s, p) => s + p[0], 0) / cs.length;
+      const minY = Math.min(...cs.map((p) => p[1]));
+      const label = svg("text", { x: cx, y: minY - 18, class: "continent-label" });
+      label.textContent = `${cont.name.toUpperCase()}  +${cont.bonus}`;
+      contLabels.appendChild(label);
+    }
+    map.appendChild(contLabels);
   }
 
   bindStatic() {
@@ -194,7 +120,7 @@ export class UI {
     for (const [id, node] of Object.entries(this.nodes)) {
       const cell = g.board[id];
       const owner = cell.owner != null ? g.players[cell.owner] : null;
-      node.circle.setAttribute("fill", owner ? owner.color : "#5a6b7d");
+      node.region.setAttribute("fill", owner ? owner.color : "#5a6b7d");
       node.count.textContent = cell.armies;
       node.g.classList.remove("selectable", "selected", "target", "dim");
     }
