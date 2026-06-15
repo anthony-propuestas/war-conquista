@@ -117,7 +117,14 @@ const SPLITS = {
 // Ajustes manuales del centro de la etiqueta (coords proyectadas del viewBox).
 // Normalmente vacio: polylabel ya garantiza un punto interior. Usar solo si
 // alguna etiqueta concreta queda esteticamente mal pese a estar dentro.
-const CENTER_OVERRIDES = {};
+const CENTER_OVERRIDES = {
+  // polylabel dejo estas etiquetas sobre el vecino: yakutsk caia en el borde
+  // oeste (encima de siberia) y este_eeuu pegado a oeste_eeuu. Centradas a mano.
+  este_eeuu: [292, 150],
+  yakutsk: [749, 76],
+  australia_oeste: [821, 360],
+  australia_este: [866, 356],
+};
 
 // ---------- utilidades de geometria ----------
 function polygonsOf(feature) {

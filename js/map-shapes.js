@@ -84,18 +84,18 @@ export const TERRITORY_CENTERS = {
   nueva_guinea: [885.2, 297.9],
   alaska: [183.4, 79.8],
   oeste_eeuu: [236.9, 155.3],
-  este_eeuu: [267.3, 156.4],
+  este_eeuu: [292, 150],
   noroeste: [235.2, 81.6],
   alberta: [247, 111.4],
   ontario: [280.2, 112.1],
   quebec: [339.7, 110.7],
   ural: [601.9, 100.8],
   siberia: [700.6, 88.2],
-  yakutsk: [700.6, 77.2],
+  yakutsk: [749, 76],
   irkutsk: [760.9, 113.8],
   kamchatka: [791, 88.3],
-  australia_oeste: [834.2, 356.8],
-  australia_este: [849.9, 354.1],
+  australia_oeste: [821, 360],
+  australia_este: [866, 356],
 };
 
 export const SEA_ROUTES = [["alaska","kamchatka"],["groenlandia","islandia"],["brasil","africa_norte"],["europa_sur","africa_norte"],["europa_sur","egipto"],["africa_este","medio_oriente"],["siam","indonesia"],["indonesia","australia_oeste"],["nueva_guinea","australia_este"],["japon","kamchatka"],["japon","mongolia"],["granbretana","islandia"],["granbretana","europa_norte"]];
