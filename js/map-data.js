@@ -140,7 +140,7 @@ export const INITIAL_ARMIES = { 2: 40, 3: 35, 4: 30, 5: 25, 6: 20 };
 // Colores de jugadores
 export const PLAYER_COLORS = [
   "#e63946", // rojo
-  "#457b9d", // azul
+  "#f77f00", // naranja
   "#2a9d8f", // verde
   "#e9c46a", // amarillo
   "#9d4edd", // morado
