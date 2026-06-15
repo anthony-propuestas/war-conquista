@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C \"c:/Users/dell/Desktop/PPORGAMACION/proyectos de prueva/WAR\" remote -v)"
+    ]
+  }
+}
