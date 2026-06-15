@@ -37,6 +37,8 @@ Sube todo el directorio (`pages_build_output_dir = "."`). `tests/` se excluye v�
 
 - **`_headers`** se aplica en el deploy (seguridad + caché de `/assets/*`); ver
   [environment.md](environment.md).
+- **`_redirects`** redirige `/ → /home` (302). Cloudflare Pages lo procesa
+  automáticamente; no requiere configuración adicional.
 - **Demo en vivo:** https://war-conquista.pages.dev
 - **Secrets de Google OAuth:** antes del primer deploy con auth activo, ejecutar:
   ```bash

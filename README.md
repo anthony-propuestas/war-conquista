@@ -95,7 +95,9 @@ npm run deploy
 
 ```
 WAR/
+├── home/index.html         # landing page (/home) — primera pantalla pública
 ├── index.html              # estructura (pantalla inicio + juego)
+├── login.html              # pantalla de login con Google OAuth
 ├── css/style.css           # estilos
 ├── js/
 │   ├── map-data.js         # territorios, continentes, adyacencias
@@ -103,7 +105,6 @@ WAR/
 │   ├── game.js             # motor del juego (lógica pura)
 │   ├── ui.js               # render del mapa SVG e interacción
 │   └── main.js             # arranque y leaderboard
-├── login.html              # pantalla de login con Google OAuth
 ├── functions/api/scores.js # Pages Function: /api/scores (D1)
 ├── functions/api/auth/
 │   ├── google.js           # inicia OAuth con Google
@@ -114,6 +115,7 @@ WAR/
 ├── schema.sql              # esquema de la base de datos
 ├── wrangler.toml           # configuración de Cloudflare
 ├── _headers                # cabeceras de seguridad/caché
+├── _redirects              # redirige / → /home (Cloudflare Pages)
 └── .assetsignore           # excluye tests/ del deploy de Pages
 ```
 

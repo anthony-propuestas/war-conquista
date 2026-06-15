@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WAR · Conquista el Mundo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Oswald:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d1b2a;
+      --bg-2: #13263b;
+      --panel: #1b2c40;
+      --panel-2: #22384f;
+      --ink: #e8edf3;
+      --ink-dim: #9fb2c6;
+      --line: #2f4a66;
+      --sea: #3a7ca5;
+      --sea-2: #1f5478;
+      --accent: #e9c46a;
+      --accent-2: #f4a261;
+      --danger: #e63946;
+      --ok: #2a9d8f;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      overflow-x: hidden;
+    }
+
+    /* ── Botón Acceso fijo ── */
+    .access-btn {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 100;
+      font-family: "Oswald", sans-serif;
+      font-size: .82rem;
+      font-weight: 500;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      text-decoration: none;
+      color: var(--ink);
+      background: rgba(27,44,64,.88);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 9px 20px;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      transition: border-color .2s, color .2s, background .2s;
+    }
+    .access-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(27,44,64,.98);
+    }
+
+    /* ── Botones generales ── */
+    .btn {
+      font-family: "Oswald", sans-serif;
+      font-size: 1rem;
+      font-weight: 500;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      text-decoration: none;
+      display: inline-block;
+      padding: 14px 32px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      cursor: pointer;
+      transition: filter .15s, background .15s, border-color .15s, color .15s, transform .1s;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary {
+      background: linear-gradient(180deg, var(--accent), var(--accent-2));
+      color: #2a1c00;
+      border: none;
+    }
+    .btn-primary:hover { filter: brightness(1.08); }
+    .btn-ghost {
+      background: transparent;
+      color: var(--ink);
+    }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative;
+      min-height: 100svh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 80px 24px 80px;
+      overflow: hidden;
+    }
+
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 90% 70% at 50% 25%, #1a3a5c 0%, transparent 65%),
+        radial-gradient(ellipse 60% 60% at 80% 80%, rgba(244,162,97,.05) 0%, transparent 60%),
+        var(--bg);
+    }
+
+    .hero-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(58,124,165,.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(58,124,165,.045) 1px, transparent 1px);
+      background-size: 52px 52px;
+      pointer-events: none;
+    }
+
+    /* Mapa-mundo SVG fantasma */
+    .hero-ghost {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: .055;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .hero-ghost svg {
+      width: 130%;
+      max-width: 1500px;
+      height: auto;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      max-width: 780px;
+    }
+
+    .hero-eyebrow {
+      font-family: "Oswald", sans-serif;
+      font-size: .75rem;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--accent);
+      opacity: .85;
+      margin-bottom: 22px;
+      animation: fadeUp .5s ease .1s both;
+    }
+
+    .hero-logo {
+      font-family: "Cinzel", Georgia, serif;
+      font-size: clamp(5.5rem, 16vw, 10rem);
+      font-weight: 800;
+      letter-spacing: .12em;
+      line-height: 1;
+      background: linear-gradient(170deg, #f5d87a 0%, var(--accent) 40%, var(--accent-2) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      filter: drop-shadow(0 6px 40px rgba(233,196,106,.28));
+      margin-bottom: 10px;
+      animation: fadeUp .6s ease .22s both;
+    }
+
+    .hero-subtitle {
+      font-family: "Cinzel", Georgia, serif;
+      font-size: clamp(.95rem, 2.6vw, 1.35rem);
+      font-weight: 600;
+      letter-spacing: .08em;
+      color: var(--ink-dim);
+      margin-bottom: 18px;
+      animation: fadeUp .5s ease .35s both;
+    }
+
+    .hero-tagline {
+      font-size: clamp(1rem, 1.8vw, 1.12rem);
+      color: var(--ink-dim);
+      max-width: 520px;
+      margin: 0 auto 44px;
+      line-height: 1.75;
+      animation: fadeUp .5s ease .45s both;
+    }
+
+    .hero-ctas {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+      animation: fadeUp .5s ease .55s both;
+    }
+
+    .scroll-hint {
+      position: absolute;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 7px;
+      font-family: "Oswald", sans-serif;
+      font-size: .7rem;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      opacity: .38;
+      animation: bounce 2.4s ease-in-out infinite;
+      text-decoration: none;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50% { transform: translateX(-50%) translateY(7px); }
+    }
+
+    /* ── Secciones ── */
+    section { padding: 96px 24px; }
+    .section-inner { max-width: 1100px; margin: 0 auto; }
+
+    .section-label {
+      font-family: "Oswald", sans-serif;
+      font-size: .7rem;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--accent);
+      opacity: .8;
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-family: "Cinzel", Georgia, serif;
+      font-size: clamp(1.7rem, 4vw, 2.7rem);
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 16px;
+    }
+
+    .section-desc {
+      color: var(--ink-dim);
+      font-size: 1.05rem;
+      line-height: 1.75;
+      max-width: 560px;
+      margin-bottom: 56px;
+    }
+
+    /* ── FEATURES ── */
+    .features-section {
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .feature-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 32px 26px;
+      transition: transform .2s ease, border-color .2s;
+    }
+    .feature-card:hover {
+      transform: translateY(-5px);
+      border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+    }
+
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(233,196,106,.14), rgba(244,162,97,.09));
+      border: 1px solid rgba(233,196,106,.18);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .feature-icon svg {
+      width: 22px;
+      height: 22px;
+      stroke: var(--accent);
+      fill: none;
+      stroke-width: 1.6;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .feature-title {
+      font-family: "Oswald", sans-serif;
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+      color: var(--ink);
+      margin-bottom: 10px;
+    }
+
+    .feature-desc {
+      color: var(--ink-dim);
+      font-size: .92rem;
+      line-height: 1.65;
+    }
+
+    /* ── PREVIEW ── */
+    .preview-section {
+      background: var(--bg);
+      text-align: center;
+    }
+    .preview-section .section-desc { margin: 0 auto 52px; }
+
+    .preview-wrapper {
+      position: relative;
+      max-width: 920px;
+      margin: 0 auto;
+    }
+    .preview-glow {
+      position: absolute;
+      inset: -60px;
+      background: radial-gradient(ellipse at 50% 50%, rgba(58,124,165,.22), transparent 70%);
+      pointer-events: none;
+    }
+
+    .preview-frame {
+      position: relative;
+      z-index: 1;
+      border-radius: 14px;
+      border: 2px solid var(--line);
+      box-shadow: 0 40px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.04);
+      overflow: hidden;
+    }
+
+    .preview-titlebar {
+      background: var(--bg-2);
+      border-bottom: 1px solid var(--line);
+      padding: 11px 16px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .preview-dot {
+      width: 11px; height: 11px; border-radius: 50%;
+    }
+    .preview-dot:nth-child(1) { background: var(--danger); }
+    .preview-dot:nth-child(2) { background: var(--accent); }
+    .preview-dot:nth-child(3) { background: var(--ok); }
+    .preview-url {
+      flex: 1;
+      background: rgba(0,0,0,.25);
+      border-radius: 5px;
+      padding: 4px 12px;
+      font-size: .72rem;
+      color: var(--ink-dim);
+      font-family: ui-monospace, "Cascadia Code", monospace;
+      margin-left: 8px;
+      text-align: center;
+      opacity: .7;
+    }
+
+    .preview-map {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: radial-gradient(1200px 800px at 50% 30%, var(--sea) 0%, var(--sea-2) 70%, #123a55 100%);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Chips de territorios al fondo */
+    .map-terr-bg {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-wrap: wrap;
+      align-content: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 28px;
+      filter: blur(1px);
+      opacity: .55;
+    }
+    .t-chip {
+      border-radius: 5px;
+      padding: 5px 10px;
+      font-size: .62rem;
+      font-weight: 800;
+      color: rgba(0,0,0,.65);
+      font-family: "Oswald", sans-serif;
+      letter-spacing: .3px;
+      text-transform: uppercase;
+      border: 1px solid rgba(0,0,0,.15);
+    }
+
+    /* Overlay info sobre el mapa */
+    .preview-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(13,27,42,.1) 0%, rgba(13,27,42,.65) 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      padding: 20px;
+    }
+
+    .preview-stat-line {
+      font-family: "Cinzel", Georgia, serif;
+      font-size: clamp(.85rem, 2vw, 1.2rem);
+      color: rgba(232,237,243,.8);
+      letter-spacing: .08em;
+    }
+
+    .continent-chips {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .c-chip {
+      background: rgba(19,38,59,.85);
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 7px 16px;
+      font-family: "Oswald", sans-serif;
+      font-size: .78rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      backdrop-filter: blur(4px);
+    }
+    .c-chip strong {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    /* ── STATS ── */
+    .stats-section {
+      background: linear-gradient(180deg, var(--bg-2) 0%, var(--bg) 100%);
+      border-top: 1px solid var(--line);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+
+    .stat-block {
+      background: var(--panel);
+      padding: 40px 20px;
+      text-align: center;
+      border-right: 1px solid var(--line);
+      transition: background .2s;
+    }
+    .stat-block:last-child { border-right: none; }
+    .stat-block:hover { background: var(--panel-2); }
+
+    .stat-number {
+      font-family: "Cinzel", Georgia, serif;
+      font-size: 2.8rem;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 10px;
+      background: linear-gradient(180deg, var(--accent), var(--accent-2));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .stat-label {
+      font-family: "Oswald", sans-serif;
+      font-size: .72rem;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+    }
+
+    /* ── CTA FINAL ── */
+    .cta-section {
+      text-align: center;
+      background:
+        radial-gradient(ellipse 80% 100% at 50% 100%, rgba(233,196,106,.07) 0%, transparent 65%),
+        var(--bg);
+      border-top: 1px solid var(--line);
+      padding: 120px 24px;
+    }
+    .cta-section .section-title { max-width: 580px; margin: 0 auto 14px; }
+    .cta-section .section-desc { margin: 0 auto 44px; }
+    .cta-actions {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--bg-2);
+      border-top: 1px solid var(--line);
+      padding: 36px 24px;
+      text-align: center;
+    }
+    .footer-logo {
+      font-family: "Cinzel", Georgia, serif;
+      font-size: 1.45rem;
+      font-weight: 800;
+      letter-spacing: 6px;
+      background: linear-gradient(180deg, var(--accent), var(--accent-2));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin-bottom: 10px;
+    }
+    .footer-copy {
+      font-size: .8rem;
+      color: var(--ink-dim);
+      opacity: .45;
+    }
+
+    /* ── ANIMACIONES ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 900px) {
+      .features-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .stat-block:nth-child(2) { border-right: none; }
+      .stat-block:nth-child(1),
+      .stat-block:nth-child(2) { border-bottom: 1px solid var(--line); }
+      section { padding: 64px 20px; }
+      .continent-chips { gap: 7px; }
+    }
+
+    @media (max-width: 600px) {
+      .stats-grid { grid-template-columns: 1fr; }
+      .stat-block { border-right: none !important; border-bottom: 1px solid var(--line); }
+      .stat-block:last-child { border-bottom: none; }
+      .hero-ctas .btn { width: 100%; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Botón Acceso fijo arriba a la izquierda -->
+  <a href="/login.html" class="access-btn">Acceso →</a>
+
+  <!-- ═══════════════════════ HERO ═══════════════════════ -->
+  <section class="hero">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="hero-grid" aria-hidden="true"></div>
+
+    <!-- Silueta continental fantasma -->
+    <div class="hero-ghost" aria-hidden="true">
+      <svg viewBox="0 0 1000 520" xmlns="http://www.w3.org/2000/svg" fill="var(--ink)">
+        <!-- América del Norte -->
+        <path d="M90,55 L210,38 L290,75 L315,155 L275,210 L235,248 L190,262 L148,228 L105,185 L75,128 Z"/>
+        <!-- Centroamérica -->
+        <path d="M208,248 L248,264 L226,308 L205,338 L183,308 L194,274 Z"/>
+        <!-- América del Sur -->
+        <path d="M205,338 L278,316 L318,358 L328,438 L298,502 L235,512 L192,470 L177,405 L187,365 Z"/>
+        <!-- Groenlandia -->
+        <path d="M365,15 L438,6 L458,48 L416,72 L372,55 Z" opacity=".6"/>
+        <!-- Europa -->
+        <path d="M440,48 L520,38 L548,82 L536,124 L496,144 L454,132 L428,100 Z"/>
+        <!-- África -->
+        <path d="M448,154 L520,142 L558,182 L568,264 L545,346 L505,384 L462,364 L435,302 L424,222 L436,170 Z"/>
+        <!-- Asia (bloque principal) -->
+        <path d="M540,38 L710,18 L830,48 L892,102 L865,182 L786,202 L705,192 L624,182 L572,150 L545,110 Z"/>
+        <!-- India -->
+        <path d="M644,192 L706,180 L724,252 L682,316 L642,282 L622,232 Z"/>
+        <!-- Asia del Sureste -->
+        <path d="M745,202 L818,192 L836,244 L794,282 L752,262 L732,230 Z"/>
+        <!-- Japón -->
+        <path d="M838,96 L864,88 L875,132 L848,150 L824,130 Z" opacity=".7"/>
+        <!-- Oceanía -->
+        <path d="M765,332 L865,312 L906,362 L884,424 L815,444 L764,412 L748,372 Z"/>
+      </svg>
+    </div>
+
+    <div class="hero-content">
+      <p class="hero-eyebrow">Juego de estrategia global multijugador</p>
+
+      <h1 class="hero-logo">WAR·</h1>
+
+      <p class="hero-subtitle">Conquista el Mundo</p>
+
+      <p class="hero-tagline">
+        Lidera ejércitos, domina continentes y escribe tu nombre en la historia.
+        Cada territorio que tomas es un paso hacia la victoria total.
+      </p>
+
+      <div class="hero-ctas">
+        <a href="/index.html" class="btn btn-primary">Jugar Ahora →</a>
+        <a href="#preview" class="btn btn-ghost">Ver el tablero</a>
+      </div>
+    </div>
+
+    <a href="#features" class="scroll-hint" aria-label="Explorar">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M7 2v10M3 8l4 4 4-4"/>
+      </svg>
+      Explorar
+    </a>
+  </section>
+
+  <!-- ═══════════════════════ FEATURES ═══════════════════════ -->
+  <section class="features-section" id="features">
+    <div class="section-inner">
+      <p class="section-label">El juego</p>
+      <h2 class="section-title">Estrategia. Riesgo. Victoria.</h2>
+      <p class="section-desc">
+        Un juego de conquista global para 2 a 6 jugadores. Despliega tropas,
+        lanza ataques y domina el planeta en tiempo real.
+      </p>
+
+      <div class="features-grid">
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <!-- Globo -->
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="9"/>
+              <path d="M12 3a15 15 0 0 1 0 18M3 12a15 15 0 0 0 18 0M3.6 8h16.8M3.6 16h16.8"/>
+            </svg>
+          </div>
+          <p class="feature-title">Mapa Mundial</p>
+          <p class="feature-desc">
+            42 territorios en 6 continentes, cada uno con valor estratégico
+            propio. Controlar un continente completo otorga refuerzos adicionales
+            cada turno.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <!-- Espada / combate -->
+            <svg viewBox="0 0 24 24">
+              <path d="M14.5 17.5L3 6V3h3l11.5 11.5M13 19l2-2M15 21l4-4-1.5-1.5M2 22l5.5-5.5"/>
+            </svg>
+          </div>
+          <p class="feature-title">Combate por Turnos</p>
+          <p class="feature-desc">
+            Refuerza posiciones, lanza ataques con dados y mueve tropas
+            estratégicamente. La fortuna favorece al audaz, pero la
+            planificación gana guerras.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <!-- Trofeo / ranking -->
+            <svg viewBox="0 0 24 24">
+              <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M8 22h8M12 17v5M5 4h14v8a7 7 0 0 1-7 7 7 7 0 0 1-7-7Z"/>
+            </svg>
+          </div>
+          <p class="feature-title">Tabla de Líderes</p>
+          <p class="feature-desc">
+            Registra tus victorias y compite en el ranking global. Demuestra
+            que tu nombre pertenece a la cima de los conquistadores de todos
+            los tiempos.
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════ PREVIEW ═══════════════════════ -->
+  <section class="preview-section" id="preview">
+    <div class="section-inner">
+      <p class="section-label">Vista previa</p>
+      <h2 class="section-title">El mundo, en tus manos</h2>
+      <p class="section-desc">
+        Tablero interactivo con territorios coloreados por jugador,
+        conteos de ejércitos en tiempo real y rutas de ataque activas.
+      </p>
+
+      <div class="preview-wrapper">
+        <div class="preview-glow" aria-hidden="true"></div>
+
+        <div class="preview-frame">
+          <!-- Barra de ventana simulada -->
+          <div class="preview-titlebar">
+            <span class="preview-dot"></span>
+            <span class="preview-dot"></span>
+            <span class="preview-dot"></span>
+            <span class="preview-url">war.pages.dev · Turno 7 · Fase de Ataque</span>
+          </div>
+
+          <!-- Mapa mockup -->
+          <div class="preview-map">
+            <!-- Territorios difuminados de fondo -->
+            <div class="map-terr-bg" aria-hidden="true">
+              <span class="t-chip" style="background:#e9c46a">Alaska</span>
+              <span class="t-chip" style="background:#f4a261">Alberta</span>
+              <span class="t-chip" style="background:#e9c46a">Ontario</span>
+              <span class="t-chip" style="background:#e63946;color:rgba(255,255,255,.75)">Quebec</span>
+              <span class="t-chip" style="background:#e9c46a">Oeste EE.UU.</span>
+              <span class="t-chip" style="background:#f4a261">Este EE.UU.</span>
+              <span class="t-chip" style="background:#2a9d8f;color:rgba(255,255,255,.8)">Venezuela</span>
+              <span class="t-chip" style="background:#e63946;color:rgba(255,255,255,.75)">Brasil</span>
+              <span class="t-chip" style="background:#2a9d8f;color:rgba(255,255,255,.8)">Perú</span>
+              <span class="t-chip" style="background:#e9c46a">Argentina</span>
+              <span class="t-chip" style="background:#f4a261">Gran Bretaña</span>
+              <span class="t-chip" style="background:#e63946;color:rgba(255,255,255,.75)">Ucrania</span>
+              <span class="t-chip" style="background:#2a9d8f;color:rgba(255,255,255,.8)">Europa Occ.</span>
+              <span class="t-chip" style="background:#e9c46a">Siberia</span>
+              <span class="t-chip" style="background:#f4a261">Yakutsk</span>
+              <span class="t-chip" style="background:#e9c46a">Kamchatka</span>
+              <span class="t-chip" style="background:#e63946;color:rgba(255,255,255,.75)">China</span>
+              <span class="t-chip" style="background:#f4a261">Mongolia</span>
+              <span class="t-chip" style="background:#2a9d8f;color:rgba(255,255,255,.8)">Japón</span>
+              <span class="t-chip" style="background:#e9c46a">India</span>
+              <span class="t-chip" style="background:#f4a261">Siam</span>
+              <span class="t-chip" style="background:#e63946;color:rgba(255,255,255,.75)">Indonesia</span>
+              <span class="t-chip" style="background:#2a9d8f;color:rgba(255,255,255,.8)">Nueva Guinea</span>
+              <span class="t-chip" style="background:#e9c46a">Australia Este</span>
+              <span class="t-chip" style="background:#f4a261">Australia Oeste</span>
+              <span class="t-chip" style="background:#e63946;color:rgba(255,255,255,.75)">África del Norte</span>
+              <span class="t-chip" style="background:#2a9d8f;color:rgba(255,255,255,.8)">Egipto</span>
+            </div>
+
+            <!-- Overlay informativo -->
+            <div class="preview-overlay">
+              <p class="preview-stat-line">42 Territorios · 6 Continentes · Hasta 6 Jugadores</p>
+              <div class="continent-chips">
+                <span class="c-chip">América Norte <strong>+5</strong></span>
+                <span class="c-chip">Europa <strong>+5</strong></span>
+                <span class="c-chip">Asia <strong>+7</strong></span>
+                <span class="c-chip">África <strong>+3</strong></span>
+                <span class="c-chip">América Sur <strong>+2</strong></span>
+                <span class="c-chip">Oceanía <strong>+2</strong></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════ STATS ═══════════════════════ -->
+  <section class="stats-section">
+    <div class="section-inner">
+      <div class="stats-grid">
+        <div class="stat-block">
+          <p class="stat-number">42</p>
+          <p class="stat-label">Territorios</p>
+        </div>
+        <div class="stat-block">
+          <p class="stat-number">6</p>
+          <p class="stat-label">Continentes</p>
+        </div>
+        <div class="stat-block">
+          <p class="stat-number">6</p>
+          <p class="stat-label">Jugadores máx.</p>
+        </div>
+        <div class="stat-block">
+          <p class="stat-number">∞</p>
+          <p class="stat-label">Estrategias</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════ CTA FINAL ═══════════════════════ -->
+  <section class="cta-section">
+    <div class="section-inner">
+      <p class="section-label">¿Listo para conquistar?</p>
+      <h2 class="section-title">Tu campaña comienza ahora</h2>
+      <p class="section-desc">
+        Elige tu color, despliega tus ejércitos y demuestra que tienes
+        lo que hace falta para dominar el mundo.
+      </p>
+      <div class="cta-actions">
+        <a href="/index.html" class="btn btn-primary">Jugar Ahora →</a>
+        <a href="/login.html" class="btn btn-ghost">Crear cuenta</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════ FOOTER ═══════════════════════ -->
+  <footer>
+    <p class="footer-logo">WAR·</p>
+    <p class="footer-copy">Juego de estrategia multijugador · Conquista el mundo</p>
+  </footer>
+
+</body>
+</html>

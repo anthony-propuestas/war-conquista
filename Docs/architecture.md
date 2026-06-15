@@ -7,7 +7,9 @@ juego no conoce el DOM; la UI no contiene reglas; `main.js` orquesta y habla con
 
 ```
 WAR/
+├── home/index.html         # landing page (/home) — primera pantalla pública
 ├── index.html              # 2 pantallas: inicio y juego (.screen)
+├── login.html              # pantalla de login (/login)
 ├── css/style.css           # estilos
 ├── js/
 │   ├── map-data.js         # datos del mapa: territorios/continentes/adyacencias (puro)
@@ -15,7 +17,6 @@ WAR/
 │   ├── game.js             # motor del juego (puro)
 │   ├── ui.js               # render SVG + interacción (DOM)
 │   └── main.js             # arranque + leaderboard (DOM + fetch)
-├── login.html              # pantalla de login (/login)
 ├── functions/api/scores.js # Pages Function: /api/scores (D1)
 ├── functions/api/auth/
 │   ├── google.js           # inicia OAuth con Google (/api/auth/google)
@@ -25,6 +26,7 @@ WAR/
 ├── schema.sql              # esquema D1
 ├── wrangler.toml           # config Cloudflare (binding DB)
 ├── _headers                # cabeceras de seguridad/caché
+├── _redirects              # redirige / → /home (Cloudflare Pages)
 └── .assetsignore           # excluye tests/ del upload de Pages
 ```
 

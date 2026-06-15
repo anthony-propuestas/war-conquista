@@ -145,6 +145,7 @@ Para cada cambio que toque la superficie de ataque:
   HMAC — aceptado MVP; (2) sin parámetro `state` → Login CSRF posible, impacto bajo,
   pendiente de corrección; (3) `tokenData.error` sin `encodeURIComponent` en redirect —
   riesgo muy bajo, registrado. Sin cambios en `/api/scores`, D1, esquema ni cabeceras.
+- **2026-06-15** — Landing page y redirect raíz: `home/index.html` (página pública en `/home`) y `_redirects` (`/ → /home 302`). **Hallazgo: ninguno.** `home/index.html` es HTML estático sin formularios, sin input de usuario, sin backend y sin cookies — superficie de ataque nula. `_redirects` solo afecta el enrutamiento de Cloudflare Pages; el destino `/home` es interno. Sin cambios en endpoints, queries, esquema, cabeceras ni secrets.
 - **2026-06-15** — Mapa con geometría real: `ui.js` deja de generar costas procedurales y
   consume paths pregenerados de `js/map-shapes.js` (nuevo, generado por
   `scripts/build-map-shapes.mjs`); nuevas `devDependencies` de build (`d3-geo`,

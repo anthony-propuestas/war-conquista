@@ -35,3 +35,6 @@ esas formas, así que los helpers puros que antes vivían inline (`convexHull`,
 `expandCoast`, `smoothClosedPath`, `mixColor`/`lighten`/`darken`) desaparecieron. La
 validación de las formas (todas dentro del viewBox, la etiqueta cae dentro de su zona,
 sin formas huérfanas, rutas marítimas adyacentes) la cubre `tests/map-shapes.test.js`.
+
+`home/index.html` (landing page) y `_redirects` no tienen tests: el primero es HTML
+estático sin lógica JS propia, el segundo es configuración de Cloudflare Pages.
