@@ -68,9 +68,11 @@ body {
   padding: 30px;
 }
 .logo {
-  font-size: 3.4rem; font-weight: 800; letter-spacing: 4px; line-height: 1;
+  font-family: "Cinzel", Georgia, serif;
+  font-size: 3.6rem; font-weight: 800; letter-spacing: 6px; line-height: 1;
   background: linear-gradient(180deg, var(--accent), var(--accent-2));
   -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 4px 16px rgba(233,196,106,.25));
 }
 .logo span { color: var(--accent-2); -webkit-text-fill-color: var(--accent-2); }
 .tagline { color: var(--ink-dim); margin: 6px 0 22px; }
@@ -99,43 +101,106 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 0;
 
 /* ---------- Layout de juego ---------- */
 .topbar {
-  height: 56px; display: flex; align-items: center; gap: 16px;
-  padding: 0 16px; background: var(--bg-2); border-bottom: 1px solid var(--line);
+  --turn-color: var(--accent);
+  height: 64px; display: flex; align-items: center; gap: 18px;
+  padding: 0 18px; border-bottom: 1px solid var(--line);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--turn-color) 22%, transparent) 0%, transparent 38%),
+    var(--bg-2);
+  box-shadow: inset 0 -3px 0 0 var(--turn-color), 0 4px 18px rgba(0,0,0,.35);
+  transition: box-shadow .3s ease, background .3s ease;
 }
-.brand { font-weight: 800; letter-spacing: 3px; color: var(--accent); font-size: 1.2rem; }
-.turn-banner { flex: 1; display: flex; align-items: center; gap: 10px; font-weight: 600; }
-.turn-dot { width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 0 0 2px rgba(255,255,255,.25); }
+.brand {
+  font-family: "Cinzel", Georgia, serif;
+  font-weight: 800; letter-spacing: 5px; color: var(--accent); font-size: 1.35rem;
+  text-shadow: 0 2px 10px rgba(233,196,106,.3);
+}
+
+/* ---------- Indicador de turno ---------- */
+.turn-banner { flex: 1; display: flex; align-items: center; gap: 22px; }
+.turn-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 6px 16px 6px 6px; border-radius: 999px;
+  background: color-mix(in srgb, var(--turn-color) 14%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--turn-color) 45%, var(--line));
+  box-shadow: 0 0 18px -4px var(--turn-color);
+}
+.turn-avatar {
+  width: 40px; height: 40px; border-radius: 50%; flex: none;
+  display: grid; place-items: center;
+  font-weight: 800; font-size: 1.15rem; color: #fff;
+  border: 2px solid rgba(255,255,255,.55);
+  box-shadow: 0 0 0 3px rgba(0,0,0,.25), 0 2px 6px rgba(0,0,0,.4);
+  text-shadow: 0 1px 2px rgba(0,0,0,.5);
+  animation: turnPulse 2s ease-in-out infinite;
+}
+@keyframes turnPulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(0,0,0,.25), 0 0 0 0 var(--turn-color); }
+  50% { box-shadow: 0 0 0 3px rgba(0,0,0,.25), 0 0 0 6px color-mix(in srgb, var(--turn-color) 30%, transparent); }
+}
+.turn-meta { display: flex; flex-direction: column; line-height: 1.1; }
+.turn-label {
+  font-family: "Oswald", sans-serif; font-size: .68rem; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--ink-dim);
+}
+.turn-name { font-weight: 800; font-size: 1.1rem; color: var(--ink); }
+
+.phase-steps { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.phase-steps .step {
+  font-family: "Oswald", sans-serif; font-size: .8rem; letter-spacing: .5px;
+  padding: 5px 12px; border-radius: 999px; color: var(--ink-dim);
+  border: 1px solid var(--line); background: var(--panel);
+  transition: all .2s ease;
+}
+.phase-steps .step.done { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 50%, var(--line)); opacity: .8; }
+.phase-steps .step.current {
+  color: #1a1208; font-weight: 700;
+  background: linear-gradient(180deg, var(--accent), var(--accent-2));
+  border-color: transparent;
+  box-shadow: 0 0 14px -2px var(--accent);
+}
+.step-sep { color: var(--ink-dim); opacity: .5; font-size: .9rem; }
 
 .game-layout { display: grid; grid-template-columns: 1fr 340px; height: calc(100vh - 56px); }
 
-.map-wrap { position: relative; background:
-  radial-gradient(900px 600px at 50% 40%, var(--sea) 0%, var(--sea-2) 80%);
-  overflow: hidden; }
-#map { width: 100%; height: 100%; display: block; }
+.map-wrap { position: relative; overflow: hidden; background:
+  radial-gradient(1200px 800px at 50% 30%, var(--sea) 0%, var(--sea-2) 70%, #081b2c 100%); }
+.map-wrap::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  box-shadow: inset 0 0 160px 30px rgba(3,12,22,.65);
+}
+#map { width: 100%; height: 100%; display: block; position: relative; z-index: 1; }
 
 /* ---------- Mapa SVG ---------- */
-.continent-zone { opacity: .14; }
-.adj-line { stroke: rgba(255,255,255,.16); stroke-width: 1.4; stroke-dasharray: 4 4; }
+.graticule line { stroke: rgba(120,180,220,.07); stroke-width: 1; }
+.shoreline { fill: none; stroke: rgba(150,210,235,.45); stroke-width: 10; filter: blur(6px); }
+.landmass { stroke: rgba(8,18,28,.55); stroke-width: 1.5; stroke-linejoin: round; }
+.adj-line { stroke: rgba(255,255,255,.13); stroke-width: 1.3; stroke-dasharray: 3 5; }
 .terr { cursor: pointer; }
 .terr circle.node {
-  stroke: #0c1622; stroke-width: 2.5;
+  stroke: rgba(255,255,255,.85); stroke-width: 2.5;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.55));
   transition: r .12s ease, filter .12s ease, stroke .12s ease;
 }
-.terr:hover circle.node { filter: brightness(1.15); }
+.terr:hover circle.node { filter: brightness(1.15) drop-shadow(0 2px 5px rgba(0,0,0,.6)); }
 .terr text.count {
-  fill: #fff; font-weight: 800; font-size: 17px; text-anchor: middle;
+  fill: #fff; font-weight: 800; font-size: 16px; text-anchor: middle;
   dominant-baseline: central; pointer-events: none;
-  text-shadow: 0 1px 2px rgba(0,0,0,.8);
+  text-shadow: 0 1px 3px rgba(0,0,0,.9);
 }
 .terr text.label {
-  fill: var(--ink); font-size: 11px; text-anchor: middle; pointer-events: none;
-  paint-order: stroke; stroke: rgba(0,0,0,.65); stroke-width: 3px;
+  fill: #eef4fb; font-size: 10.5px; text-anchor: middle; pointer-events: none;
+  paint-order: stroke; stroke: rgba(0,0,0,.7); stroke-width: 3px; font-weight: 600;
 }
-.terr.selectable circle.node { stroke: var(--accent); stroke-width: 4; }
-.terr.selected circle.node { stroke: #fff; stroke-width: 5; filter: brightness(1.2) drop-shadow(0 0 6px #fff); }
-.terr.target circle.node { stroke: var(--danger); stroke-width: 4; stroke-dasharray: 3 2; }
+.terr.selectable circle.node { stroke: var(--accent); stroke-width: 4; filter: drop-shadow(0 0 5px var(--accent)); }
+.terr.selected circle.node { stroke: #fff; stroke-width: 5; filter: brightness(1.2) drop-shadow(0 0 7px #fff); }
+.terr.target circle.node { stroke: var(--danger); stroke-width: 4; stroke-dasharray: 3 2; filter: drop-shadow(0 0 5px var(--danger)); }
 .terr.dim { opacity: .35; }
-.continent-label { fill: rgba(255,255,255,.5); font-size: 13px; font-weight: 700; letter-spacing: 1px; text-anchor: middle; pointer-events: none; }
+.continent-label {
+  fill: rgba(255,255,255,.82); font-size: 12px; font-weight: 700; letter-spacing: 2px;
+  text-anchor: middle; pointer-events: none; text-transform: uppercase;
+  paint-order: stroke; stroke: rgba(6,16,26,.55); stroke-width: 3px;
+}
 
 /* ---------- Sidebar ---------- */
 .sidebar {
@@ -165,7 +230,7 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 0;
 
 #players-list { list-style: none; display: grid; gap: 6px; }
 #players-list li { display: flex; align-items: center; gap: 8px; font-size: .9rem; padding: 4px 6px; border-radius: 8px; }
-#players-list li.active { background: var(--panel-2); }
+#players-list li.active { background: var(--panel-2); box-shadow: inset 3px 0 0 var(--pc, var(--accent)); font-weight: 700; }
 #players-list li.dead { opacity: .4; text-decoration: line-through; }
 #players-list .swatch { width: 18px; height: 18px; }
 #players-list .terr-count { margin-left: auto; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
@@ -207,9 +272,20 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 0;
 .modal-actions .btn { flex: 1; }
 .win-title { font-size: 1.8rem; font-weight: 800; }
 
+/* ---------- Scrollbars ---------- */
+.sidebar::-webkit-scrollbar, #log-list::-webkit-scrollbar { width: 8px; }
+.sidebar::-webkit-scrollbar-thumb, #log-list::-webkit-scrollbar-thumb {
+  background: var(--line); border-radius: 8px;
+}
+.sidebar::-webkit-scrollbar-thumb:hover, #log-list::-webkit-scrollbar-thumb:hover { background: var(--panel-2); }
+.sidebar::-webkit-scrollbar-track, #log-list::-webkit-scrollbar-track { background: transparent; }
+
 /* ---------- Responsive ---------- */
 @media (max-width: 900px) {
   .game-layout { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
   .sidebar { border-left: none; border-top: 1px solid var(--line); max-height: 42vh; }
   body { overflow: auto; }
+  .topbar { height: 56px; gap: 10px; padding: 0 12px; }
+  .phase-steps { display: none; }
+  .turn-name { font-size: .98rem; }
 }

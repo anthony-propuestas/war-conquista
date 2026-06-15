@@ -28,7 +28,7 @@ WAR/
 |---|---|---|
 | `js/map-data.js` | Datos puros | 42 territorios, 6 continentes (con bonus), grafo de adyacencias (bidireccional vía `buildAdjacency()`), ejércitos iniciales, colores, valores de canje de cartas. |
 | `js/game.js` | Lógica pura (clase `Game`) | Estado del tablero, turnos y fases, combate por dados, refuerzos, canje de cartas, conquista, eliminación y victoria. **Sin DOM.** |
-| `js/ui.js` | Vista (clase `UI`) | Construye el mapa SVG una vez, refresca nodos/sidebar/banner según el estado, traduce clics a llamadas del motor, muestra dados y modales (conquista/fortificación). **No decide reglas**, solo refleja y delega en `Game`. |
+| `js/ui.js` | Vista (clase `UI`) | Construye el mapa SVG una vez, refresca nodos/sidebar/banner según el estado, traduce clics a llamadas del motor, muestra dados y modales (conquista/fortificación). **No decide reglas**, solo refleja y delega en `Game`. Incluye helpers **puros** de dibujo del mapa: `convexHull` + `expandCoast` + `smoothClosedPath` generan una costa orgánica (casco convexo → puntos densificados con ruido → spline cerrada Catmull-Rom) por continente, y `mixColor`/`lighten`/`darken` derivan el degradado de relieve. El banner de turno se renderiza como tarjeta de jugador + *stepper* de fases (refuerzo › ataque › fortificación), escapando el nombre con `escapeHtml`. |
 | `js/main.js` | Arranque | Pantalla de inicio (config de 2–6 jugadores), crea `Game` + `UI`, y conecta el salón de la fama (`POST`/`GET` a `/api/scores`). |
 | `functions/api/scores.js` | Backend | Endpoint del salón de la fama sobre D1 (ver [api.md](api.md)). |
 

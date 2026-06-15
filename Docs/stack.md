@@ -11,9 +11,11 @@ bundler. El navegador carga los ES Modules directamente.
 | Módulos | ES Modules nativos (`"type": "module"`) | `import`/`export` en el navegador sin transpilar. |
 | Render del mapa | SVG construido por DOM API en `js/ui.js` | Vectorial, escalable, sin librería de gráficos. |
 | Estilos | CSS plano (`css/style.css`) | Sin preprocesador ni utilidades. |
+| Tipografía | **Google Fonts** (`Cinzel`, `Oswald`) vía `<link>` en `index.html` | Títulos/UI; se cargan desde el CDN de Google (con `preconnect`), no están auto-hospedadas. Única dependencia externa en runtime. |
 
 No hay React/Vue, ni TypeScript, ni Webpack/Vite. Abrir `index.html` en un servidor
-estático basta para jugar (sin salón de la fama).
+estático basta para jugar (sin salón de la fama); las fuentes requieren conexión a
+`fonts.googleapis.com`/`fonts.gstatic.com` (si no, el navegador usa el fallback serif/sans).
 
 ## Backend / plataforma (Cloudflare)
 

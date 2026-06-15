@@ -26,13 +26,19 @@ OAuth, ni blockchain. El salón de la fama es **público y anónimo** a propósi
   en vez de fallar; los errores de DB devuelven `[]` / `{ok:false,"db-error"}` sin filtrar
   detalles internos. Ver [api.md](api.md) y [database.md](database.md).
 
-## Frontend — `js/main.js`
+## Frontend — `js/main.js` y `js/ui.js`
 
 - **XSS (output encoding):** el `name` que vuelve de la DB pasa por `escapeHtml()` antes
-  de inyectarse con `innerHTML` en el render del leaderboard. La defensa está en la
-  **salida**: el `name` se almacena crudo (solo `trim`/truncado a 16), así que cualquier
-  renderizado nuevo de datos de DB **debe** escaparse igual.
+  de inyectarse con `innerHTML` en el render del leaderboard (`main.js`). La defensa está
+  en la **salida**: el `name` se almacena crudo (solo `trim`/truncado a 16), así que
+  cualquier renderizado nuevo de datos de DB **debe** escaparse igual.
 - `wins` se renderiza sin escapar pero es numérico (columna `INTEGER` de D1).
+- **Banner de turno (`ui.js`):** `updateBanner()` inyecta el nombre del jugador (input de
+  la pantalla de inicio, `maxLength=16`) y su inicial con `innerHTML`; ambos pasan por una
+  copia local de `escapeHtml`. Sink nuevo, **correctamente escapado**.
+- **Duplicación de `escapeHtml`:** existe la misma función en `main.js` y en `ui.js`. No es
+  una vulnerabilidad, pero el riesgo es divergencia futura; si crece la lógica de escape,
+  unificarla en un módulo compartido.
 
 ## Cabeceras — `_headers`
 
@@ -65,6 +71,14 @@ No son vulnerabilidades confirmadas, pero se registran:
   a importar: Cloudflare Turnstile, rate-limit en la Function, o un token de partida
   emitido y verificado server-side.
 - **Sin rate-limiting** en el endpoint en general (abuso/spam de escrituras).
+- **XSS por nombre de jugador en el modal de victoria (`main.js`, `onGameOver`):** el modal
+  inyecta `winner.name` con `innerHTML` **sin** `escapeHtml` (a diferencia del banner y el
+  leaderboard, que sí escapan). El nombre es input local de la pantalla de inicio, así que
+  hoy es a lo sumo un **self-XSS** en una partida hotseat (el límite de 16 caracteres aún
+  permite payloads como `<svg/onload=...>`). **Pendiente de decisión del usuario:** envolver
+  `winner.name` (y por consistencia `winner.color`) con `escapeHtml`. No corregido aquí
+  porque queda fuera del cambio de esta sesión (visual) y el workflow de seguridad solo
+  registra; la corrección de código se confirma aparte.
 
 ## Checklist pre-producción
 
@@ -83,3 +97,8 @@ Para cada cambio que toque la superficie de ataque:
 - **2026-06-14** — Línea base inicial. Cambio revisado: `database_id` real en
   `wrangler.toml` + enlace a la demo en `README.md`. **Hallazgo: ninguno** (no introduce
   superficie nueva; se confirma que `database_id` no es secreto).
+- **2026-06-14** — Rediseño visual del mapa y del banner (`ui.js`, `css`, fuentes). Nuevo
+  sink de DOM en `updateBanner()` para el nombre de jugador: **escapado** con `escapeHtml`.
+  **Hallazgo:** `winner.name` se renderiza **sin escapar** en el modal de victoria de
+  `main.js` (`onGameOver`) — self-XSS de bajo impacto en hotseat; registrado en *Riesgos
+  conocidos* a la espera de decisión. Sin cambios en backend, queries ni cabeceras.

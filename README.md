@@ -19,7 +19,8 @@ Conquista territorios, domina continentes y elimina a tus rivales. **Multijugado
 - 🃏 **Cartas de territorio** canjeables por ejércitos extra (valor creciente).
 - 👥 **2 a 6 jugadores** en la misma máquina, cada uno con su color.
 - 🏆 **Salón de la fama** global persistido en Cloudflare D1.
-- 📱 Interfaz responsive y sin dependencias externas.
+- 📱 Interfaz responsive, sin librerías JS ni frameworks (única dependencia externa en
+  runtime: las fuentes **Cinzel** y **Oswald** de Google Fonts).
 
 ---
 
@@ -37,7 +38,8 @@ Conquista territorios, domina continentes y elimina a tus rivales. **Multijugado
 
 ## 🚀 Desarrollo local
 
-Requisitos: [Node.js](https://nodejs.org) 18+.
+Requisitos: [Node.js](https://nodejs.org) 20+ (lo pide `wrangler ^4`). Los tests con
+`node --test` usan un patrón glob que requiere **Node ≥21**.
 
 ```bash
 npm install
