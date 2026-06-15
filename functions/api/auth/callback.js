@@ -61,7 +61,7 @@ export async function onRequestGet({ request, env }) {
   return new Response(null, {
     status: 302,
     headers: {
-      Location: "/index.html",
+      Location: "/",
       "Set-Cookie": `war_session=${session}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800`,
     },
   });
