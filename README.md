@@ -31,7 +31,7 @@ Conquista territorios, domina continentes y elimina a tus rivales. **Multijugado
 3. **Ataque:** elige un territorio propio con 2+ ejércitos y ataca a un vecino enemigo.
    Se comparan los dados más altos; el empate favorece al defensor.
 4. **Fortificación:** mueve tropas entre dos territorios propios conectados.
-5. **Victoria:** el primero en conquistar **todos** los territorios gana.
+5. **Victoria:** gana quien conquiste **todos** los territorios o quede como **único jugador con territorios** (todos los rivales eliminados).
 
 ---
 
@@ -91,9 +91,12 @@ WAR/
 │   ├── ui.js               # render del mapa SVG e interacción
 │   └── main.js             # arranque y leaderboard
 ├── functions/api/scores.js # Cloudflare Pages Function (D1)
+├── tests/                  # tests unitarios (node --test)
+├── Docs/                   # documentación del proyecto
 ├── schema.sql              # esquema de la base de datos
 ├── wrangler.toml           # configuración de Cloudflare
-└── _headers                # cabeceras de seguridad/caché
+├── _headers                # cabeceras de seguridad/caché
+└── .assetsignore           # excluye tests/ del deploy de Pages
 ```
 
 **Servicios de Cloudflare usados:** Pages (hosting), Pages Functions (API),
