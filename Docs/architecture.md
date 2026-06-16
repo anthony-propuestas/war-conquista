@@ -33,7 +33,7 @@ WAR/
 ├── functions/game-room.js  # Durable Object GameRoom + routing de /api/game-room (WS)
 ├── functions/api/auth/
 │   ├── google.js           # inicia OAuth con Google (/api/auth/google)
-│   ├── callback.js         # completa OAuth, guarda cookie, bifurca /game o /register
+│   ├── callback.js         # completa OAuth, guarda cookie, bifurca /lobby o /register
 │   └── wallet.js           # login alterno con wallet (/api/auth/wallet)
 ├── functions/api/wallet/
 │   └── link.js             # vincula wallet a la cuenta de la sesión (/api/wallet/link)
@@ -66,7 +66,7 @@ WAR/
 | `functions/api/register.js` | Backend | `POST /api/register`: valida y persiste el registro de un nuevo usuario en `users`. Requiere `war_session`. |
 | `functions/game-room.js` | Backend (Durable Object) | Sala multijugador `GameRoom`: WebSocket, broadcast y persistencia del estado. Ver [realtime.md](realtime.md). |
 | `functions/api/auth/google.js` | Backend | Inicia el flujo OAuth 2.0: redirige a Google con los parámetros del cliente. |
-| `functions/api/auth/callback.js` | Backend | Completa OAuth: canjea el code, obtiene el perfil del usuario, guarda cookie `war_session` y redirige a `/game` (registrado) o `/register` (nuevo). |
+| `functions/api/auth/callback.js` | Backend | Completa OAuth: canjea el code, obtiene el perfil del usuario, guarda cookie `war_session` y redirige a `/lobby` (registrado) o `/register` (nuevo). |
 | `functions/api/auth/wallet.js` | Backend | `POST /api/auth/wallet`: verifica firma (`ethers.verifyMessage`) y, si la wallet ya está vinculada a una cuenta, emite la misma cookie `war_session` que el login con Google. |
 | `functions/api/wallet/link.js` | Backend | `POST /api/wallet/link`: requiere `war_session`; verifica firma y guarda `wallet_address` en `users` (409 si ya pertenece a otra cuenta). |
 
@@ -88,12 +88,12 @@ main.js  ──crea──>  Game (estado/reglas)
                                                     │
                                              GET /api/auth/callback?code=…
                                                     │ Set-Cookie war_session
-                                                    ├─ registrado ──302──> /game
+                                                    ├─ registrado ──302──> /lobby
                                                     └─ nuevo      ──302──> /register
                                                                                │ POST /api/register
-                                                                               └──302──> /game
+                                                                               └──302──> /lobby
 
-/login ──clic "Conectar MetaMask"──> firma mensaje ──POST /api/auth/wallet──> Set-Cookie war_session ──> /game
+/login ──clic "Conectar MetaMask"──> firma mensaje ──POST /api/auth/wallet──> Set-Cookie war_session ──> /lobby
 /my-profile ──clic "Conectar wallet"──> firma mensaje ──POST /api/wallet/link──> guarda wallet_address
 
 /home ──clic "Jugar Ahora"──> /lobby (GET /api/profile; sin sesión ──> /login)

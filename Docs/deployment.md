@@ -73,8 +73,9 @@ se aplica automáticamente en cada deploy de Workers Builds.
 
 - **`_headers`** se aplica en el deploy (seguridad + caché de `/assets/*`); ver
   [environment.md](environment.md).
-- **`_redirects`**: `/ → /home` (301) y `/game → /game/index.html` (200, rewrite).
-  Cloudflare Pages lo procesa automáticamente; no requiere configuración adicional.
+- **`_redirects`**: `/ → /home` (301), `/game → /game/index.html` (200, rewrite) y
+  `/lobby → /lobby/index.html` (200, rewrite). Cloudflare Pages lo procesa
+  automáticamente; no requiere configuración adicional.
 - **Demo en vivo:** https://war-conquista.pages.dev
 - **Secrets de Google OAuth:** antes del primer deploy con auth activo, ejecutar:
   ```bash

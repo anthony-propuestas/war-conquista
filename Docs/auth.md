@@ -20,7 +20,7 @@ GET /api/auth/callback?code=<code>
     │ GET  https://openidconnect.googleapis.com/v1/userinfo → perfil
     │ Set-Cookie: war_session=<base64>
     │ SELECT id FROM users WHERE sub = ?
-    ├─ fila encontrada ──302──> /game  (usuario ya registrado)
+    ├─ fila encontrada ──302──> /lobby  (usuario ya registrado)
     └─ sin fila      ──302──> /register  (primer login: completar registro)
 ```
 
@@ -88,7 +88,7 @@ shapes de request/response en [api.md](api.md).
 | Logout | No implementado. La sesión expira sola en 7 días o borrando la cookie manualmente. |
 | Renovación de token | No — solo se usa el `access_token` para obtener el perfil en el callback; no se guarda para llamadas posteriores. |
 | Revocación | No — si el usuario revoca el acceso en Google, la cookie sigue válida hasta que expire. |
-| Registro obligatorio | El primer login no entra directamente a `/game`: el usuario debe completar el formulario de `/register` (`POST /api/register`) antes de poder jugar. |
+| Registro obligatorio | El primer login no entra directamente a `/lobby`: el usuario debe completar el formulario de `/register` (`POST /api/register`) antes de poder jugar. |
 | Login por wallet sin registro propio | `/api/auth/wallet` solo funciona si la wallet ya fue vinculada a una cuenta existente vía `/api/wallet/link`; no hay alta de cuenta nueva directamente por wallet. |
 
 Ver endpoints en [api.md](api.md), secrets en [environment.md](environment.md).

@@ -76,7 +76,7 @@ Google redirige aquí tras la autorización del usuario.
 
 | Caso | Status | Destino |
 |---|---|---|
-| Usuario ya registrado en DB | `302` | `/game` con `Set-Cookie: war_session=…` |
+| Usuario ya registrado en DB | `302` | `/lobby` con `Set-Cookie: war_session=…` |
 | Usuario nuevo (no en DB) | `302` | `/register` con `Set-Cookie: war_session=…` |
 | Sin `?code` o Google devuelve `?error` | `302` | `/login.html?error=no_code` |
 | Env vars ausentes | `500` | — |

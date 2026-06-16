@@ -46,7 +46,7 @@ Los índices aceleran la búsqueda por username (registro/perfil), el ranking `O
 ```sql
 SELECT id FROM users WHERE sub = ?
 ```
-Si devuelve fila → redirige a `/game`. Si no → redirige a `/register`.
+Si devuelve fila → redirige a `/lobby`. Si no → redirige a `/register`.
 
 ### `functions/api/register.js` — registrar usuario
 

@@ -73,7 +73,7 @@ export async function onRequestGet({ request, env }) {
   return new Response(null, {
     status: 302,
     headers: {
-      Location: isRegistered ? "/game" : "/register",
+      Location: isRegistered ? "/lobby" : "/register",
       "Set-Cookie": cookie,
     },
   });

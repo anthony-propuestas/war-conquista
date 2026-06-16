@@ -45,7 +45,7 @@ function makeFetchMock() {
   });
 }
 
-test("flujo exitoso: usuario registrado → 302 a /game con cookie", async () => {
+test("flujo exitoso: usuario registrado → 302 a /lobby con cookie", async () => {
   const fetchMock = makeFetchMock();
   try {
     const res = await onRequestGet({
@@ -53,7 +53,7 @@ test("flujo exitoso: usuario registrado → 302 a /game con cookie", async () =>
       env: { ...env, DB: dbWithUser },
     });
     assert.equal(res.status, 302);
-    assert.equal(res.headers.get("Location"), "/game");
+    assert.equal(res.headers.get("Location"), "/lobby");
     assert.ok(res.headers.get("Set-Cookie").includes("war_session="));
   } finally {
     fetchMock.mock.restore();

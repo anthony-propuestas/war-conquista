@@ -159,7 +159,7 @@
         });
         const json = await res.json();
         if (res.ok) {
-          window.location.href = '/game';
+          window.location.href = '/lobby';
         } else {
           errorEl.textContent = json.error || 'Error desconocido';
           errorEl.style.display = 'block';
