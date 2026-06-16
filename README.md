@@ -136,6 +136,7 @@ WAR/
 ```
 
 Ver [Docs/architecture.md](Docs/architecture.md) para el detalle completo de cada módulo.
+Ver [Docs/style.md](Docs/style.md) para el sistema de diseño (tokens de color/tipografía y reglas de uso).
 
 **Servicios de Cloudflare usados:** Pages (hosting), Pages Functions (API),
 D1 (base de datos de usuarios/leaderboard), Durable Objects (sala multijugador

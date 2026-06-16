@@ -16,6 +16,7 @@
 | `Docs/architecture.md` | Estructura de carpetas y flujos: `js/map-data.js` (42 territorios/6 continentes/adyacencias), `js/game.js` (motor de lógica pura), `js/ui.js` (render SVG e interacción), `js/main.js` (arranque + leaderboard), `functions/api/scores.js` (backend). Separación lógica-pura / render / arranque |
 | `Docs/environment.md` | Binding D1 `DB` en `wrangler.toml` (`database_name = war-scores`, `database_id`), `compatibility_date`, `pages_build_output_dir = "."`. No hay secrets ni env vars de aplicación; cómo enlazar el binding en local y en el panel de Pages |
 | `Docs/deployment.md` | `npm run deploy` (`wrangler pages deploy .`), creación e init de D1 remota (`db:create` → pegar `database_id` → `db:init:remote`), opción CI/CD desde GitHub (build vacío, output `/`, binding `DB`), notas de `_headers` |
+| `Docs/style.md` | Tokens de color/tipografía/spacing en `css/style.css` (paleta navy + gold, Cinzel/Oswald), reglas de uso (mate, sin gradientes/glows salvo excepciones), qué páginas siguen el sistema y qué queda fuera de alcance (tablero SVG) |
 
 **Docs compartidos con otros workflows** (no duplicar si ya existen — solo referenciar):
 
@@ -50,7 +51,8 @@ Mapeo cambio → doc:
 - ¿Cambió `wrangler.toml`, el binding `DB` o `_headers`? → `Docs/environment.md`
 - ¿Cambió el proceso de deploy o los scripts `db:*`? → `Docs/deployment.md`
 - ¿Creció la lógica del motor (`game.js`) lo suficiente? → evaluar crear `Docs/game-engine.md`
-- **Excluir:** fixes de bugs sin cambio de interfaz, refactors internos, ajustes de CSS/estilos.
+- ¿Cambiaron los tokens de `css/style.css` (colores, radios, sombras, tipografía) o se agregó/migró una página de chrome al sistema de diseño matte navy + gold? → `Docs/style.md`
+- **Excluir:** fixes de bugs sin cambio de interfaz, refactors internos, retoques visuales menores que no tocan tokens ni adoptan/abandonan el sistema de diseño.
 
 ## Paso 3 — Documentar
 

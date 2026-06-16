@@ -13,6 +13,7 @@
 - `Docs/deployment.md` — *(lo crea `workflow-documentacion.md`)*
 - `Docs/security.md` — *(lo crea `workflow-security.md`)*
 - `Docs/testing.md` — *(lo crea `workflow-test-despues-de-cambios.md`)*
+- `Docs/style.md` — *(lo crea `workflow-documentacion.md`)*
 
 > Hoy solo existe `README.md`. Verificar únicamente los documentos que existan; anotar como "pendiente de crear" los que aún no estén.
 
@@ -48,6 +49,11 @@ Preguntas concretas por documento:
 
 **Docs/security.md** (si existe)
 - ¿Los mecanismos documentados (parametrización D1, `escapeHtml`, validación de `name`, cabeceras `_headers`) siguen en el código? ¿Hay endpoints nuevos en `functions/` sin analizar?
+
+**Docs/style.md** (si existe)
+- ¿Los valores de la tabla de tokens (`--bg`, `--accent`, `--radius`, `--shadow`, etc.) coinciden con los `:root` reales de `css/style.css`?
+- ¿La lista de "Páginas que siguen este sistema" sigue completa (sin páginas nuevas sin listar, sin páginas eliminadas que sigan listadas)?
+- ¿Sigue siendo cierto que el tablero SVG (`.map-wrap`, `.terr`, `--sea`/`--sea-2`) está fuera de alcance, o el código lo contradice?
 
 ## Paso 3 — Reportar cada diferencia en el chat
 

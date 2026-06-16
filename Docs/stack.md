@@ -14,7 +14,7 @@ framework de UI (React/Vue) ni transpilación.
 | Render del mapa | SVG por DOM API en `js/ui.js`, con paths **pregenerados** en `js/map-shapes.js` | Vectorial y escalable. Las formas reales del mundo se calculan offline (ver build abajo). |
 | Animaciones de batalla | **Pixi.js** (`js/pixi-overlay.js`), canvas superpuesto al SVG | Partículas/línea/etiqueta por ataque sin recargar el SVG. Ver [architecture.md](architecture.md). |
 | Wallet Web3 | **ethers v6** (`js/wallet.js`) + MetaMask | Identidad de jugador y mint/claim experimental. Ver [onchain.md](onchain.md). |
-| Estilos | CSS plano (`css/style.css`) | Sin preprocesador ni utilidades. |
+| Estilos | CSS plano (`css/style.css`) | Sin preprocesador ni utilidades. Ver [style.md](style.md) para los tokens y reglas del sistema de diseño. |
 | Tipografía | **Google Fonts** (`Cinzel`, `Oswald`) vía `<link>` en `index.html` | Títulos/UI; se cargan desde el CDN de Google (con `preconnect`), no están auto-hospedadas. |
 
 No hay React/Vue, ni TypeScript, ni Webpack/Vite. El single-player funciona sirviendo los

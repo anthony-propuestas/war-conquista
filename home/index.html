@@ -7,31 +7,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Oswald:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
   <style>
-    :root {
-      --bg: #0d1b2a;
-      --bg-2: #13263b;
-      --panel: #1b2c40;
-      --panel-2: #22384f;
-      --ink: #e8edf3;
-      --ink-dim: #9fb2c6;
-      --line: #2f4a66;
-      --sea: #3a7ca5;
-      --sea-2: #1f5478;
-      --accent: #e9c46a;
-      --accent-2: #f4a261;
-      --danger: #e63946;
-      --ok: #2a9d8f;
-    }
-
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
-    body {
-      font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--ink);
-      overflow-x: hidden;
-    }
+    body { overflow: visible; overflow-x: hidden; }
 
     /* ── Botón Acceso fijo ── */
     .access-btn {
@@ -77,11 +57,12 @@
     }
     .btn:active { transform: translateY(1px); }
     .btn-primary {
-      background: linear-gradient(180deg, var(--accent), var(--accent-2));
-      color: #2a1c00;
+      background: var(--accent);
+      color: var(--accent-ink);
       border: none;
     }
-    .btn-primary:hover { filter: brightness(1.08); }
+    .btn-primary:hover { background: var(--accent-2); }
+    .btn-primary:active { background: var(--accent-press); }
     .btn-ghost {
       background: transparent;
       color: var(--ink);
@@ -160,11 +141,7 @@
       font-weight: 800;
       letter-spacing: .12em;
       line-height: 1;
-      background: linear-gradient(170deg, #f5d87a 0%, var(--accent) 40%, var(--accent-2) 100%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-      filter: drop-shadow(0 6px 40px rgba(233,196,106,.28));
+      color: var(--accent);
       margin-bottom: 10px;
       animation: fadeUp .6s ease .22s both;
     }
@@ -477,10 +454,7 @@
       font-weight: 800;
       line-height: 1;
       margin-bottom: 10px;
-      background: linear-gradient(180deg, var(--accent), var(--accent-2));
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
+      color: var(--accent);
     }
 
     .stat-label {
@@ -521,10 +495,7 @@
       font-size: 1.45rem;
       font-weight: 800;
       letter-spacing: 6px;
-      background: linear-gradient(180deg, var(--accent), var(--accent-2));
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
+      color: var(--accent);
       margin-bottom: 10px;
     }
     .footer-copy {

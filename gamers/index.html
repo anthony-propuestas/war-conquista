@@ -4,28 +4,27 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ranking — WAR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Oswald:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background: #0a0a0f;
-      color: #e8e8e8;
-      font-family: 'Courier New', monospace;
-      min-height: 100vh;
-      padding: 3rem 2rem;
-    }
+    body { padding: 3rem 2rem; overflow: auto; min-height: 100vh; }
     .header {
       text-align: center;
       margin-bottom: 2.5rem;
     }
     h1 {
+      font-family: "Cinzel", Georgia, serif;
       font-size: 1.8rem;
-      color: #e63946;
+      color: var(--accent);
       letter-spacing: 3px;
       margin-bottom: 0.4rem;
     }
     .subtitle {
+      font-family: "Oswald", sans-serif;
       font-size: 0.8rem;
-      color: #666;
+      color: var(--ink-faint);
       letter-spacing: 1px;
     }
     .table-wrapper {
@@ -37,26 +36,27 @@
       border-collapse: collapse;
     }
     thead th {
+      font-family: "Oswald", sans-serif;
       font-size: 0.7rem;
-      color: #666;
+      color: var(--ink-faint);
       text-transform: uppercase;
       letter-spacing: 2px;
       padding: 0.5rem 1rem;
       text-align: left;
-      border-bottom: 1px solid #222;
+      border-bottom: 1px solid var(--line);
     }
     thead th.wins-col { text-align: right; }
     tbody tr {
-      border-bottom: 1px solid #1a1a22;
+      border-bottom: 1px solid var(--line-soft);
       transition: background 0.15s;
     }
-    tbody tr:hover { background: #12121a; }
+    tbody tr:hover { background: var(--panel); }
     tbody td {
       padding: 0.75rem 1rem;
       font-size: 0.9rem;
     }
     .rank {
-      color: #555;
+      color: var(--ink-faint);
       width: 3rem;
       font-size: 0.8rem;
     }
@@ -64,19 +64,19 @@
     .rank-2 { color: #c0c0c0; }
     .rank-3 { color: #cd7f32; }
     .player-link {
-      color: #e8e8e8;
+      color: var(--ink);
       text-decoration: none;
       transition: color 0.15s;
     }
-    .player-link:hover { color: #e63946; }
+    .player-link:hover { color: var(--accent); }
     .wins-td {
       text-align: right;
-      color: #e63946;
+      color: var(--accent);
       font-weight: bold;
     }
     #status {
       text-align: center;
-      color: #666;
+      color: var(--ink-faint);
       padding: 2rem;
       font-size: 0.85rem;
     }
@@ -84,12 +84,12 @@
       display: block;
       text-align: center;
       margin-top: 2rem;
-      color: #555;
+      color: var(--ink-faint);
       text-decoration: none;
       font-size: 0.8rem;
       letter-spacing: 1px;
     }
-    .back:hover { color: #e63946; }
+    .back:hover { color: var(--accent); }
   </style>
 </head>
 <body>
