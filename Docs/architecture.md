@@ -14,6 +14,7 @@ WAR/
 ├── register/index.html     # formulario de registro (/register) — primer login
 ├── gamers/index.html       # ranking de jugadores (/gamers)
 ├── my-profile/index.html   # perfil del jugador autenticado (/my-profile)
+├── map-preview.html        # dev-only: SVG estático del mapa para QA visual (sin JS, sin enlaces desde la app; NO excluido del deploy — accesible pero no enlazado)
 ├── css/style.css           # estilos
 ├── js/
 │   ├── map-data.js         # datos del mapa: territorios/continentes/adyacencias (puro)
@@ -31,7 +32,10 @@ WAR/
 ├── functions/game-room.js  # Durable Object GameRoom + routing de /api/game-room (WS)
 ├── functions/api/auth/
 │   ├── google.js           # inicia OAuth con Google (/api/auth/google)
-│   └── callback.js         # completa OAuth, guarda cookie, bifurca /game o /register
+│   ├── callback.js         # completa OAuth, guarda cookie, bifurca /game o /register
+│   └── wallet.js           # login alterno con wallet (/api/auth/wallet)
+├── functions/api/wallet/
+│   └── link.js             # vincula wallet a la cuenta de la sesión (/api/wallet/link)
 ├── migrations/
 │   └── 0001_users.sql      # migración: borra scores, crea users
 ├── scripts/build-map-shapes.mjs # dev-only: genera map-shapes.js desde Natural Earth
@@ -54,7 +58,7 @@ WAR/
 | `js/main.js` | Arranque | Pantalla de inicio (config de 1–3 jugadores), crea `Game` + `UI`, conecta el salón de la fama (`POST`/`GET` a `/api/scores`), la wallet y la sala multijugador. |
 | `js/pixi-overlay.js` | Vista (overlay) | Canvas Pixi.js superpuesto al mapa SVG; dibuja partículas/línea/etiqueta de cada batalla. Lo inicia y dispara `ui.js`. Ver [stack.md](stack.md). |
 | `js/multiplayer.js` | Cliente de red | Cliente WebSocket de la sala (`joinRoom`/`sendGameState`/…). Detalle en [realtime.md](realtime.md). |
-| `js/wallet.js` | Web3 | Conexión a MetaMask vía ethers; identidad de jugador y mint/claim experimental. Detalle en [onchain.md](onchain.md). |
+| `js/wallet.js` | Web3 | Conexión a MetaMask vía ethers; identidad de jugador, login/vinculación por firma (`signMessage`) y mint/claim experimental. Detalle en [onchain.md](onchain.md). |
 | `functions/api/scores.js` | Backend | Endpoint del salón de la fama sobre D1 (ver [api.md](api.md)). |
 | `functions/api/gamers.js` | Backend | `GET /api/gamers`: devuelve top 100 jugadores por wins desde `users`. Sin auth. |
 | `functions/api/profile.js` | Backend | `GET /api/profile`: devuelve `{username, wins}` del usuario autenticado. Requiere `war_session`. |
@@ -62,6 +66,8 @@ WAR/
 | `functions/game-room.js` | Backend (Durable Object) | Sala multijugador `GameRoom`: WebSocket, broadcast y persistencia del estado. Ver [realtime.md](realtime.md). |
 | `functions/api/auth/google.js` | Backend | Inicia el flujo OAuth 2.0: redirige a Google con los parámetros del cliente. |
 | `functions/api/auth/callback.js` | Backend | Completa OAuth: canjea el code, obtiene el perfil del usuario, guarda cookie `war_session` y redirige a `/game` (registrado) o `/register` (nuevo). |
+| `functions/api/auth/wallet.js` | Backend | `POST /api/auth/wallet`: verifica firma (`ethers.verifyMessage`) y, si la wallet ya está vinculada a una cuenta, emite la misma cookie `war_session` que el login con Google. |
+| `functions/api/wallet/link.js` | Backend | `POST /api/wallet/link`: requiere `war_session`; verifica firma y guarda `wallet_address` en `users` (409 si ya pertenece a otra cuenta). |
 
 ## Flujo principal
 
@@ -85,6 +91,9 @@ main.js  ──crea──>  Game (estado/reglas)
                                                     └─ nuevo      ──302──> /register
                                                                                │ POST /api/register
                                                                                └──302──> /game
+
+/login ──clic "Conectar MetaMask"──> firma mensaje ──POST /api/auth/wallet──> Set-Cookie war_session ──> /game
+/my-profile ──clic "Conectar wallet"──> firma mensaje ──POST /api/wallet/link──> guarda wallet_address
 ```
 
 - **Game → UI:** la UI nunca muta el tablero directamente; llama métodos de `Game`

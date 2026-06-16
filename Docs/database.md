@@ -8,18 +8,21 @@ identidades y registra victorias acumuladas.
 
 ```sql
 CREATE TABLE IF NOT EXISTS users (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  sub        TEXT UNIQUE NOT NULL,
-  username   TEXT UNIQUE NOT NULL COLLATE NOCASE,
-  age        INTEGER NOT NULL,
-  email      TEXT NOT NULL,
-  how_heard  TEXT NOT NULL,
-  wins       INTEGER NOT NULL DEFAULT 0,
-  created_at INTEGER NOT NULL
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  sub            TEXT UNIQUE NOT NULL,
+  username       TEXT UNIQUE NOT NULL COLLATE NOCASE,
+  age            INTEGER NOT NULL,
+  email          TEXT NOT NULL,
+  how_heard      TEXT NOT NULL,
+  wins           INTEGER NOT NULL DEFAULT 0,
+  wallet_address TEXT COLLATE NOCASE,
+  created_at     INTEGER NOT NULL
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_wins ON users(wins DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_wallet
+  ON users(wallet_address) WHERE wallet_address IS NOT NULL;
 ```
 
 | Columna | Tipo | Rol |
@@ -31,9 +34,10 @@ CREATE INDEX IF NOT EXISTS idx_users_wins ON users(wins DESC);
 | `email` | `TEXT` | Email de Google o editado en registro. |
 | `how_heard` | `TEXT` | Cómo conoció el juego (dropdown de 6 opciones). |
 | `wins` | `INTEGER` | Victorias acumuladas. Arranca en 0. |
+| `wallet_address` | `TEXT UNIQUE NOCASE` (nullable) | Dirección MetaMask vinculada a la cuenta. Misma cuenta accesible por Google o por wallet. |
 | `created_at` | `INTEGER` | Timestamp epoch-ms (`Date.now()`) del registro. |
 
-Los dos índices aceleran la búsqueda por username (registro/perfil) y el ranking `ORDER BY wins DESC`.
+Los índices aceleran la búsqueda por username (registro/perfil), el ranking `ORDER BY wins DESC`, y la búsqueda por wallet en el login (`idx_users_wallet`, único parcial: permite múltiples `NULL` pero rechaza wallets duplicadas entre cuentas).
 
 ## Queries vivas
 
@@ -67,8 +71,22 @@ SELECT username, wins FROM users ORDER BY wins DESC LIMIT 100
 ### `functions/api/profile.js` — perfil del usuario autenticado
 
 ```sql
-SELECT username, wins FROM users WHERE sub = ?
+SELECT username, wins, wallet_address FROM users WHERE sub = ?
 ```
+
+### `functions/api/wallet/link.js` — vincular wallet a la cuenta de la sesión
+
+```sql
+UPDATE users SET wallet_address = ? WHERE sub = ?
+```
+Requiere firma del mensaje `Vincular esta wallet a mi cuenta WAR (${sub})`. Si la wallet ya pertenece a otra cuenta, el `UNIQUE` parcial `idx_users_wallet` rechaza el `UPDATE` (409).
+
+### `functions/api/auth/wallet.js` — login solo con wallet
+
+```sql
+SELECT sub, username, email FROM users WHERE wallet_address = ? COLLATE NOCASE
+```
+Requiere firma del mensaje `Iniciar sesión en WAR con esta wallet (${address})`. Si hay fila, emite la misma cookie `war_session` que el login con Google.
 
 ## Migraciones
 
@@ -76,7 +94,7 @@ Las migraciones viven en `migrations/` y se aplican en orden ascendente.
 
 | Migración | Archivo | Qué hace |
 |---|---|---|
-| 0001 | `migrations/0001_users.sql` | Borra `scores`; crea `users` con sus índices. |
+| 0001 | `migrations/0001_users.sql` | Borra `scores`; crea `users` (incluye `wallet_address`) con sus índices. |
 
 ### Comandos
 

@@ -117,12 +117,27 @@
   </div>
   <script type="importmap">{"imports":{"ethers":"https://esm.sh/ethers@6.16.0"}}</script>
   <script type="module">
-    import { connectWallet } from '/js/wallet.js';
+    import { connectWallet, signMessage } from '/js/wallet.js';
     document.getElementById('btn-metamask').addEventListener('click', async () => {
       try {
         const addr = await connectWallet();
         sessionStorage.setItem('walletAddress', addr);
-        location.href = '/game';
+
+        const message = `Iniciar sesión en WAR con esta wallet (${addr})`;
+        const signature = await signMessage(message);
+        const res = await fetch('/api/auth/wallet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address: addr, signature }),
+        });
+
+        if (res.ok) {
+          location.href = '/game';
+        } else if (res.status === 404) {
+          alert('Esta wallet no está vinculada a ninguna cuenta. Inicia sesión con Google y vincúlala desde tu perfil.');
+        } else {
+          alert('No se pudo iniciar sesión con la wallet');
+        }
       } catch(e) { alert(e.message || 'No se pudo conectar MetaMask'); }
     });
   </script>

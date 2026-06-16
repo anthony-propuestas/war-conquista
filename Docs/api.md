@@ -112,7 +112,7 @@ Requiere cookie `war_session` válida.
 |---|---|---|
 | Sin cookie o cookie inválida | `401` | `{ "error": "No autenticado" }` |
 | Usuario no registrado aún | `404` | `{ "error": "Usuario no registrado" }` |
-| Éxito | `200` | `{ "username": "Ana", "wins": 3 }` |
+| Éxito | `200` | `{ "username": "Ana", "wins": 3, "wallet_address": "0x..."\|null, "sub": "u1" }` |
 
 ## `POST /api/register` — registrar usuario
 
@@ -132,6 +132,41 @@ Requiere cookie `war_session`. Body JSON `{ username, age, email, how_heard }`.
 | Éxito | `200` | `{ "ok": true }` |
 
 Valores válidos de `how_heard`: `"YouTube"`, `"Twitter / X"`, `"Un amigo me lo recomendó"`, `"Reddit"`, `"Discord"`, `"Encontré el link por casualidad"`.
+
+---
+
+# API — Wallet (`/api/auth/wallet`, `/api/wallet/link`)
+
+Login y vinculación de wallet MetaMask, alternativa a Google OAuth. Ambos endpoints
+verifican la firma con `ethers.verifyMessage` (`recovered.toLowerCase() === address.toLowerCase()`).
+Detalle del flujo y de `signMessage` en [onchain.md](onchain.md); flujo de sesión en [auth.md](auth.md).
+
+## `POST /api/auth/wallet` — login solo con wallet
+
+**Request body**: `{ "address": "0x...", "signature": "0x..." }`, firma del mensaje
+`Iniciar sesión en WAR con esta wallet (${address})`.
+
+| Caso | Status | Body |
+|---|---|---|
+| JSON inválido | `400` | `{ "error": "Cuerpo inválido" }` |
+| Falta `address` o `signature` | `400` | `{ "error": "Faltan datos" }` |
+| Firma no corresponde a `address` | `400` | `{ "error": "Firma inválida" }` |
+| Wallet no vinculada a ninguna cuenta | `404` | `{ "error": "Wallet no vinculada a ninguna cuenta" }` |
+| Éxito | `200` | `{ "ok": true }` + `Set-Cookie: war_session=…` (mismo formato que el login con Google) |
+
+## `POST /api/wallet/link` — vincular wallet a la cuenta de la sesión
+
+Requiere cookie `war_session` válida. **Request body**: `{ "address": "0x...", "signature": "0x..." }`,
+firma del mensaje `Vincular esta wallet a mi cuenta WAR (${sub})`.
+
+| Caso | Status | Body |
+|---|---|---|
+| Sin sesión | `401` | `{ "error": "No autenticado" }` |
+| JSON inválido | `400` | `{ "error": "Cuerpo inválido" }` |
+| Falta `address` o `signature` | `400` | `{ "error": "Faltan datos" }` |
+| Firma no corresponde a `address` | `400` | `{ "error": "Firma inválida" }` |
+| Wallet ya vinculada a otra cuenta (`UNIQUE` de `idx_users_wallet`) | `409` | `{ "error": "Esta wallet ya está vinculada a otra cuenta" }` |
+| Éxito | `200` | `{ "wallet_address": "0x..." }` |
 
 ---
 

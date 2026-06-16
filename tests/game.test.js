@@ -62,8 +62,8 @@ test("constructor entrega un continente completo a cada jugador y deja el resto 
 // ---------- refuerzos ----------
 test("reinforcementsFor: minimo 3 + bonus de continente", () => {
   const g = newGame();
-  ownOnly(g, 0, byCont("america_sur", 5)); // 5 territorios, continente completo, bonus 2
-  // max(3, floor(5/3)) + 2 = 3 + 2
+  ownOnly(g, 0, byCont("america_sur", 6)); // 6 territorios, continente completo, bonus 2
+  // max(3, floor(6/3)) + 2 = 3 + 2
   assert.equal(g.reinforcementsFor(0), 5);
 });
 

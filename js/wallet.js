@@ -16,6 +16,11 @@ export function getAddress() {
   return signer.getAddress();
 }
 
+export function signMessage(message) {
+  if (!signer) throw new Error('Wallet no conectada');
+  return signer.signMessage(message);
+}
+
 export async function mintNFT(contractAddress, abi, tokenURI) {
   if (!signer) throw new Error('Wallet no conectada');
   const contract = new Contract(contractAddress, abi, signer);

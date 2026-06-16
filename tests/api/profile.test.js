@@ -35,12 +35,12 @@ test("sesión válida pero usuario no en DB → 404", async () => {
   assert.equal(res.status, 404);
 });
 
-test("sesión válida y usuario encontrado → 200 con {username, wins}", async () => {
+test("sesión válida y usuario encontrado → 200 con {username, wins, wallet_address, sub}", async () => {
   const res = await onRequestGet({
     request: makeRequest(makeSession("u1")),
-    env: { DB: makeDb({ username: "Ana", wins: 7 }) },
+    env: { DB: makeDb({ username: "Ana", wins: 7, wallet_address: null }) },
   });
   assert.equal(res.status, 200);
   const body = await res.json();
-  assert.deepEqual(body, { username: "Ana", wins: 7 });
+  assert.deepEqual(body, { username: "Ana", wins: 7, wallet_address: null, sub: "u1" });
 });

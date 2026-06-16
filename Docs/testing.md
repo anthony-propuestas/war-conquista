@@ -25,7 +25,9 @@ Los tests viven en `tests/` (versionados, excluidos del deploy vía `.assetsigno
 | tests/api/gamers.test.js | functions/api/gamers.js | 1 | ✅ |
 | tests/api/profile.test.js | functions/api/profile.js | 4 | ✅ |
 | tests/api/register.test.js | functions/api/register.js | 10 | ✅ |
-| **Total** | | **61** | ✅ |
+| tests/api/auth/wallet.test.js | functions/api/auth/wallet.js | 5 | ✅ |
+| tests/api/wallet/link.test.js | functions/api/wallet/link.js | 6 | ✅ |
+| **Total** | | **72** | ✅ |
 
 ## Pendiente (diferido)
 
@@ -33,7 +35,7 @@ Los tests viven en `tests/` (versionados, excluidos del deploy vía `.assetsigno
 requieren un DOM simulado (p. ej. jsdom). Se testearán cuando un cambio en ellos
 lo amerite y sea estable bajo DOM simulado.
 
-`js/wallet.js` (depende de `ethers` + `window.ethereum`) y `js/pixi-overlay.js`
+`js/wallet.js` (incluye `signMessage`; depende de `ethers` + `window.ethereum`) y `js/pixi-overlay.js`
 (canvas/WebGL vía Pixi.js) tampoco se cubren: requieren mockear la cadena Web3 y un
 contexto gráfico que no son estables bajo `node --test`. Diferidos hasta que el cambio
 lo amerite.

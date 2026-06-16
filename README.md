@@ -18,7 +18,7 @@ Conquista territorios, domina continentes y elimina a tus rivales. **Multijugado
 - ♻️ **Fases de turno**: despliegue → refuerzo → ataque → fortificación.
 - 👥 **1 a 3 jugadores** en la misma máquina, cada uno con su color.
 - 🏆 **Salón de la fama** global persistido en Cloudflare D1.
-- 🔐 **Login con Google** para vincular tus victorias a tu cuenta.
+- 🔐 **Login con Google o wallet MetaMask** para vincular tus victorias a tu cuenta.
 - 📱 Interfaz responsive, sin librerías JS ni frameworks (única dependencia externa en
   runtime: las fuentes **Cinzel** y **Oswald** de Google Fonts).
 

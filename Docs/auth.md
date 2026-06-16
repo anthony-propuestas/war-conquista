@@ -51,6 +51,26 @@ export async function onRequestGet({ request }) {
 }
 ```
 
+## Login alternativo: wallet (MetaMask)
+
+Además de Google, una cuenta ya registrada puede iniciar sesión firmando un mensaje
+con su wallet vinculada — sin pasar por OAuth. Emite la misma cookie `war_session`
+(mismo `sub`/`username`/`email`; `picture: null`).
+
+```
+/my-profile → conectar wallet → firmar "Vincular esta wallet a mi cuenta WAR (${sub})"
+    ▼
+POST /api/wallet/link  → guarda wallet_address en users (requiere sesión existente)
+
+/login → "Conectar MetaMask" → firmar "Iniciar sesión en WAR con esta wallet (${address})"
+    ▼
+POST /api/auth/wallet  → busca users WHERE wallet_address = ? → Set-Cookie: war_session
+```
+
+Es decir: la wallet **no reemplaza el registro**, solo agrega una segunda puerta a una
+cuenta que ya existe. Detalle de las firmas y `signMessage` en [onchain.md](onchain.md);
+shapes de request/response en [api.md](api.md).
+
 ## Configuración en Google Cloud Console
 
 1. Ir a **APIs y servicios → Credenciales → Crear credenciales → ID de cliente OAuth 2.0**
@@ -69,5 +89,6 @@ export async function onRequestGet({ request }) {
 | Renovación de token | No — solo se usa el `access_token` para obtener el perfil en el callback; no se guarda para llamadas posteriores. |
 | Revocación | No — si el usuario revoca el acceso en Google, la cookie sigue válida hasta que expire. |
 | Registro obligatorio | El primer login no entra directamente a `/game`: el usuario debe completar el formulario de `/register` (`POST /api/register`) antes de poder jugar. |
+| Login por wallet sin registro propio | `/api/auth/wallet` solo funciona si la wallet ya fue vinculada a una cuenta existente vía `/api/wallet/link`; no hay alta de cuenta nueva directamente por wallet. |
 
 Ver endpoints en [api.md](api.md), secrets en [environment.md](environment.md).

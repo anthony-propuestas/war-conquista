@@ -11,6 +11,8 @@ WAR es un juego de estrategia multijugador. La superficie de red comprende:
 - `/api/profile` — perfil del usuario autenticado (requiere `war_session`)
 - `/api/register` — registro de nuevo usuario en D1 (requiere `war_session`, escribe en DB)
 - `/api/auth/google` y `/api/auth/callback` — login con Google OAuth 2.0
+- `/api/auth/wallet` — login alterno firmando un mensaje con MetaMask
+- `/api/wallet/link` — vincula una wallet a la cuenta de la sesión actual (requiere `war_session`, escribe en DB)
 - `/api/game-room` — WebSocket a través de un Durable Object (`GameRoom`)
 
 La sesión se guarda en una cookie `war_session` (`HttpOnly; SameSite=Lax`).
@@ -68,6 +70,37 @@ desplegados en producción).
 - **Cookie:** `HttpOnly; SameSite=Lax; Path=/; Max-Age=604800`. `HttpOnly` impide acceso
   desde JS; `SameSite=Lax` mitiga CSRF de formularios cross-site.
 
+## Backend — login y vinculación de wallet (`functions/api/auth/wallet.js`, `functions/api/wallet/link.js`)
+
+- **Mecanismos correctos:** ambos endpoints son `POST`; ambas queries a D1 están
+  parametrizadas (`WHERE wallet_address = ?`, `UPDATE … WHERE sub = ?`); el `try/catch`
+  alrededor de `ethers.verifyMessage` captura firmas malformadas y responde `400` sin
+  filtrar detalles; la cookie que emite `auth/wallet.js` usa los mismos atributos que el
+  login con Google (`HttpOnly; SameSite=Lax; Path=/; Max-Age=604800`).
+- **Hallazgo — firma sin nonce/expiración (replay indefinido):** el mensaje firmado es
+  estático: `Iniciar sesión en WAR con esta wallet (${address})` /
+  `Vincular esta wallet a mi cuenta WAR (${sub})`. No incluye nonce, timestamp ni
+  desafío emitido por el servidor. Una firma capturada una sola vez (logs, proxy, MitM,
+  historial del navegador) sirve para autenticarse **para siempre**: no expira ni se
+  puede revocar. Compárese con SIWE (Sign-In with Ethereum), que exige nonce + dominio +
+  expiración por diseño. **Aceptado para MVP**, pendiente de decisión.
+- **Hallazgo — mensaje sin binding de dominio (phishing cross-site):** el texto firmado
+  no incluye el origen (`war-conquista.pages.dev`). Un sitio de phishing puede mostrar
+  un botón "Conectar wallet" y pedirle a la víctima que firme exactamente ese mismo
+  mensaje; la firma resultante es válida en el backend real de WAR. La víctima nunca
+  interactúa con el sitio real pero el atacante obtiene acceso completo a su cuenta.
+  **Aceptado para MVP**, mitigación futura: incluir el dominio en el mensaje firmado
+  (estilo SIWE) y verificarlo.
+- **Hallazgo — escalada del riesgo ya conocido de cookie sin HMAC:**
+  `functions/api/wallet/link.js` confía en `session.sub` leído de la cookie **no
+  firmada** para decidir a qué cuenta vincular la wallet. Quien ya pudiera forjar
+  `war_session = btoa({sub: "<sub_de_la_víctima>"})` (riesgo documentado abajo) y firme
+  el mensaje de vinculación **con su propia wallet** (la firma solo necesita coincidir
+  con el `sub` que él mismo puso en la cookie forjada) puede vincular su wallet a la
+  cuenta de la víctima. Desde ahí ya no necesita seguir forjando cookies: entra con
+  `POST /api/auth/wallet` usando su wallet real, de forma persistente, como **puerta
+  trasera** a la cuenta ajena. Sube la prioridad de firmar `war_session` con HMAC.
+
 ## Frontend — `js/main.js` y `js/ui.js`
 
 - **XSS (output encoding):** el `name` que vuelve de la DB pasa por `escapeHtml()` antes
@@ -109,7 +142,7 @@ Baseline aplicado a todo el sitio (no debilitar):
 |---|---|
 | `multiplayer.js` | `encodeURIComponent` en parámetros URL del WebSocket. JSON parse con `try/catch`; mensajes con JSON inválido descartados. |
 | `functions/game-room.js` | Solo acepta conexiones con cabecera `Upgrade: websocket` (responde 426 en caso contrario). Parse JSON con `try/catch` en `webSocketMessage`. |
-| `js/wallet.js` | MetaMask requiere aprobación explícita del usuario antes de cualquier transacción. Sin contratos desplegados en producción, no hay riesgo on-chain real. |
+| `js/wallet.js` | MetaMask requiere aprobación explícita del usuario antes de cualquier transacción o firma. Sin contratos desplegados en producción, no hay riesgo on-chain real. Desde esta sesión `signMessage()` también se usa para **auth real** (`/api/auth/wallet`, `/api/wallet/link`) — ver hallazgos en la sección de wallet arriba. |
 
 ## Riesgos aceptados / vectores conocidos
 
@@ -178,6 +211,22 @@ No son vulnerabilidades confirmadas, pero se registran:
   porque queda fuera del cambio de esta sesión (visual) y el workflow de seguridad solo
   registra; la corrección de código se confirma aparte.
 
+- **Firma de wallet sin nonce/expiración:** los mensajes firmados para login
+  (`/api/auth/wallet`) y vinculación (`/api/wallet/link`) son texto estático sin
+  desafío del servidor. Una firma capturada una vez es válida para siempre — no hay
+  revocación ni expiración. Aceptado para MVP. Mitigación futura: nonce de un solo uso
+  emitido por el servidor + expiración corta, estilo SIWE.
+- **Firma de wallet sin binding de dominio:** el mensaje no incluye el origen de la
+  app, por lo que un sitio de phishing puede solicitar la misma firma y reproducirla
+  contra el backend real de WAR. Aceptado para MVP. Mitigación futura: incluir el
+  dominio en el mensaje firmado y verificarlo en el backend.
+- **Escalada del riesgo de cookie sin HMAC vía `/api/wallet/link`:** quien ya pueda
+  forjar `war_session` con un `sub` arbitrario (riesgo ya documentado arriba) puede
+  ahora vincular su propia wallet a la cuenta de la víctima firmando con su propia
+  clave, y desde ahí entrar de forma persistente con `/api/auth/wallet` sin necesidad
+  de seguir forjando cookies. Convierte un riesgo de lectura/escritura puntual en una
+  **puerta trasera persistente**. Sube la prioridad de firmar `war_session` con HMAC.
+
 ## Checklist pre-producción
 
 Para cada cambio que toque la superficie de ataque:
@@ -195,6 +244,8 @@ Para cada cambio que toque la superficie de ataque:
 - [ ] (Si toca WebSocket) `playerId` se valida contra la cookie `war_session` en el DO.
 - [ ] (Si toca WebSocket) El payload del mensaje se valida contra schema antes de persistir.
 - [ ] (Si toca estado de juego en red) Los datos asignados al board tienen schema y tipo verificado.
+- [ ] (Si toca wallet) El mensaje firmado incluye nonce/expiración y el dominio de la app.
+- [ ] (Si toca wallet) Vincular una wallet no depende únicamente de un campo de la cookie sin verificar.
 
 ## Historial de revisiones
 
@@ -252,3 +303,18 @@ Para cada cambio que toque la superficie de ataque:
   sin nuevo vector de input (`index.html`), y un literal de color sin dato de usuario ni
   `innerHTML` involucrado (`ui.js`). Sin cambios en endpoints, queries, esquema, cabeceras
   ni secrets.
+- **2026-06-16** — Login y vinculación de wallet: `functions/api/auth/wallet.js` (nuevo),
+  `functions/api/wallet/link.js` (nuevo), `signMessage()` en `js/wallet.js`,
+  `wallet_address` en `migrations/0001_users.sql`, UI en `login.html`/`my-profile/index.html`.
+  Mecanismos correctos: queries parametrizadas, `try/catch` en `verifyMessage`, mismos
+  atributos de cookie que el login con Google. **Hallazgos:** (1) el mensaje firmado no
+  tiene nonce ni expiración → una firma capturada una vez es válida para siempre
+  (replay indefinido); (2) el mensaje no incluye el dominio de la app → phishable (un
+  sitio falso puede pedir la misma firma y reproducirla contra el backend real); (3)
+  **escalada del riesgo de cookie sin HMAC:** quien ya forje `war_session` con un `sub`
+  ajeno puede usar `/api/wallet/link` para vincular su propia wallet a la cuenta de la
+  víctima y entrar después de forma persistente por `/api/auth/wallet`, sin seguir
+  forjando cookies — convierte el riesgo ya conocido en una puerta trasera persistente.
+  Los tres aceptados para MVP; suben la prioridad de firmar `war_session` con HMAC. Sin
+  cambios en `_headers` ni secrets. El self-XSS de `winner.name` sigue pendiente (no
+  tocado en esta sesión).

@@ -19,7 +19,7 @@ export async function onRequestGet({ request, env }) {
   }
 
   const user = await env.DB.prepare(
-    "SELECT username, wins FROM users WHERE sub = ?"
+    "SELECT username, wins, wallet_address FROM users WHERE sub = ?"
   ).bind(session.sub).first();
 
   if (!user) {
@@ -29,7 +29,12 @@ export async function onRequestGet({ request, env }) {
     });
   }
 
-  return new Response(JSON.stringify({ username: user.username, wins: user.wins }), {
+  return new Response(JSON.stringify({
+    username: user.username,
+    wins: user.wins,
+    wallet_address: user.wallet_address || null,
+    sub: session.sub,
+  }), {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });

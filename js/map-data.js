@@ -24,7 +24,7 @@ export const TERRITORIES = {
   quebec:        { name: "Quebec",            continent: "america_norte", x: 320, y: 150 },
   oeste_eeuu:    { name: "Oeste EE.UU.",      continent: "america_norte", x: 160, y: 235 },
   este_eeuu:     { name: "Este EE.UU.",       continent: "america_norte", x: 255, y: 240 },
-  centroamerica: { name: "Centroamerica",     continent: "america_norte", x: 195, y: 310 },
+  
 
   // ---------- America del Sur ----------
   venezuela:     { name: "Venezuela",         continent: "america_sur", x: 270, y: 380 },
@@ -32,8 +32,10 @@ export const TERRITORIES = {
   brasil:        { name: "Brasil",            continent: "america_sur", x: 360, y: 450 },
   argentina:     { name: "Argentina",         continent: "america_sur", x: 295, y: 555 },
   trinidad:      { name: "Trinidad",          continent: "america_sur", x: 315, y: 345 },
+  centroamerica: { name: "Centroamerica",     continent: "america_sur", x: 195, y: 310 }, 
 
   // ---------- Europa ----------
+  ural:          { name: "Ural",              continent: "europa", x: 740, y: 140 },
   islandia:      { name: "Islandia",          continent: "europa", x: 460, y: 110 },
   granbretana:   { name: "Gran Bretana",      continent: "europa", x: 465, y: 185 },
   escandinavia:  { name: "Escandinavia",      continent: "europa", x: 560, y: 100 },
@@ -49,9 +51,9 @@ export const TERRITORIES = {
   congo:         { name: "Congo",             continent: "africa", x: 595, y: 445 },
   africa_sur:    { name: "Africa Sur",        continent: "africa", x: 610, y: 535 },
   madagascar:    { name: "Madagascar",        continent: "africa", x: 700, y: 500 },
+  medio_oriente: { name: "Medio Oriente",     continent: "africa", x: 685, y: 290 },
 
   // ---------- Asia ----------
-  ural:          { name: "Ural",              continent: "asia", x: 740, y: 140 },
   siberia:       { name: "Siberia",           continent: "asia", x: 820, y: 100 },
   yakutsk:       { name: "Yakutsk",           continent: "asia", x: 905, y: 70  },
   kamchatka:     { name: "Kamchatka",         continent: "asia", x: 1000,y: 95  },
@@ -60,9 +62,7 @@ export const TERRITORIES = {
   japon:         { name: "Japon",             continent: "asia", x: 1010,y: 210 },
   afganistan:    { name: "Afganistan",        continent: "asia", x: 740, y: 230 },
   china:         { name: "China",             continent: "asia", x: 840, y: 270 },
-  medio_oriente: { name: "Medio Oriente",     continent: "asia", x: 685, y: 290 },
   india:         { name: "India",             continent: "asia", x: 790, y: 330 },
-  siam:          { name: "Siam",              continent: "asia", x: 870, y: 340 },
 
   // ---------- Oceania ----------
   indonesia:     { name: "Indonesia",         continent: "oceania", x: 890, y: 420 },
@@ -70,6 +70,7 @@ export const TERRITORIES = {
   australia_oeste:{ name: "Australia Oeste",  continent: "oceania", x: 910, y: 510 },
   australia_este:{ name: "Australia Este",    continent: "oceania", x: 1000,y: 520 },
   nueva_zelanda: { name: "Nueva Zelanda",     continent: "oceania", x: 1070, y: 555 },
+  siam:          { name: "Siam",              continent: "oceania", x: 870, y: 340 },
 };
 
 // Adyacencias (grafo no dirigido). Solo se declara una direccion;
@@ -80,13 +81,13 @@ const RAW_ADJ = {
   groenlandia:   ["ontario", "quebec", "islandia"],
   alberta:       ["ontario", "oeste_eeuu"],
   ontario:       ["quebec", "oeste_eeuu", "este_eeuu"],
-  quebec:        ["este_eeuu"],
+  quebec:        ["este_eeuu","ontario", "groenlandia"],
   oeste_eeuu:    ["este_eeuu", "centroamerica"],
   este_eeuu:     ["centroamerica"],
-  centroamerica: ["venezuela"],
+  centroamerica: ["venezuela","este_eeuu","oeste_eeuu"],
 
   venezuela:     ["brasil", "peru", "trinidad"],
-  trinidad:      [],
+  trinidad:      ["venezuela","centroamerica"],
   peru:          ["brasil", "argentina"],
   brasil:        ["argentina", "africa_norte"],
 

@@ -52,19 +52,81 @@
     }
     .nav a:hover { color: #e63946; }
     #loading { color: #888; }
+    .wallet-row { margin-top: 1.5rem; }
+    .wallet-value { font-size: 0.95rem; color: #e8e8e8; word-break: break-all; }
+    #btn-connect-wallet {
+      margin-top: 0.75rem;
+      padding: 10px 18px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      background: #1b2c40;
+      color: #e8e8e8;
+      border: 1px solid #2a2a35;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    #btn-connect-wallet:hover { border-color: #e2761b; }
+    #wallet-error { color: #e63946; font-size: 0.8rem; margin-top: 0.5rem; }
   </style>
 </head>
 <body>
   <div class="card">
     <p class="label">Tu nombre de usuario</p>
     <h1 class="username" id="username"><span id="loading">Cargando...</span></h1>
+    <div class="wallet-row">
+      <p class="label">Wallet vinculada</p>
+      <p class="wallet-value" id="wallet-value">—</p>
+      <button id="btn-connect-wallet" style="display:none;">Conectar wallet</button>
+      <p id="wallet-error"></p>
+    </div>
   </div>
   <nav class="nav">
     <a href="/game">← Jugar</a>
     <a href="/gamers">Ranking</a>
   </nav>
 
-  <script>
+  <script type="importmap">{"imports":{"ethers":"https://esm.sh/ethers@6.16.0"}}</script>
+  <script type="module">
+    import { connectWallet, signMessage } from '/js/wallet.js';
+
+    let currentSub = null;
+
+    function renderWallet(address) {
+      const valueEl = document.getElementById('wallet-value');
+      const btn = document.getElementById('btn-connect-wallet');
+      if (address) {
+        valueEl.textContent = address;
+        btn.style.display = 'none';
+      } else {
+        valueEl.textContent = 'No vinculada';
+        btn.style.display = 'inline-block';
+      }
+    }
+
+    document.getElementById('btn-connect-wallet').addEventListener('click', async () => {
+      const errorEl = document.getElementById('wallet-error');
+      errorEl.textContent = '';
+      try {
+        const address = await connectWallet();
+        const message = `Vincular esta wallet a mi cuenta WAR (${currentSub})`;
+        const signature = await signMessage(message);
+        const res = await fetch('/api/wallet/link', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address, signature }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          errorEl.textContent = data.error || 'No se pudo vincular la wallet';
+          return;
+        }
+        renderWallet(data.wallet_address);
+      } catch (e) {
+        errorEl.textContent = e.message || 'No se pudo conectar MetaMask';
+      }
+    });
+
     (async function() {
       try {
         const res = await fetch('/api/profile');
@@ -75,6 +137,8 @@
         const data = await res.json();
         document.getElementById('username').textContent = data.username;
         document.title = data.username + ' — WAR';
+        currentSub = data.sub;
+        renderWallet(data.wallet_address);
       } catch(_) {
         document.getElementById('loading').textContent = 'Error al cargar';
       }
