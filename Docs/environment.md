@@ -1,8 +1,8 @@
 # Entorno y configuración
 
-WAR usa un **binding D1** para el salón de la fama y **dos secrets de Google OAuth**
-para la autenticación. Ambos se configuran de forma diferente (binding en `wrangler.toml`,
-secrets fuera del repo).
+WAR usa un **binding D1** (salón de la fama), un **binding Durable Object** (sala
+multijugador) y **dos secrets de Google OAuth** (autenticación). Los bindings van en
+`wrangler.toml`; los secrets, fuera del repo.
 
 ## `wrangler.toml`
 
@@ -15,6 +15,14 @@ compatibility_date = "2025-06-01"
 binding = "DB"
 database_name = "war-scores"
 database_id = "405ca0f4-51eb-48bf-8d56-a1040bfb7c06"
+
+[[durable_objects.bindings]]
+name = "GAME_ROOM"
+class_name = "GameRoom"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["GameRoom"]
 ```
 
 | Clave | Significado |
@@ -23,6 +31,8 @@ database_id = "405ca0f4-51eb-48bf-8d56-a1040bfb7c06"
 | `compatibility_date` | Fija el runtime de Workers/Functions. |
 | `[[d1_databases]]` | Declara el binding **`DB`** → base `war-scores`. La Function accede vía `env.DB`. |
 | `database_id` | ID de la D1 remota (de `npm run db:create`). |
+| `[[durable_objects.bindings]]` | Declara el binding **`GAME_ROOM`** → clase `GameRoom` (`functions/game-room.js`). La Function lo usa vía `env.GAME_ROOM`. |
+| `[[migrations]]` | Registra la clase del Durable Object (`tag = v1`). Se aplica al desplegar. |
 
 ## Secrets de Google OAuth
 
@@ -61,6 +71,20 @@ binding del `wrangler.toml`. Inicializa su esquema con `npm run db:init`.
 **En Pages (panel):** si despliegas vía Git en vez de CLI, añade el binding manualmente
 en **Settings → Functions → D1 database bindings**: nombre de variable `DB` → base
 `war-scores`.
+
+## El binding `GAME_ROOM` (Durable Object)
+
+`functions/game-room.js` usa `env.GAME_ROOM` para resolver la sala
+(`idFromName(roomId)`). En `npm run dev` wrangler instancia el DO localmente a partir del
+binding y la migración del `wrangler.toml`. En producción, la migración `v1` se aplica en
+el deploy; en CI/CD desde Git, confirmar el binding `GAME_ROOM` en el panel de Pages si no
+se hereda del `wrangler.toml`. Detalle del subsistema en [realtime.md](realtime.md).
+
+## Librerías de runtime (`importmap`)
+
+`pixi.js` y `ethers` se cargan en el navegador desde **esm.sh** (CDN ESM-native) mediante
+`importmap` en cada HTML (ver [stack.md](stack.md)). No hay dependencia de `node_modules`
+en los assets desplegados.
 
 ## Cabeceras (`_headers`)
 

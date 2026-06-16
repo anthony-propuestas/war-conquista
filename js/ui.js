@@ -4,6 +4,7 @@
 
 import { TERRITORIES, CONTINENTS, ADJACENCY } from "./map-data.js";
 import { TERRITORY_SHAPES, TERRITORY_CENTERS, MAP_VIEWBOX, SEA_ROUTES, TERRITORY_CLIPS } from "./map-shapes.js";
+import { initPixiOverlay, playBattleAnimation } from "./pixi-overlay.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -28,6 +29,7 @@ export class UI {
 
     this.buildMap();
     this.refresh();
+    initPixiOverlay($("#map")).catch(() => {});
   }
 
   // ---------- construccion del mapa (una vez) ----------
@@ -329,6 +331,7 @@ export class UI {
     // intentar atacar
     if (g.canAttack(this.selected, id)) {
       const res = g.attack(this.selected, id);
+      playBattleAnimation($("#map"), this.selected, id, !!res.conquered);
       this.showDice(res);
       if (res.conquered) {
         this.openConquestModal();

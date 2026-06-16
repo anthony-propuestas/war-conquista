@@ -563,6 +563,11 @@
   <!-- Botón Acceso fijo arriba a la izquierda -->
   <a href="/login.html" class="access-btn">Acceso →</a>
 
+  <!-- Botón wallet fijo arriba a la derecha -->
+  <button id="home-wallet-btn" class="access-btn" style="left:auto;right:20px;border-color:var(--line);background:rgba(27,44,64,.88)">
+    🦊 Conectar Wallet
+  </button>
+
   <!-- ═══════════════════════ HERO ═══════════════════════ -->
   <section class="hero">
     <div class="hero-bg" aria-hidden="true"></div>
@@ -803,5 +808,21 @@
     <p class="footer-copy">Juego de estrategia multijugador · Conquista el mundo</p>
   </footer>
 
+  <script type="importmap">{"imports":{"ethers":"https://esm.sh/ethers@6.16.0"}}</script>
+  <script type="module">
+    import { connectWallet } from '/js/wallet.js';
+    const btn = document.getElementById('home-wallet-btn');
+    const saved = sessionStorage.getItem('walletAddress');
+    if (saved) btn.textContent = '🦊 ' + saved.slice(0,6) + '…' + saved.slice(-4);
+    btn.addEventListener('click', async () => {
+      try {
+        const addr = await connectWallet();
+        sessionStorage.setItem('walletAddress', addr);
+        btn.textContent = '🦊 ' + addr.slice(0,6) + '…' + addr.slice(-4);
+        btn.style.borderColor = 'var(--ok)';
+        btn.style.color = 'var(--ok)';
+      } catch(e) { alert(e.message); }
+    });
+  </script>
 </body>
 </html>

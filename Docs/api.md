@@ -1,8 +1,9 @@
 # API — `/api/scores`
 
-Único endpoint del proyecto. Es una **Cloudflare Pages Function**
-(`functions/api/scores.js`) que expone el salón de la fama sobre D1.
-Maneja el salón de la fama; la lógica del juego no toca la red.
+Endpoint del salón de la fama. Es una **Cloudflare Pages Function**
+(`functions/api/scores.js`) sobre D1; la lógica del juego no toca la red.
+(Los otros endpoints son `/api/auth/*` —abajo— y `/api/game-room` —WebSocket, ver
+[realtime.md](realtime.md)—.)
 
 **Diseño clave:** degrada de forma segura. Si no hay D1 vinculado (`env.DB`
 ausente), responde sin error para que el juego siga funcionando sin backend.
@@ -75,7 +76,7 @@ Google redirige aquí tras la autorización del usuario.
 
 | Caso | Status | Destino |
 |---|---|---|
-| Flujo exitoso | `302` | `/` con `Set-Cookie: war_session=…` |
+| Flujo exitoso | `302` | `/game` con `Set-Cookie: war_session=…` |
 | Sin `?code` | `302` | `/login?error=no_code` |
 | Env vars ausentes | `500` | — |
 | Google devuelve error de token | `302` | `/login?error=<error_de_google>` |
@@ -84,3 +85,22 @@ Google redirige aquí tras la autorización del usuario.
 La cookie `war_session` es `HttpOnly; SameSite=Lax; Max-Age=604800` (7 días).
 Su valor es un JSON base64 con `{ sub, name, email, picture }`.
 Todos los redirects de error usan URLs absolutas (`<origen>/login?error=…`).
+
+---
+
+# API — Sala multijugador (`/api/game-room`)
+
+Endpoint **WebSocket** servido por `functions/game-room.js`, que enruta al Durable Object
+`GameRoom` por `roomId`.
+
+## `GET /api/game-room?roomId=<id>&playerId=<id>` (upgrade WebSocket)
+
+| Caso | Status | Resultado |
+|---|---|---|
+| Header `Upgrade: websocket` presente | `101` | Conexión WebSocket aceptada en la sala `roomId`. |
+| Sin ese header | `426` | `Expected WebSocket`. |
+
+Mensajes (JSON `{ type, payload }`): el cliente envía `game_state` (se persiste y
+retransmite) u otras acciones (solo retransmiten). El servidor reenvía a los demás con
+`from: <playerId>` y emite `player_left` al cerrar. Protocolo y semántica completos en
+[realtime.md](realtime.md).

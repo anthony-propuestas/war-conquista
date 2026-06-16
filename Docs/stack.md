@@ -1,7 +1,9 @@
 # Stack tecnológico
 
-Filosofía: **lo mínimo que funciona**. Sin frameworks, sin paso de build, sin
-bundler. El navegador carga los ES Modules directamente.
+Filosofía: **lo mínimo que funciona**. Sin paso de build ni bundler: el navegador carga
+los ES Modules directamente, y las pocas librerías de runtime (`pixi.js`, `ethers`) se
+resuelven con un **`importmap`** que apunta a `/node_modules/` (sin empaquetar). No hay
+framework de UI (React/Vue) ni transpilación.
 
 ## Frontend
 
@@ -9,26 +11,39 @@ bundler. El navegador carga los ES Modules directamente.
 |---|---|---|
 | Lenguaje | HTML + CSS + JavaScript puro | Juego pequeño; un framework sería sobrepeso. |
 | Módulos | ES Modules nativos (`"type": "module"`) | `import`/`export` en el navegador sin transpilar. |
-| Render del mapa | SVG por DOM API en `js/ui.js`, con paths **pregenerados** en `js/map-shapes.js` | Vectorial y escalable. Las formas reales del mundo se calculan offline (ver build abajo); el navegador no carga ninguna librería de gráficos. |
+| Render del mapa | SVG por DOM API en `js/ui.js`, con paths **pregenerados** en `js/map-shapes.js` | Vectorial y escalable. Las formas reales del mundo se calculan offline (ver build abajo). |
+| Animaciones de batalla | **Pixi.js** (`js/pixi-overlay.js`), canvas superpuesto al SVG | Partículas/línea/etiqueta por ataque sin recargar el SVG. Ver [architecture.md](architecture.md). |
+| Wallet Web3 | **ethers v6** (`js/wallet.js`) + MetaMask | Identidad de jugador y mint/claim experimental. Ver [onchain.md](onchain.md). |
 | Estilos | CSS plano (`css/style.css`) | Sin preprocesador ni utilidades. |
 | Tipografía | **Google Fonts** (`Cinzel`, `Oswald`) vía `<link>` en `index.html` | Títulos/UI; se cargan desde el CDN de Google (con `preconnect`), no están auto-hospedadas. Única dependencia externa en runtime. |
 
-No hay React/Vue, ni TypeScript, ni Webpack/Vite. Abrir `index.html` en un servidor
-estático basta para jugar (sin salón de la fama); las fuentes requieren conexión a
-`fonts.googleapis.com`/`fonts.gstatic.com` (si no, el navegador usa el fallback serif/sans).
+No hay React/Vue, ni TypeScript, ni Webpack/Vite. El single-player funciona sirviendo los
+estáticos; las fuentes requieren conexión a `fonts.googleapis.com`/`fonts.gstatic.com` (si
+no, el navegador usa el fallback serif/sans). `pixi.js` y `ethers` se sirven desde
+`/node_modules/` vía `importmap` (ver "Dependencias" abajo).
 
 ## Backend / plataforma (Cloudflare)
 
 | Servicio | Uso |
 |---|---|
 | **Pages** | Hosting de los estáticos. |
-| **Pages Functions** | El endpoint `/api/scores` (`functions/api/scores.js`). |
+| **Pages Functions** | Endpoints `/api/scores`, `/api/auth/*` y routing de `/api/game-room`. |
 | **D1** | Base SQLite del salón de la fama (binding `DB`). |
+| **Durable Objects** | Sala multijugador `GameRoom` (binding `GAME_ROOM`). Ver [realtime.md](realtime.md). |
 
 ## Dependencias
 
-**Ninguna dependencia de runtime**: el navegador no descarga librerías (solo las
-fuentes de Google). Las `devDependencies` existen para tareas locales:
+**Dependencias de runtime** (llegan al navegador vía `importmap` declarado en
+`game/index.html`, `login.html` y `home/index.html`; se cargan desde **esm.sh** — CDN
+ESM-native — sin bundler):
+
+| dependency | CDN | Para qué |
+|---|---|---|
+| `pixi.js 8.19.0` | `https://esm.sh/pixi.js@8.19.0` | Animaciones de batalla (`js/pixi-overlay.js`). |
+| `ethers 6.16.0` | `https://esm.sh/ethers@6.16.0` | Wallet Web3 (`js/wallet.js`). |
+
+Las `devDependencies` existen para tareas locales (incluyendo `pixi.js` y `ethers` por si
+se quieren tipos o resolución local, aunque el navegador los resuelve desde CDN):
 
 | devDependency | Para qué |
 |---|---|

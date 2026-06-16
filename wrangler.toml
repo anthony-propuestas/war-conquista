@@ -9,3 +9,11 @@ compatibility_date = "2025-06-01"
 binding = "DB"
 database_name = "war-scores"
 database_id = "405ca0f4-51eb-48bf-8d56-a1040bfb7c06"
+
+[[durable_objects.bindings]]
+name = "GAME_ROOM"
+class_name = "GameRoom"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["GameRoom"]

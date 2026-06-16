@@ -268,6 +268,84 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 0;
 .sidebar::-webkit-scrollbar-thumb:hover, #log-list::-webkit-scrollbar-thumb:hover { background: var(--panel-2); }
 .sidebar::-webkit-scrollbar-track, #log-list::-webkit-scrollbar-track { background: transparent; }
 
+/* ---------- Wallet & Multiplayer ---------- */
+.wallet-btn {
+  font-size: .8rem;
+  padding: 6px 14px;
+  border-radius: 20px;
+  letter-spacing: .5px;
+}
+.wallet-btn.connected {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+.wallet-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .75rem;
+  font-family: monospace;
+  color: var(--ok);
+  background: rgba(42,157,143,.12);
+  border: 1px solid rgba(42,157,143,.35);
+  border-radius: 20px;
+  padding: 3px 10px;
+}
+.wallet-badge.hidden { display: none; }
+
+.online-setup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.room-field { margin-top: 4px; }
+.room-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.room-row input { flex: 1; }
+.room-hint {
+  display: block;
+  font-size: .78rem;
+  color: var(--ink-dim);
+  margin-top: 4px;
+}
+
+.multiplayer-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .75rem;
+  color: var(--ok);
+  background: rgba(42,157,143,.12);
+  border: 1px solid rgba(42,157,143,.35);
+  border-radius: 20px;
+  padding: 3px 10px;
+}
+.multiplayer-indicator::before {
+  content: '';
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--ok);
+  animation: pulse 1.5s infinite;
+}
+.multiplayer-indicator.hidden { display: none; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .35; }
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 900px) {
   .game-layout { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }

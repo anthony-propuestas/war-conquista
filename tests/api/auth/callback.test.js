@@ -43,7 +43,7 @@ test("flujo exitoso: 302 a / con cookie war_session", async () => {
   try {
     const res = await onRequestGet({ request: new Request(`${callbackUrl}?code=ok`), env });
     assert.equal(res.status, 302);
-    assert.equal(res.headers.get("Location"), "/");
+    assert.equal(res.headers.get("Location"), "/game");
     assert.ok(res.headers.get("Set-Cookie").includes("war_session="));
   } finally {
     fetchMock.mock.restore();

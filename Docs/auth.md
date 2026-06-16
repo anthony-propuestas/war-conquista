@@ -20,7 +20,7 @@ GET /api/auth/callback?code=<code>
     │ GET  https://openidconnect.googleapis.com/v1/userinfo → perfil
     │ Set-Cookie: war_session=<base64>
     ▼ 302
-/  (juego)
+/game  (pantalla de juego)
 ```
 
 ## Cookie de sesión (`war_session`)

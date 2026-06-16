@@ -34,6 +34,21 @@
 
         <div id="player-fields" class="player-fields"></div>
 
+        <!-- Wallet + sala (multijugador online) -->
+        <div class="online-setup">
+          <button id="btn-wallet" class="btn btn-ghost wallet-btn">Conectar Wallet</button>
+          <span id="wallet-badge" class="wallet-badge hidden"></span>
+        </div>
+
+        <label class="field room-field">
+          <span>Sala online (opcional)</span>
+          <div class="room-row">
+            <input id="room-input" type="text" maxlength="24" placeholder="Ej: sala-42 (deja vacío para local)" />
+            <button type="button" class="btn btn-ghost btn-small" id="btn-gen-room">Generar</button>
+          </div>
+          <span class="room-hint">Comparte el código con tus amigos para jugar en línea</span>
+        </label>
+
         <button id="btn-start" class="btn btn-primary btn-big">Iniciar partida</button>
       </div>
 
@@ -57,7 +72,11 @@
     <header class="topbar">
       <div class="brand">WAR</div>
       <div id="turn-banner" class="turn-banner"></div>
-      <button id="btn-quit" class="btn btn-ghost">Salir</button>
+      <div class="topbar-right">
+        <span id="multiplayer-indicator" class="multiplayer-indicator hidden"></span>
+        <span id="topbar-wallet" class="wallet-badge hidden"></span>
+        <button id="btn-quit" class="btn btn-ghost">Salir</button>
+      </div>
     </header>
 
     <div class="game-layout">
@@ -92,6 +111,14 @@
     <div class="modal-card" id="modal-card"></div>
   </div>
 
+  <script type="importmap">
+  {
+    "imports": {
+      "pixi.js": "https://esm.sh/pixi.js@8.19.0",
+      "ethers": "https://esm.sh/ethers@6.16.0"
+    }
+  }
+  </script>
   <script type="module" src="../js/main.js"></script>
 </body>
 </html>

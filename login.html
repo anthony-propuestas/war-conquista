@@ -56,6 +56,24 @@
     .divider { border: none; border-top: 1px solid var(--line); }
     .back-link { color: var(--ink-dim); font-size: .85rem; text-decoration: none; }
     .back-link:hover { color: var(--ink); }
+    .btn-metamask {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      padding: 13px 20px;
+      font-size: 1rem;
+      font-weight: 600;
+      background: #1b2c40;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .btn-metamask:hover { border-color: #e2761b; box-shadow: 0 2px 8px rgba(226,118,27,.25); }
+    .or-text { color: var(--ink-dim); font-size: .8rem; }
   </style>
 </head>
 <body>
@@ -76,9 +94,37 @@
         Continuar con Google
       </a>
 
+      <p class="or-text">— o —</p>
+
+      <button id="btn-metamask" class="btn-metamask">
+        <!-- MetaMask fox icon -->
+        <svg width="22" height="22" viewBox="0 0 35 33" xmlns="http://www.w3.org/2000/svg">
+          <polygon fill="#e2761b" points="32.96,1 19.39,10.77 21.82,4.99"/>
+          <polygon fill="#e4761b" points="2.04,1 15.47,10.87 13.18,4.99"/>
+          <polygon fill="#d7c1b3" points="28.16,23.53 24.45,29.08 32.17,31.22 34.38,23.65"/>
+          <polygon fill="#d7c1b3" points=".63,23.65 2.83,31.22 10.55,29.08 6.84,23.53"/>
+          <polygon fill="#d7c1b3" points="10.11,14.41 7.94,17.64 15.59,18 15.3,9.79"/>
+          <polygon fill="#d7c1b3" points="24.89,14.41 19.6,9.69 19.39,18 27.06,17.64"/>
+          <polygon fill="#e4761b" points="10.55,29.08 15.1,26.83 11.14,23.7"/>
+          <polygon fill="#e4761b" points="19.9,26.83 24.45,29.08 23.86,23.7"/>
+        </svg>
+        Entrar con MetaMask
+      </button>
+
       <hr class="divider" />
       <a href="/" class="back-link">← Volver al juego sin sesión</a>
     </div>
   </div>
+  <script type="importmap">{"imports":{"ethers":"https://esm.sh/ethers@6.16.0"}}</script>
+  <script type="module">
+    import { connectWallet } from '/js/wallet.js';
+    document.getElementById('btn-metamask').addEventListener('click', async () => {
+      try {
+        const addr = await connectWallet();
+        sessionStorage.setItem('walletAddress', addr);
+        location.href = '/game';
+      } catch(e) { alert(e.message || 'No se pudo conectar MetaMask'); }
+    });
+  </script>
 </body>
 </html>

@@ -2,9 +2,10 @@
 export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
+  const oauthError = url.searchParams.get("error");
 
-  if (!code) {
-    return Response.redirect(`${url.origin}/login?error=no_code`, 302);
+  if (oauthError || !code) {
+    return Response.redirect(`${url.origin}/login.html?error=${oauthError || 'no_code'}`, 302);
   }
 
   const clientId = env.GOOGLE_CLIENT_ID;
@@ -61,7 +62,7 @@ export async function onRequestGet({ request, env }) {
   return new Response(null, {
     status: 302,
     headers: {
-      Location: "/",
+      Location: "/game",
       "Set-Cookie": `war_session=${session}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800`,
     },
   });

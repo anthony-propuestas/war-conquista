@@ -33,12 +33,19 @@ Sube todo el directorio (`pages_build_output_dir = "."`). `tests/` se excluye v�
    (el binding del `wrangler.toml` no se hereda automáticamente en builds de Git).
 5. Cada `git push` a `main` despliega a producción.
 
+## Durable Object (multijugador)
+
+El binding `GAME_ROOM` y la migración `v1` viven en `wrangler.toml` (ver
+[environment.md](environment.md)). La migración se aplica al desplegar; en CI/CD desde Git,
+verificar que el binding del Durable Object esté presente en el panel de Pages si no se
+hereda del `wrangler.toml`.
+
 ## Notas
 
 - **`_headers`** se aplica en el deploy (seguridad + caché de `/assets/*`); ver
   [environment.md](environment.md).
-- **`_redirects`** redirige `/ → /home` (302). Cloudflare Pages lo procesa
-  automáticamente; no requiere configuración adicional.
+- **`_redirects`**: `/ → /home` (301) y `/game → /game/index.html` (200, rewrite).
+  Cloudflare Pages lo procesa automáticamente; no requiere configuración adicional.
 - **Demo en vivo:** https://war-conquista.pages.dev
 - **Secrets de Google OAuth:** antes del primer deploy con auth activo, ejecutar:
   ```bash

@@ -21,13 +21,20 @@ Los tests viven en `tests/` (versionados, excluidos del deploy vía `.assetsigno
 | tests/map-shapes.test.js | js/map-shapes.js | 4 | ✅ |
 | tests/api/auth/google.test.js | functions/api/auth/google.js | 2 | ✅ |
 | tests/api/auth/callback.test.js | functions/api/auth/callback.js | 4 | ✅ |
-| **Total** | | **38** | ✅ |
+| tests/multiplayer.test.js | js/multiplayer.js | 10 | ✅ |
+| tests/api/game-room.test.js | functions/game-room.js | 6 | ✅ |
+| **Total** | | **54** | ✅ |
 
 ## Pendiente (diferido)
 
 `js/ui.js` y `js/main.js` no están cubiertos: dependen de `document`/`fetch` y
 requieren un DOM simulado (p. ej. jsdom). Se testearán cuando un cambio en ellos
 lo amerite y sea estable bajo DOM simulado.
+
+`js/wallet.js` (depende de `ethers` + `window.ethereum`) y `js/pixi-overlay.js`
+(canvas/WebGL vía Pixi.js) tampoco se cubren: requieren mockear la cadena Web3 y un
+contexto gráfico que no son estables bajo `node --test`. Diferidos hasta que el cambio
+lo amerite.
 
 La geometría del mapa se extrajo de `js/ui.js` a `js/map-shapes.js` (datos generados
 por `scripts/build-map-shapes.mjs` a partir de Natural Earth). `ui.js` ya solo consume

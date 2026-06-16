@@ -5,13 +5,14 @@ qué riesgos se aceptan por diseño. Mantenido por `workflow-security.md`.
 
 ## Modelo de seguridad / alcance
 
-WAR es un juego **hotseat local**: toda la partida ocurre en el navegador. La
-superficie de red comprende:
+WAR es un juego de estrategia multijugador. La superficie de red comprende:
 - `/api/scores` — salón de la fama (público y anónimo por diseño)
-- `/api/auth/google` y `/api/auth/callback` — login con Google OAuth 2.0 (nuevo)
+- `/api/auth/google` y `/api/auth/callback` — login con Google OAuth 2.0
+- `/api/game-room` — WebSocket a través de un Durable Object (`GameRoom`)
 
 La sesión se guarda en una cookie `war_session` (`HttpOnly; SameSite=Lax`).
-**No hay** uploads/archivos, blockchain ni WebSockets.
+No hay uploads/archivos. La wallet Web3 (`wallet.js`) es experimental (sin contratos
+desplegados en producción).
 
 ## Backend — `functions/api/scores.js`
 
@@ -78,6 +79,14 @@ Baseline aplicado a todo el sitio (no debilitar):
   `.gitignore` excluye `.dev.vars*`, `.env*`, `*.pem`, `*.key`, `secrets.json`, `.cloudflare/`.
 - Ningún token ni API key está versionado.
 
+## WebSocket y wallet — mecanismos activos
+
+| Componente | Mecanismo |
+|---|---|
+| `multiplayer.js` | `encodeURIComponent` en parámetros URL del WebSocket. JSON parse con `try/catch`; mensajes con JSON inválido descartados. |
+| `functions/game-room.js` | Solo acepta conexiones con cabecera `Upgrade: websocket` (responde 426 en caso contrario). Parse JSON con `try/catch` en `webSocketMessage`. |
+| `js/wallet.js` | MetaMask requiere aprobación explícita del usuario antes de cualquier transacción. Sin contratos desplegados en producción, no hay riesgo on-chain real. |
+
 ## Riesgos aceptados / vectores conocidos
 
 No son vulnerabilidades confirmadas, pero se registran:
@@ -88,6 +97,24 @@ No son vulnerabilidades confirmadas, pero se registran:
   a importar: Cloudflare Turnstile, rate-limit en la Function, o un token de partida
   emitido y verificado server-side.
 - **Sin rate-limiting** en el endpoint en general (abuso/spam de escrituras).
+- **Spoofing de identidad en WebSocket (`game-room.js:14`):** `playerId` se toma del
+  parámetro URL sin verificar contra la cookie `war_session`. Cualquier cliente puede
+  conectarse declarando el `playerId` de otro jugador y enviar acciones como si fuera él.
+  Aceptado para MVP (partidas efímeras de bajo valor). Mitigación futura: leer `war_session`
+  en el DO y rechazar si `sub` no coincide con `playerId`.
+- **Persistencia de payload sin validar (`game-room.js:28`):** `data.payload` se escribe
+  en DO storage directamente. Un cliente malicioso puede corromper el estado compartido de
+  la sala. Aceptado para MVP. Mitigación futura: validar `payload` contra schema mínimo
+  (tipos y rangos de `board`, `currentIndex`, `phase`) antes de persistir.
+- **`Object.assign` sin schema (`main.js:85`):** `Object.assign(game.board, msg.payload.board ?? {})`
+  acepta cualquier objeto del WebSocket. Permite sobrescribir campos internos del board
+  desde la red. Aceptado para MVP. Mitigación futura: validar claves y tipos del payload
+  antes de asignar, o reconstruir el objeto en vez de mutar el existente.
+- **Sin `Content-Security-Policy`:** los scripts inline existentes en los HTML y la carga
+  de esm.sh no están explícitamente allowlisteados. Sin CSP cualquier script inyectado
+  en el DOM (requiere otro vector previo) se ejecutaría sin restricción. Aceptado por
+  complejidad de configurar CSP con `unsafe-inline` y CDN externo. Mitigación futura:
+  añadir CSP permisiva pero explícita a `_headers`.
 - **Cookie `war_session` sin firma (HMAC):** el valor es JSON base64 sin verificación
   criptográfica. Alguien con acceso al dispositivo (o con JS malicioso ya ejecutándose)
   puede forjar o alterar la cookie y suplantar otro `sub`/`email`. En HTTPS (Cloudflare
@@ -128,6 +155,9 @@ Para cada cambio que toque la superficie de ataque:
 - [ ] (Si toca auth) El flujo OAuth envía y verifica el parámetro `state`.
 - [ ] (Si toca auth) Los redirects de error usan `encodeURIComponent` para el valor de `error`.
 - [ ] (Si toca auth) Todo campo de `userInfo` renderizado en el DOM pasa por `escapeHtml`.
+- [ ] (Si toca WebSocket) `playerId` se valida contra la cookie `war_session` en el DO.
+- [ ] (Si toca WebSocket) El payload del mensaje se valida contra schema antes de persistir.
+- [ ] (Si toca estado de juego en red) Los datos asignados al board tienen schema y tipo verificado.
 
 ## Historial de revisiones
 
@@ -146,6 +176,14 @@ Para cada cambio que toque la superficie de ataque:
   pendiente de corrección; (3) `tokenData.error` sin `encodeURIComponent` en redirect —
   riesgo muy bajo, registrado. Sin cambios en `/api/scores`, D1, esquema ni cabeceras.
 - **2026-06-15** — Landing page y redirect raíz: `home/index.html` (página pública en `/home`) y `_redirects` (`/ → /home 302`). **Hallazgo: ninguno.** `home/index.html` es HTML estático sin formularios, sin input de usuario, sin backend y sin cookies — superficie de ataque nula. `_redirects` solo afecta el enrutamiento de Cloudflare Pages; el destino `/home` es interno. Sin cambios en endpoints, queries, esquema, cabeceras ni secrets.
+- **2026-06-15** — Multiplayer (WebSocket + Durable Object), wallet Web3 y Pixi.js:
+  `functions/game-room.js` (DO), `js/multiplayer.js`, `js/wallet.js`, `js/pixi-overlay.js`.
+  Importmaps migrados de `node_modules/` a esm.sh CDN (riesgo de deploy eliminado).
+  **Hallazgos:** (C1) spoofing de `playerId` en WebSocket — aceptado MVP; (C2) payload
+  WebSocket persiste sin validar en DO storage — aceptado MVP; (C3) `Object.assign` sobre
+  board sin schema (`main.js:85`) — aceptado MVP; (M3) falta CSP — aceptado por complejidad.
+  `wallet.js` no añade riesgo server-side (MetaMask requiere aprobación del usuario; sin
+  contratos desplegados). El self-XSS de `winner.name` sigue pendiente (no tocado).
 - **2026-06-15** — Mapa con geometría real: `ui.js` deja de generar costas procedurales y
   consume paths pregenerados de `js/map-shapes.js` (nuevo, generado por
   `scripts/build-map-shapes.mjs`); nuevas `devDependencies` de build (`d3-geo`,
