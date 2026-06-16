@@ -242,3 +242,13 @@ Para cada cambio que toque la superficie de ataque:
   las queries parametrizadas; `username` restringido a `[a-zA-Z0-9_]` (XSS imposible desde
   este campo en cualquier sink DOM); `getSession()` aísla excepciones de cookies malformadas.
   Sin cambios en cabeceras ni secrets.
+- **2026-06-16** — Reglas de partida: `js/map-data.js` (mapa de 42 a 44 territorios,
+  reasignación de continentes, `INITIAL_ARMIES`/`PLAYER_COLORS` de 2-6 a 1-3 jugadores),
+  `js/game.js` (`_distributeTerritories` ahora asigna un continente completo por jugador en
+  vez de territorios sueltos al azar) y `game/index.html` (opciones del `<select
+  id="player-count">` actualizadas a 1/2/3). También color fijo `#888888` para territorios
+  sin dueño en `ui.js` (antes derivado de `CONTINENTS[...].color`). **Hallazgo: ninguno.**
+  Todo es lógica/datos puros sin DOM ni red (`map-data.js`, `game.js`), un `<select>` nativo
+  sin nuevo vector de input (`index.html`), y un literal de color sin dato de usuario ni
+  `innerHTML` involucrado (`ui.js`). Sin cambios en endpoints, queries, esquema, cabeceras
+  ni secrets.

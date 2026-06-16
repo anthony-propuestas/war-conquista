@@ -13,10 +13,10 @@ Conquista territorios, domina continentes y elimina a tus rivales. **Multijugado
 
 ## ✨ Características
 
-- 🗺️ **Mapa de 42 territorios** repartidos en 6 continentes con bonus por dominio.
+- 🗺️ **Mapa de 44 territorios** repartidos en 6 continentes con bonus por dominio.
 - 🎲 **Combate con dados** fiel al original (hasta 3 dados de ataque, 2 de defensa).
 - ♻️ **Fases de turno**: despliegue → refuerzo → ataque → fortificación.
-- 👥 **2 a 6 jugadores** en la misma máquina, cada uno con su color.
+- 👥 **1 a 3 jugadores** en la misma máquina, cada uno con su color.
 - 🏆 **Salón de la fama** global persistido en Cloudflare D1.
 - 🔐 **Login con Google** para vincular tus victorias a tu cuenta.
 - 📱 Interfaz responsive, sin librerías JS ni frameworks (única dependencia externa en

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import { Game } from "../js/game.js";
 import {
-  TERRITORIES, INITIAL_ARMIES,
+  TERRITORIES, CONTINENTS, INITIAL_ARMIES,
 } from "../js/map-data.js";
 
 const ALL_IDS = Object.keys(TERRITORIES);
@@ -31,24 +31,39 @@ function withDice(values, fn) {
 }
 
 // ---------- setup / distribucion ----------
-test("constructor reparte los 42 territorios sin dueño null", () => {
+test("constructor entrega un continente completo a cada jugador y deja el resto neutral", () => {
   const g = newGame();
-  const owned = ALL_IDS.filter((id) => g.board[id].owner !== null);
-  assert.equal(owned.length, 42);
   for (const id of ALL_IDS) assert.equal(g.board[id].armies, 1);
-  // 42 / 2 jugadores = 21 cada uno
-  assert.equal(g.territoriesOf(0).length, 21);
-  assert.equal(g.territoriesOf(1).length, 21);
-  assert.equal(g.setupRemaining[0], INITIAL_ARMIES[2] - 21);
-  assert.equal(g.setupRemaining[1], INITIAL_ARMIES[2] - 21);
+
+  // cada jugador debe poseer exactamente los territorios de 1 continente
+  for (const p of g.players) {
+    const owned = g.territoriesOf(p.id);
+    const conts = new Set(owned.map((id) => TERRITORIES[id].continent));
+    assert.equal(conts.size, 1);
+    const [cid] = conts;
+    const fullCont = ALL_IDS.filter((id) => TERRITORIES[id].continent === cid);
+    assert.equal(owned.length, fullCont.length);
+    assert.equal(g.setupRemaining[p.id], INITIAL_ARMIES[2] - owned.length);
+  }
+
+  // los continentes no asignados quedan sin dueño
+  const ownedConts = new Set(
+    g.players.flatMap((p) => g.territoriesOf(p.id).map((id) => TERRITORIES[id].continent))
+  );
+  for (const id of ALL_IDS) {
+    if (!ownedConts.has(TERRITORIES[id].continent)) {
+      assert.equal(g.board[id].owner, null);
+    }
+  }
+  assert.equal(Object.keys(CONTINENTS).length >= 2, true);
   assert.equal(g.phase, "setup");
 });
 
 // ---------- refuerzos ----------
 test("reinforcementsFor: minimo 3 + bonus de continente", () => {
   const g = newGame();
-  ownOnly(g, 0, byCont("america_sur", 4)); // 4 territorios, continente completo, bonus 2
-  // max(3, floor(4/3)) + 2 = 3 + 2
+  ownOnly(g, 0, byCont("america_sur", 5)); // 5 territorios, continente completo, bonus 2
+  // max(3, floor(5/3)) + 2 = 3 + 2
   assert.equal(g.reinforcementsFor(0), 5);
 });
 
@@ -182,7 +197,7 @@ test("_checkElimination elimina al jugador sin territorios", () => {
   assert.equal(g.players[1].alive, false);
 });
 
-test("_checkWin declara ganador al poseer los 42 territorios", () => {
+test("_checkWin declara ganador al poseer los 44 territorios", () => {
   const g = newGame();
   ownOnly(g, 0, ALL_IDS);
   g.currentIndex = 0;

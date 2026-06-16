@@ -6,9 +6,9 @@ import {
   INITIAL_ARMIES,
 } from "../js/map-data.js";
 
-test("hay 42 territorios y cada continente existe", () => {
+test("hay 44 territorios y cada continente existe", () => {
   const ids = Object.keys(TERRITORIES);
-  assert.equal(ids.length, 42);
+  assert.equal(ids.length, 44);
   for (const id of ids) {
     assert.ok(CONTINENTS[TERRITORIES[id].continent], `continente desconocido en ${id}`);
   }
@@ -40,5 +40,5 @@ test("buildAdjacency devuelve arrays y coincide con la export ADJACENCY", () => 
 });
 
 test("constantes de reglas con la forma esperada", () => {
-  assert.deepEqual(Object.keys(INITIAL_ARMIES).map(Number).sort((a, b) => a - b), [2, 3, 4, 5, 6]);
+  assert.deepEqual(Object.keys(INITIAL_ARMIES).map(Number).sort((a, b) => a - b), [1, 2, 3]);
 });

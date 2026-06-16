@@ -1,6 +1,6 @@
 // ============================================================
 //  WAR - Datos del mapa
-//  42 territorios, 6 continentes (mapa clasico estilo WAR/Risk)
+//  44 territorios, 6 continentes (mapa clasico estilo WAR/Risk + trinidad/nueva_zelanda)
 //  Cada territorio: id, nombre, continente, x, y (posicion SVG)
 //  viewBox del mapa: 0 0 1100 640
 // ============================================================
@@ -24,7 +24,7 @@ export const TERRITORIES = {
   quebec:        { name: "Quebec",            continent: "america_norte", x: 320, y: 150 },
   oeste_eeuu:    { name: "Oeste EE.UU.",      continent: "america_norte", x: 160, y: 235 },
   este_eeuu:     { name: "Este EE.UU.",       continent: "america_norte", x: 255, y: 240 },
-  centroamerica: { name: "Centroamerica",     continent: "america_sur", x: 195, y: 310 },
+  centroamerica: { name: "Centroamerica",     continent: "america_norte", x: 195, y: 310 },
 
   // ---------- America del Sur ----------
   venezuela:     { name: "Venezuela",         continent: "america_sur", x: 270, y: 380 },
@@ -51,7 +51,7 @@ export const TERRITORIES = {
   madagascar:    { name: "Madagascar",        continent: "africa", x: 700, y: 500 },
 
   // ---------- Asia ----------
-  ural:          { name: "Ural",              continent: "europa", x: 740, y: 140 },
+  ural:          { name: "Ural",              continent: "asia", x: 740, y: 140 },
   siberia:       { name: "Siberia",           continent: "asia", x: 820, y: 100 },
   yakutsk:       { name: "Yakutsk",           continent: "asia", x: 905, y: 70  },
   kamchatka:     { name: "Kamchatka",         continent: "asia", x: 1000,y: 95  },
@@ -60,9 +60,9 @@ export const TERRITORIES = {
   japon:         { name: "Japon",             continent: "asia", x: 1010,y: 210 },
   afganistan:    { name: "Afganistan",        continent: "asia", x: 740, y: 230 },
   china:         { name: "China",             continent: "asia", x: 840, y: 270 },
-  medio_oriente: { name: "Medio Oriente",     continent: "africa", x: 685, y: 290 },
+  medio_oriente: { name: "Medio Oriente",     continent: "asia", x: 685, y: 290 },
   india:         { name: "India",             continent: "asia", x: 790, y: 330 },
-  siam:          { name: "Siam",              continent: "oceania", x: 870, y: 340 },
+  siam:          { name: "Siam",              continent: "asia", x: 870, y: 340 },
 
   // ---------- Oceania ----------
   indonesia:     { name: "Indonesia",         continent: "oceania", x: 890, y: 420 },
@@ -139,15 +139,12 @@ export function buildAdjacency() {
 export const ADJACENCY = buildAdjacency();
 
 // Ejercitos iniciales segun numero de jugadores (regla clasica)
-export const INITIAL_ARMIES = { 2: 40, 3: 35, 4: 30, 5: 25, 6: 20 };
+export const INITIAL_ARMIES = { 1: 45, 2: 40, 3: 35 };
 
 // Colores de jugadores
 export const PLAYER_COLORS = [
   "#e63946", // rojo
   "#f77f00", // naranja
   "#2a9d8f", // verde
-  "#e9c46a", // amarillo
-  "#9d4edd", // morado
-  "#212529", // negro
 ];
 

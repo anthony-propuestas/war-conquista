@@ -47,11 +47,11 @@ WAR/
 
 | Módulo | Tipo | Responsabilidad |
 |---|---|---|
-| `js/map-data.js` | Datos puros | 42 territorios, 6 continentes (con bonus), grafo de adyacencias (bidireccional vía `buildAdjacency()`), ejércitos iniciales, colores. |
+| `js/map-data.js` | Datos puros | 44 territorios, 6 continentes (con bonus), grafo de adyacencias (bidireccional vía `buildAdjacency()`), ejércitos iniciales, colores. |
 | `js/map-shapes.js` | Datos puros (**generado**) | Geometría del mapa: `TERRITORY_SHAPES` (paths SVG por territorio), `TERRITORY_CENTERS` (punto de etiqueta interior), `MAP_VIEWBOX`, `SEA_ROUTES` y `TERRITORY_CLIPS`. **No editar a mano**: lo regenera `scripts/build-map-shapes.mjs` (`npm run build:map`). |
-| `js/game.js` | Lógica pura (clase `Game`) | Estado del tablero, turnos y fases, combate por dados, refuerzos, conquista, eliminación y victoria. **Sin DOM.** |
+| `js/game.js` | Lógica pura (clase `Game`) | Estado del tablero, turnos y fases, combate por dados, refuerzos, conquista, eliminación y victoria. **Sin DOM.** El reparto inicial asigna un continente completo a cada jugador (resto del mapa sin dueño), en vez de territorios sueltos al azar. |
 | `js/ui.js` | Vista (clase `UI`) | Construye el mapa SVG una vez a partir de las formas de `map-shapes.js` (paths reales con proyección geográfica, `clipPath` para los países partidos); cada nodo lleva el nombre del territorio (`<text class="label">`) sobre el contador de ejércitos (`<text class="count">`). Refresca nodos/sidebar/banner según el estado, traduce clics a llamadas del motor, muestra dados y modales (conquista/fortificación). **No decide reglas ni genera geometría**: solo refleja el estado y delega en `Game`. El banner de turno se renderiza como tarjeta de jugador + *stepper* de fases (refuerzo › ataque › fortificación), escapando el nombre con `escapeHtml`. |
-| `js/main.js` | Arranque | Pantalla de inicio (config de 2–6 jugadores), crea `Game` + `UI`, conecta el salón de la fama (`POST`/`GET` a `/api/scores`), la wallet y la sala multijugador. |
+| `js/main.js` | Arranque | Pantalla de inicio (config de 1–3 jugadores), crea `Game` + `UI`, conecta el salón de la fama (`POST`/`GET` a `/api/scores`), la wallet y la sala multijugador. |
 | `js/pixi-overlay.js` | Vista (overlay) | Canvas Pixi.js superpuesto al mapa SVG; dibuja partículas/línea/etiqueta de cada batalla. Lo inicia y dispara `ui.js`. Ver [stack.md](stack.md). |
 | `js/multiplayer.js` | Cliente de red | Cliente WebSocket de la sala (`joinRoom`/`sendGameState`/…). Detalle en [realtime.md](realtime.md). |
 | `js/wallet.js` | Web3 | Conexión a MetaMask vía ethers; identidad de jugador y mint/claim experimental. Detalle en [onchain.md](onchain.md). |

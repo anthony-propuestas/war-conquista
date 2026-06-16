@@ -129,8 +129,7 @@ export class UI {
     for (const [id, node] of Object.entries(this.nodes)) {
       const cell = g.board[id];
       const owner = cell.owner != null ? g.players[cell.owner] : null;
-      const contColor = CONTINENTS[TERRITORIES[id].continent].color;
-      node.region.setAttribute("fill", owner ? owner.color : contColor);
+      node.region.setAttribute("fill", owner ? owner.color : "#888888");
       node.count.textContent = cell.armies;
       if (owner) {
         node.marker.setAttribute("d", PLAYER_SHAPES[owner.id] ?? PLAYER_SHAPES[0]);

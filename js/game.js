@@ -64,11 +64,13 @@ export class Game {
 
   // ---------- preparacion ----------
   _distributeTerritories() {
-    const ids = shuffle(ALL_IDS);
+    const contIds = shuffle(Object.keys(CONTINENTS));
     const n = this.players.length;
-    ids.forEach((id, i) => {
-      const owner = i % n;
-      this.board[id] = { owner, armies: 1 };
+    for (const id of ALL_IDS) this.board[id] = { owner: null, armies: 1 };
+    contIds.slice(0, n).forEach((cid, i) => {
+      for (const id of ALL_IDS) {
+        if (TERRITORIES[id].continent === cid) this.board[id].owner = i;
+      }
     });
     // ejercitos restantes a colocar por jugador durante el setup
     const initial = INITIAL_ARMIES[n];
