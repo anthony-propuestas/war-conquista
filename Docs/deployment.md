@@ -8,11 +8,8 @@ del repo tal cual y vincular la D1.
 ```bash
 npm run db:create        # crea la base "war-scores"
 # copia el database_id impreso y pégalo en wrangler.toml ([[d1_databases]].database_id)
-npm run db:init:remote   # aplica schema.sql (esquema legacy); luego aplicar migrations/0001_users.sql
+wrangler d1 execute war-scores --remote --file migrations/0001_users.sql
 ```
-
-Sin este paso el salón de la fama queda vacío, pero el juego funciona igual
-(la API degrada — ver [api.md](api.md)).
 
 ## Opción A — deploy desde la terminal
 

@@ -35,12 +35,6 @@ CREATE INDEX IF NOT EXISTS idx_users_wins ON users(wins DESC);
 
 Los dos índices aceleran la búsqueda por username (registro/perfil) y el ranking `ORDER BY wins DESC`.
 
-## Esquema anterior — tabla `scores` (eliminada por migración 0001)
-
-La tabla `scores` (name TEXT PK, wins INTEGER, updated_at INTEGER) existió en el MVP inicial.
-La migración `0001_users.sql` la borra (`DROP TABLE IF EXISTS scores`) y la reemplaza por `users`.
-El endpoint `GET /api/scores` queda inoperativo hasta que se migre o elimine.
-
 ## Queries vivas
 
 ### `functions/api/auth/callback.js` — verificar registro tras OAuth
@@ -88,8 +82,6 @@ Las migraciones viven en `migrations/` y se aplican en orden ascendente.
 
 | Comando | Qué hace |
 |---|---|
-| `npm run db:init` | Aplica `schema.sql` a la D1 **local**. ⚠️ `schema.sql` contiene el esquema legacy (`scores`); para el esquema actual (`users`) aplica también `migrations/0001_users.sql` manualmente. |
-| `npm run db:init:remote` | Igual que `db:init` pero en la D1 **remota** (producción). Mismo aviso sobre `schema.sql`. |
 | `npm run db:create` | Crea la base `war-scores` (una sola vez; devuelve el `database_id`). |
 
 Para aplicar una migración manualmente:

@@ -148,35 +148,7 @@ function onGameOver(winner) {
   $("#go-menu").addEventListener("click", () => {
     ui.closeModal();
     showScreen("#screen-start");
-    loadLeaderboard();
   });
-  submitScore(winner.name);
-}
-
-// ---------- leaderboard ----------
-async function submitScore(name) {
-  try {
-    await fetch("/api/scores", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-    });
-  } catch (_) {}
-}
-
-async function loadLeaderboard() {
-  const box = $("#leaderboard");
-  try {
-    const res = await fetch("/api/scores");
-    if (!res.ok) throw new Error();
-    const data = await res.json();
-    if (!data.length) { box.innerHTML = ""; return; }
-    box.innerHTML = `<h3>🏆 Salon de la fama</h3><ol>` +
-      data.map((r) => `<li>${escapeHtml(r.name)} — ${r.wins} victoria(s)</li>`).join("") +
-      `</ol>`;
-  } catch (_) {
-    box.innerHTML = "";
-  }
 }
 
 function escapeHtml(s) {

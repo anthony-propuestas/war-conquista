@@ -10,9 +10,7 @@
     "build:map": "node scripts/build-map-shapes.mjs",
     "dev": "wrangler pages dev . --do GameRoom=./functions/game-room.js",
     "deploy": "wrangler pages deploy .",
-    "db:create": "wrangler d1 create war-scores",
-    "db:init": "wrangler d1 execute war-scores --local --file=./schema.sql",
-    "db:init:remote": "wrangler d1 execute war-scores --remote --file=./schema.sql"
+    "db:create": "wrangler d1 create war-scores"
   },
   "keywords": [
     "juego",
