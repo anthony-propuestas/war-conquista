@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { GameRoom } from "../../functions/game-room.js";
+import { GameRoom } from "../../worker/index.js";
 
 // Fake WebSocket: registra lo enviado y su tag (playerId)
 function makeWs(tag) {

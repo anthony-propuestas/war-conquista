@@ -1,7 +1,7 @@
 export class GameRoom {
   constructor(state, env) {
     this.state = state;
-    this.sessions = new Map(); // playerId → WebSocket
+    this.sessions = new Map();
   }
 
   async fetch(request) {
@@ -23,12 +23,10 @@ export class GameRoom {
     let data;
     try { data = JSON.parse(message); } catch { return; }
 
-    // Persist game state on each action
     if (data.type === 'game_state') {
       await this.state.storage.put('gameState', data.payload);
     }
 
-    // Broadcast to all connected players except sender
     this.broadcast(playerId, JSON.stringify({ from: playerId, ...data }));
   }
 
@@ -47,13 +45,8 @@ export class GameRoom {
   }
 }
 
-// Pages Function that routes /api/game-room/* to the Durable Object
 export default {
-  async fetch(request, env) {
-    const url = new URL(request.url);
-    const roomId = url.searchParams.get('roomId') || 'default';
-    const id = env.GAME_ROOM.idFromName(roomId);
-    const room = env.GAME_ROOM.get(id);
-    return room.fetch(request);
+  async fetch() {
+    return new Response('Not found', { status: 404 });
   }
 };
