@@ -31,6 +31,7 @@ export const TERRITORIES = {
   peru:          { name: "Peru",              continent: "america_sur", x: 270, y: 470 },
   brasil:        { name: "Brasil",            continent: "america_sur", x: 360, y: 450 },
   argentina:     { name: "Argentina",         continent: "america_sur", x: 295, y: 555 },
+  trinidad:      { name: "Trinidad",          continent: "america_sur", x: 315, y: 345 },
 
   // ---------- Europa ----------
   islandia:      { name: "Islandia",          continent: "europa", x: 460, y: 110 },
@@ -50,7 +51,7 @@ export const TERRITORIES = {
   madagascar:    { name: "Madagascar",        continent: "africa", x: 700, y: 500 },
 
   // ---------- Asia ----------
-  ural:          { name: "Ural",              continent: "asia", x: 740, y: 140 },
+  ural:          { name: "Ural",              continent: "europa", x: 740, y: 140 },
   siberia:       { name: "Siberia",           continent: "asia", x: 820, y: 100 },
   yakutsk:       { name: "Yakutsk",           continent: "asia", x: 905, y: 70  },
   kamchatka:     { name: "Kamchatka",         continent: "asia", x: 1000,y: 95  },
@@ -59,15 +60,16 @@ export const TERRITORIES = {
   japon:         { name: "Japon",             continent: "asia", x: 1010,y: 210 },
   afganistan:    { name: "Afganistan",        continent: "asia", x: 740, y: 230 },
   china:         { name: "China",             continent: "asia", x: 840, y: 270 },
-  medio_oriente: { name: "Medio Oriente",     continent: "asia", x: 685, y: 290 },
+  medio_oriente: { name: "Medio Oriente",     continent: "africa", x: 685, y: 290 },
   india:         { name: "India",             continent: "asia", x: 790, y: 330 },
-  siam:          { name: "Siam",              continent: "asia", x: 870, y: 340 },
+  siam:          { name: "Siam",              continent: "oceania", x: 870, y: 340 },
 
   // ---------- Oceania ----------
   indonesia:     { name: "Indonesia",         continent: "oceania", x: 890, y: 420 },
   nueva_guinea:  { name: "Nueva Guinea",      continent: "oceania", x: 990, y: 425 },
   australia_oeste:{ name: "Australia Oeste",  continent: "oceania", x: 910, y: 510 },
   australia_este:{ name: "Australia Este",    continent: "oceania", x: 1000,y: 520 },
+  nueva_zelanda: { name: "Nueva Zelanda",     continent: "oceania", x: 1070, y: 555 },
 };
 
 // Adyacencias (grafo no dirigido). Solo se declara una direccion;
@@ -83,7 +85,8 @@ const RAW_ADJ = {
   este_eeuu:     ["centroamerica"],
   centroamerica: ["venezuela"],
 
-  venezuela:     ["brasil", "peru"],
+  venezuela:     ["brasil", "peru", "trinidad"],
+  trinidad:      [],
   peru:          ["brasil", "argentina"],
   brasil:        ["argentina", "africa_norte"],
 
@@ -115,6 +118,7 @@ const RAW_ADJ = {
   indonesia:     ["nueva_guinea", "australia_oeste"],
   nueva_guinea:  ["australia_oeste", "australia_este"],
   australia_oeste:["australia_este"],
+  nueva_zelanda: ["australia_este"],
 };
 
 export function buildAdjacency() {
