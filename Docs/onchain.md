@@ -13,9 +13,10 @@ usa **ethers v6**.
 ## Carga de `ethers`
 
 No hay bundler. `ethers` se carga en el navegador vía **`importmap`** desde
-`/node_modules/ethers/lib.esm/index.js`, declarado en `game/index.html`, `login.html` y
-`home/index.html` (ver [stack.md](stack.md)). Implica que `node_modules` debe estar en los
-assets desplegados (ver [deployment.md](deployment.md)).
+**esm.sh** (`https://esm.sh/ethers@6.16.0`), declarado en `game/index.html`, `login.html` y
+`home/index.html` (ver [stack.md](stack.md)). No depende de `node_modules` en los assets
+desplegados — eso solo aplica al uso server-side de `ethers` en Pages Functions (ver
+[deployment.md](deployment.md)).
 
 ## API — `js/wallet.js`
 

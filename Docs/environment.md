@@ -81,6 +81,10 @@ binding y la migración del `wrangler.toml`. En producción, la migración `v1` 
 el deploy; en CI/CD desde Git, confirmar el binding `GAME_ROOM` en el panel de Pages si no
 se hereda del `wrangler.toml`. Detalle del subsistema en [realtime.md](realtime.md).
 
+La clase `GameRoom` en sí corre en el Worker separado `war-game-room`
+(`worker/wrangler.toml`), que tiene su propio pipeline de Git (**Workers Builds**) —
+ver la sección dedicada en [deployment.md](deployment.md).
+
 ## Librerías de runtime (`importmap`)
 
 `pixi.js` y `ethers` se cargan en el navegador desde **esm.sh** (CDN ESM-native) mediante
