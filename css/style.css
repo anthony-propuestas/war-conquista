@@ -173,7 +173,7 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 0;
 
 /* ---------- Mapa SVG ---------- */
 .graticule line { stroke: rgba(120,180,220,.07); stroke-width: 1; }
-.sea-route { stroke: #000; stroke-width: 2; fill: none; }
+.sea-route { stroke: #7a9ab5; stroke-width: 1; fill: none; stroke-dasharray: 8 5; }
 .terr { cursor: pointer; }
 .terr path.region {
   stroke: rgba(0,0,0,.55); stroke-width: 0.8; stroke-linejoin: round;

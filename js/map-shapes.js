@@ -99,7 +99,7 @@ export const TERRITORY_CENTERS = {
   australia_oeste: [810, 360],
   australia_este: [860, 356],
   trinidad: [326, 248],
-  nueva_zelanda: [955, 433],
+  nueva_zelanda: [955, 408],
 };
 
 export const SEA_ROUTES = [["alaska","kamchatka"],["groenlandia","islandia"],["brasil","africa_norte"],["europa_sur","africa_norte"],["europa_sur","egipto"],["africa_este","medio_oriente"],["siam","indonesia"],["indonesia","australia_oeste"],["nueva_guinea","australia_este"],["japon","kamchatka"],["japon","mongolia"],["granbretana","islandia"],["granbretana","europa_norte"],["africa_este","madagascar"],["africa_sur","madagascar"],["indonesia","nueva_guinea"],["nueva_guinea","australia_oeste"],["granbretana","europa_oeste"],["granbretana","escandinavia"],["islandia","escandinavia"],["trinidad","venezuela"],["nueva_zelanda","australia_este"]];

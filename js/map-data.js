@@ -24,7 +24,7 @@ export const TERRITORIES = {
   quebec:        { name: "Quebec",            continent: "america_norte", x: 320, y: 150 },
   oeste_eeuu:    { name: "Oeste EE.UU.",      continent: "america_norte", x: 160, y: 235 },
   este_eeuu:     { name: "Este EE.UU.",       continent: "america_norte", x: 255, y: 240 },
-  centroamerica: { name: "Centroamerica",     continent: "america_norte", x: 195, y: 310 },
+  centroamerica: { name: "Centroamerica",     continent: "america_sur", x: 195, y: 310 },
 
   // ---------- America del Sur ----------
   venezuela:     { name: "Venezuela",         continent: "america_sur", x: 270, y: 380 },
