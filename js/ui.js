@@ -45,8 +45,9 @@ export class UI {
   buildMap() {
     const map = $("#map");
     map.innerHTML = "";
-    map.setAttribute("viewBox", MAP_VIEWBOX);
-    const [, , W, H] = MAP_VIEWBOX.split(" ").map(Number);
+    const DISPLAY_VIEWBOX = "0 15 1000 460"; // recorta el oceano vacio sin mover territorios
+    map.setAttribute("viewBox", DISPLAY_VIEWBOX);
+    const [VX, VY, W, H] = DISPLAY_VIEWBOX.split(" ").map(Number);
 
     // 0) defs: sombra de tierra + clipPaths para territorios partidos
     const defs = svg("defs");
@@ -64,8 +65,8 @@ export class UI {
 
     // 1) oceano: reticula de meridianos y paralelos
     const grid = svg("g", { class: "graticule" });
-    for (let x = 0; x <= W; x += 100) grid.appendChild(svg("line", { x1: x, y1: 0, x2: x, y2: H }));
-    for (let y = 0; y <= H; y += 70) grid.appendChild(svg("line", { x1: 0, y1: y, x2: W, y2: y }));
+    for (let x = VX; x <= VX + W; x += 100) grid.appendChild(svg("line", { x1: x, y1: VY, x2: x, y2: VY + H }));
+    for (let y = VY; y <= VY + H; y += 70) grid.appendChild(svg("line", { x1: VX, y1: y, x2: VX + W, y2: y }));
     map.appendChild(grid);
 
     // 2) rutas maritimas (conexiones por agua; van debajo de la tierra)
