@@ -19,8 +19,9 @@ Conquista territorios, domina continentes y elimina a tus rivales. **Multijugado
 - 👥 **1 a 3 jugadores** en la misma máquina, cada uno con su color.
 - 🏆 **Salón de la fama** global persistido en Cloudflare D1.
 - 🔐 **Login con Google o wallet MetaMask** para vincular tus victorias a tu cuenta.
-- 📱 Interfaz responsive, sin librerías JS ni frameworks (única dependencia externa en
-  runtime: las fuentes **Cinzel** y **Oswald** de Google Fonts).
+- 📱 Interfaz responsive, sin librerías JS ni frameworks. Dependencias externas en
+  runtime: las fuentes **Cinzel** y **Oswald** de Google Fonts, y **ethers**/**pixi.js**
+  cargados desde esm.sh (CDN) vía `importmap`.
 
 ---
 
@@ -57,7 +58,7 @@ estático; el salón de la fama simplemente no aparecerá sin el backend.
 ```bash
 npm run db:create                 # crea la DB "war-scores"
 # copia el database_id que imprime y pégalo en wrangler.toml
-npm run db:init:remote            # crea la tabla en la DB remota
+wrangler d1 execute war-scores --remote --file migrations/0001_users.sql
 ```
 
 ### 2. Configurar secrets de Google OAuth
@@ -96,31 +97,50 @@ npm run deploy
 ```
 WAR/
 ├── home/index.html         # landing page (/home) — primera pantalla pública
-├── index.html              # estructura (pantalla inicio + juego)
-├── login.html              # pantalla de login con Google OAuth
+├── lobby/index.html        # hub de navegación (/lobby)
+├── game/index.html         # pantalla de juego (/game)
+├── login.html              # pantalla de login (Google OAuth o wallet)
+├── register/index.html     # registro de usuario nuevo (/register)
+├── gamers/index.html       # ranking de jugadores (/gamers)
+├── my-profile/index.html   # perfil del jugador autenticado (/my-profile)
 ├── css/style.css           # estilos
 ├── js/
 │   ├── map-data.js         # territorios, continentes, adyacencias
 │   ├── map-shapes.js       # formas SVG del mapa (generado, no editar a mano)
 │   ├── game.js             # motor del juego (lógica pura)
 │   ├── ui.js               # render del mapa SVG e interacción
+│   ├── pixi-overlay.js     # animaciones de batalla (Pixi.js)
+│   ├── multiplayer.js      # cliente WebSocket de la sala
+│   ├── wallet.js           # wallet Web3 (ethers)
 │   └── main.js             # arranque y leaderboard
-├── functions/api/scores.js # Pages Function: /api/scores (D1)
+├── functions/api/scores.js # Pages Function: /api/scores (D1, leaderboard legacy)
+├── functions/api/gamers.js # Pages Function: /api/gamers (ranking)
+├── functions/api/profile.js # Pages Function: /api/profile
+├── functions/api/register.js # Pages Function: /api/register
 ├── functions/api/auth/
 │   ├── google.js           # inicia OAuth con Google
-│   └── callback.js         # completa OAuth, guarda cookie de sesión
+│   ├── callback.js         # completa OAuth, guarda cookie de sesión
+│   └── wallet.js           # login alterno con wallet
+├── functions/api/wallet/link.js # vincula wallet a la cuenta de la sesión
+├── functions/game-room.js  # routing de /api/game-room hacia el Durable Object GameRoom
+├── worker/                 # Worker separado "war-game-room" que aloja el Durable Object
+├── migrations/             # migraciones D1 (estado actual del esquema)
 ├── scripts/build-map-shapes.mjs # genera js/map-shapes.js (npm run build:map)
 ├── tests/                  # tests unitarios (node --test)
 ├── Docs/                   # documentación del proyecto
-├── schema.sql              # esquema de la base de datos
+├── schema.sql              # esquema original (legacy; ver migrations/ para el actual)
 ├── wrangler.toml           # configuración de Cloudflare
 ├── _headers                # cabeceras de seguridad/caché
 ├── _redirects              # redirige / → /home (Cloudflare Pages)
 └── .assetsignore           # excluye tests/ del deploy de Pages
 ```
 
+Ver [Docs/architecture.md](Docs/architecture.md) para el detalle completo de cada módulo.
+
 **Servicios de Cloudflare usados:** Pages (hosting), Pages Functions (API),
-D1 (base de datos del salón de la fama).
+D1 (base de datos de usuarios/leaderboard), Durable Objects (sala multijugador
+`GameRoom`, alojada en el Worker separado `war-game-room` — ver
+[Docs/deployment.md](Docs/deployment.md) para su pipeline de despliegue independiente).
 
 ---
 

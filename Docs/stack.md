@@ -15,12 +15,12 @@ framework de UI (React/Vue) ni transpilación.
 | Animaciones de batalla | **Pixi.js** (`js/pixi-overlay.js`), canvas superpuesto al SVG | Partículas/línea/etiqueta por ataque sin recargar el SVG. Ver [architecture.md](architecture.md). |
 | Wallet Web3 | **ethers v6** (`js/wallet.js`) + MetaMask | Identidad de jugador y mint/claim experimental. Ver [onchain.md](onchain.md). |
 | Estilos | CSS plano (`css/style.css`) | Sin preprocesador ni utilidades. |
-| Tipografía | **Google Fonts** (`Cinzel`, `Oswald`) vía `<link>` en `index.html` | Títulos/UI; se cargan desde el CDN de Google (con `preconnect`), no están auto-hospedadas. Única dependencia externa en runtime. |
+| Tipografía | **Google Fonts** (`Cinzel`, `Oswald`) vía `<link>` en `index.html` | Títulos/UI; se cargan desde el CDN de Google (con `preconnect`), no están auto-hospedadas. |
 
 No hay React/Vue, ni TypeScript, ni Webpack/Vite. El single-player funciona sirviendo los
 estáticos; las fuentes requieren conexión a `fonts.googleapis.com`/`fonts.gstatic.com` (si
 no, el navegador usa el fallback serif/sans). `pixi.js` y `ethers` se sirven desde
-`/node_modules/` vía `importmap` (ver "Dependencias" abajo).
+**esm.sh** (CDN) vía `importmap` (ver "Dependencias" abajo).
 
 ## Backend / plataforma (Cloudflare)
 
@@ -64,6 +64,6 @@ abajo); no llegan al cliente ni al deploy.
 | `npm run deploy` | `wrangler pages deploy .` — publica a Pages. |
 | `npm test` | `node --test` sobre `tests/**/*.test.js` (runner integrado, sin deps). |
 | `npm run test:watch` | Igual en modo watch. |
-| `npm run db:create` / `db:init` / `db:init:remote` | Gestión de la D1 (ver [database.md](database.md)). |
+| `npm run db:create` | Crea la D1 `war-scores` (ver [database.md](database.md)). Las migraciones se aplican manualmente con `wrangler d1 execute war-scores --local/--remote --file migrations/0001_users.sql` — no son scripts de `package.json`. |
 
 Tests: ver [testing.md](testing.md). Deploy: ver [deployment.md](deployment.md).

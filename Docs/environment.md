@@ -66,8 +66,8 @@ Ver flujo completo en [auth.md](auth.md).
 (ver [api.md](api.md)) en vez de fallar.
 
 **En local** (`npm run dev`): wrangler crea una D1 local automáticamente a partir del
-binding del `wrangler.toml`. Inicializa el esquema con `npm run db:init` y luego aplica
-`migrations/0001_users.sql` manualmente (`db:init` sola instala el esquema legacy `scores`).
+binding del `wrangler.toml`. Aplica el esquema actual ejecutando la migración manualmente:
+`wrangler d1 execute war-scores --local --file migrations/0001_users.sql`.
 
 **En Pages (panel):** si despliegas vía Git en vez de CLI, añade el binding manualmente
 en **Settings → Functions → D1 database bindings**: nombre de variable `DB` → base

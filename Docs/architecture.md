@@ -10,6 +10,7 @@ WAR/
 ├── home/index.html         # landing page (/home) — primera pantalla pública
 ├── index.html              # pantallas de inicio/juego (.screen)
 ├── login.html              # pantalla de login (/login)
+├── lobby/index.html        # hub de navegación (/lobby) — landing tras login; enlaza a /game, /my-profile, /gamers
 ├── game/index.html         # pantalla de juego servida en /game (importmap de pixi/ethers)
 ├── register/index.html     # formulario de registro (/register) — primer login
 ├── gamers/index.html       # ranking de jugadores (/gamers)
@@ -94,6 +95,10 @@ main.js  ──crea──>  Game (estado/reglas)
 
 /login ──clic "Conectar MetaMask"──> firma mensaje ──POST /api/auth/wallet──> Set-Cookie war_session ──> /game
 /my-profile ──clic "Conectar wallet"──> firma mensaje ──POST /api/wallet/link──> guarda wallet_address
+
+/home ──clic "Jugar Ahora"──> /lobby (GET /api/profile; sin sesión ──> /login)
+/lobby ──hub──> /game · /my-profile · /gamers
+/game, /my-profile, /gamers ──"← Lobby"──> /lobby
 ```
 
 - **Game → UI:** la UI nunca muta el tablero directamente; llama métodos de `Game`

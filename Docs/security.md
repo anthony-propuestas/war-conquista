@@ -318,3 +318,11 @@ Para cada cambio que toque la superficie de ataque:
   Los tres aceptados para MVP; suben la prioridad de firmar `war_session` con HMAC. Sin
   cambios en `_headers` ni secrets. El self-XSS de `winner.name` sigue pendiente (no
   tocado en esta sesión).
+- **2026-06-16** — Página `/lobby` (hub de navegación): `lobby/index.html` (nuevo) +
+  enlaces agregados/cambiados en `home/index.html`, `my-profile/index.html`,
+  `gamers/index.html`, `game/index.html`. **Hallazgo: ninguno.** `lobby/index.html`
+  repite el patrón ya auditado de `my-profile/index.html`: `fetch('/api/profile')`,
+  redirect a `/login.html` si `401`/`404`, username renderizado con `textContent` (no
+  `innerHTML`). Los enlaces nuevos son anchors estáticos (`href="/lobby"`, `/game`, etc.)
+  sin interpolar datos de usuario ni de DB → sin XSS ni open redirect. Sin cambios en
+  `functions/api/`, `schema.sql`, `_headers`, `wrangler.toml` ni secrets.
