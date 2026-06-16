@@ -6,12 +6,12 @@
 // ============================================================
 
 export const CONTINENTS = {
-  america_norte: { name: "America del Norte", bonus: 5, color: "#e8b84b" },
-  america_sur:   { name: "America del Sur",   bonus: 2, color: "#d9694e" },
-  europa:        { name: "Europa",            bonus: 5, color: "#5b8bd0" },
-  africa:        { name: "Africa",            bonus: 3, color: "#9c6b3f" },
-  asia:          { name: "Asia",              bonus: 7, color: "#6cae6c" },
-  oceania:       { name: "Oceania",           bonus: 2, color: "#9b7fc4" },
+  america_norte: { name: "America del Norte", bonus: 5, color: "#1565a0" },  // azul oceano
+  america_sur:   { name: "America del Sur",   bonus: 2, color: "#2e7d32" },  // verde bosque
+  europa:        { name: "Europa",            bonus: 5, color: "#827717" },  // oliva oscuro
+  africa:        { name: "Africa",            bonus: 3, color: "#558b2f" },  // lima/aguacate
+  asia:          { name: "Asia",              bonus: 7, color: "#1a237e" },  // indigo marino
+  oceania:       { name: "Oceania",           bonus: 2, color: "#ad1457" },  // magenta oscuro
 };
 
 export const TERRITORIES = {

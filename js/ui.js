@@ -8,6 +8,15 @@ import { initPixiOverlay, playBattleAnimation } from "./pixi-overlay.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
+const PLAYER_SHAPES = [
+  "M 0,-10 C 5.5,-10 10,-5.5 10,0 C 10,5.5 5.5,10 0,10 C -5.5,10 -10,5.5 -10,0 C -10,-5.5 -5.5,-10 0,-10 Z",
+  "M -9,-9 L 9,-9 L 9,9 L -9,9 Z",
+  "M 0,-10 L 2.9,-4 L 9.5,-3.1 L 4.8,1.5 L 5.9,8.1 L 0,5 L -5.9,8.1 L -4.8,1.5 L -9.5,-3.1 L -2.9,-4 Z",
+  "M 0,-10 L 8,0 L 0,10 L -8,0 Z",
+  "M 0,-10 L 10,7.3 L -10,7.3 Z",
+  "M 0,-10 L 8.7,-5 L 8.7,5 L 0,10 L -8.7,5 L -8.7,-5 Z",
+];
+
 function svg(tag, attrs = {}) {
   const e = document.createElementNS(SVG_NS, tag);
   for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
@@ -72,16 +81,18 @@ export class UI {
     const layer = svg("g", { filter: "url(#landShadow)" });
     for (const [id, t] of Object.entries(TERRITORIES)) {
       const c = TERRITORY_CENTERS[id] || [0, 0];
-      const g = svg("g", { class: "terr", "data-id": id });
+      const g = svg("g", { class: "terr", "data-id": id, "data-continent": t.continent });
       const region = svg("path", { class: "region", d: TERRITORY_SHAPES[id] || "" });
       if (TERRITORY_CLIPS[id]) region.setAttribute("clip-path", `url(#clip-${id})`);
+      const marker = svg("path", { class: "marker", "pointer-events": "none",
+        transform: `translate(${c[0]},${c[1]})`, display: "none" });
       const count = svg("text", { class: "count", x: c[0], y: c[1] });
       const label = svg("text", { class: "label", x: c[0], y: c[1] - 9 });
       label.textContent = t.name;
-      g.append(region, label, count);
+      g.append(region, marker, label, count);
       g.addEventListener("click", (e) => this.onTerritoryClick(id, e));
       layer.appendChild(g);
-      this.nodes[id] = { g, region, count };
+      this.nodes[id] = { g, region, marker, count };
     }
     map.appendChild(layer);
 
@@ -117,8 +128,15 @@ export class UI {
     for (const [id, node] of Object.entries(this.nodes)) {
       const cell = g.board[id];
       const owner = cell.owner != null ? g.players[cell.owner] : null;
-      node.region.setAttribute("fill", owner ? owner.color : "#5a6b7d");
+      const contColor = CONTINENTS[TERRITORIES[id].continent].color;
+      node.region.setAttribute("fill", owner ? owner.color : contColor);
       node.count.textContent = cell.armies;
+      if (owner) {
+        node.marker.setAttribute("d", PLAYER_SHAPES[owner.id] ?? PLAYER_SHAPES[0]);
+        node.marker.removeAttribute("display");
+      } else {
+        node.marker.setAttribute("display", "none");
+      }
       node.g.classList.remove("selectable", "selected", "target", "dim");
     }
 
