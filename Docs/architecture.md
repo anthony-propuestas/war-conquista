@@ -11,6 +11,9 @@ WAR/
 ├── index.html              # pantallas de inicio/juego (.screen)
 ├── login.html              # pantalla de login (/login)
 ├── game/index.html         # pantalla de juego servida en /game (importmap de pixi/ethers)
+├── register/index.html     # formulario de registro (/register) — primer login
+├── gamers/index.html       # ranking de jugadores (/gamers)
+├── my-profile/index.html   # perfil del jugador autenticado (/my-profile)
 ├── css/style.css           # estilos
 ├── js/
 │   ├── map-data.js         # datos del mapa: territorios/continentes/adyacencias (puro)
@@ -21,14 +24,19 @@ WAR/
 │   ├── multiplayer.js      # cliente WebSocket de la sala (red)
 │   ├── wallet.js           # wallet Web3 / ethers (red externa)
 │   └── main.js             # arranque + leaderboard + wallet + sala (DOM + fetch)
-├── functions/api/scores.js # Pages Function: /api/scores (D1)
+├── functions/api/scores.js # Pages Function: /api/scores (leaderboard legacy, D1)
+├── functions/api/gamers.js # Pages Function: /api/gamers — ranking top 100 (D1)
+├── functions/api/profile.js # Pages Function: /api/profile — perfil autenticado (D1)
+├── functions/api/register.js # Pages Function: /api/register — registro de usuario (D1)
 ├── functions/game-room.js  # Durable Object GameRoom + routing de /api/game-room (WS)
 ├── functions/api/auth/
 │   ├── google.js           # inicia OAuth con Google (/api/auth/google)
-│   └── callback.js         # completa OAuth, guarda cookie (/api/auth/callback)
+│   └── callback.js         # completa OAuth, guarda cookie, bifurca /game o /register
+├── migrations/
+│   └── 0001_users.sql      # migración: borra scores, crea users
 ├── scripts/build-map-shapes.mjs # dev-only: genera map-shapes.js desde Natural Earth
 ├── tests/                  # node --test (excluido del deploy)
-├── schema.sql              # esquema D1
+├── schema.sql              # esquema D1 original (scores; ver migrations/ para estado actual)
 ├── wrangler.toml           # config Cloudflare (binding DB)
 ├── _headers                # cabeceras de seguridad/caché
 ├── _redirects              # redirige / → /home (Cloudflare Pages)
@@ -48,9 +56,12 @@ WAR/
 | `js/multiplayer.js` | Cliente de red | Cliente WebSocket de la sala (`joinRoom`/`sendGameState`/…). Detalle en [realtime.md](realtime.md). |
 | `js/wallet.js` | Web3 | Conexión a MetaMask vía ethers; identidad de jugador y mint/claim experimental. Detalle en [onchain.md](onchain.md). |
 | `functions/api/scores.js` | Backend | Endpoint del salón de la fama sobre D1 (ver [api.md](api.md)). |
+| `functions/api/gamers.js` | Backend | `GET /api/gamers`: devuelve top 100 jugadores por wins desde `users`. Sin auth. |
+| `functions/api/profile.js` | Backend | `GET /api/profile`: devuelve `{username, wins}` del usuario autenticado. Requiere `war_session`. |
+| `functions/api/register.js` | Backend | `POST /api/register`: valida y persiste el registro de un nuevo usuario en `users`. Requiere `war_session`. |
 | `functions/game-room.js` | Backend (Durable Object) | Sala multijugador `GameRoom`: WebSocket, broadcast y persistencia del estado. Ver [realtime.md](realtime.md). |
 | `functions/api/auth/google.js` | Backend | Inicia el flujo OAuth 2.0: redirige a Google con los parámetros del cliente. |
-| `functions/api/auth/callback.js` | Backend | Completa OAuth: canjea el code, obtiene el perfil del usuario y guarda la sesión en cookie `war_session`. |
+| `functions/api/auth/callback.js` | Backend | Completa OAuth: canjea el code, obtiene el perfil del usuario, guarda cookie `war_session` y redirige a `/game` (registrado) o `/register` (nuevo). |
 
 ## Flujo principal
 
@@ -69,8 +80,11 @@ main.js  ──crea──>  Game (estado/reglas)
 /login ──clic──> GET /api/auth/google ──302──> Google OAuth
                                                     │
                                              GET /api/auth/callback?code=…
-                                                    │
-                                         Set-Cookie war_session ──302──> /game
+                                                    │ Set-Cookie war_session
+                                                    ├─ registrado ──302──> /game
+                                                    └─ nuevo      ──302──> /register
+                                                                               │ POST /api/register
+                                                                               └──302──> /game
 ```
 
 - **Game → UI:** la UI nunca muta el tablero directamente; llama métodos de `Game`

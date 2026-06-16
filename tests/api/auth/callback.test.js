@@ -33,17 +33,42 @@ test("Google retorna error en token -> redirige a /login?error=...", async () =>
   }
 });
 
-test("flujo exitoso: 302 a / con cookie war_session", async () => {
+const dbWithUser = { prepare: () => ({ bind: () => ({ first: async () => ({ id: 1 }) }) }) };
+const dbNoUser   = { prepare: () => ({ bind: () => ({ first: async () => null }) }) };
+
+function makeFetchMock() {
   let call = 0;
-  const fetchMock = mock.method(globalThis, "fetch", async () => {
+  return mock.method(globalThis, "fetch", async () => {
     call++;
     if (call === 1) return new Response(JSON.stringify({ access_token: "tok123" }));
     return new Response(JSON.stringify({ sub: "u1", name: "Ana", email: "ana@x.com", picture: "" }));
   });
+}
+
+test("flujo exitoso: usuario registrado → 302 a /game con cookie", async () => {
+  const fetchMock = makeFetchMock();
   try {
-    const res = await onRequestGet({ request: new Request(`${callbackUrl}?code=ok`), env });
+    const res = await onRequestGet({
+      request: new Request(`${callbackUrl}?code=ok`),
+      env: { ...env, DB: dbWithUser },
+    });
     assert.equal(res.status, 302);
     assert.equal(res.headers.get("Location"), "/game");
+    assert.ok(res.headers.get("Set-Cookie").includes("war_session="));
+  } finally {
+    fetchMock.mock.restore();
+  }
+});
+
+test("flujo exitoso: usuario nuevo → 302 a /register con cookie", async () => {
+  const fetchMock = makeFetchMock();
+  try {
+    const res = await onRequestGet({
+      request: new Request(`${callbackUrl}?code=ok`),
+      env: { ...env, DB: dbNoUser },
+    });
+    assert.equal(res.status, 302);
+    assert.equal(res.headers.get("Location"), "/register");
     assert.ok(res.headers.get("Set-Cookie").includes("war_session="));
   } finally {
     fetchMock.mock.restore();

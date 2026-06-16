@@ -6,7 +6,10 @@ qué riesgos se aceptan por diseño. Mantenido por `workflow-security.md`.
 ## Modelo de seguridad / alcance
 
 WAR es un juego de estrategia multijugador. La superficie de red comprende:
-- `/api/scores` — salón de la fama (público y anónimo por diseño)
+- `/api/scores` — salón de la fama legacy (público y anónimo)
+- `/api/gamers` — ranking de jugadores registrados (público, sin auth)
+- `/api/profile` — perfil del usuario autenticado (requiere `war_session`)
+- `/api/register` — registro de nuevo usuario en D1 (requiere `war_session`, escribe en DB)
 - `/api/auth/google` y `/api/auth/callback` — login con Google OAuth 2.0
 - `/api/game-room` — WebSocket a través de un Durable Object (`GameRoom`)
 
@@ -29,6 +32,26 @@ desplegados en producción).
   en vez de fallar; los errores de DB devuelven `[]` / `{ok:false,"db-error"}` sin filtrar
   detalles internos. Ver [api.md](api.md) y [database.md](database.md).
 
+## Backend — endpoints de usuario (`gamers`, `profile`, `register`)
+
+### `GET /api/gamers`
+- Lectura pública; sin auth por diseño.
+- `LIMIT 100` fijo en servidor — el cliente no controla el tamaño de la respuesta.
+- Expone solo `username` y `wins`; ningún campo interno (`sub`, `email`, `age`).
+- **XSS desde username:** la validación en `/api/register` restringe `username` a `[a-zA-Z0-9_]` → ningún carácter HTML especial (`<`, `>`, `"`, `&`) puede estar almacenado en DB → dato seguro al renderizarse en el DOM incluso sin `escapeHtml` adicional. Esta es una **defensa en la entrada** que protege todos los sinks futuros del campo.
+
+### `GET /api/profile`
+- Requiere cookie `war_session` válida; sin ella devuelve 401.
+- `getSession()` envuelve `JSON.parse(atob(...))` en `try/catch` → cookies malformadas o manipuladas devuelven 401, sin excepción.
+- Solo expone `username` y `wins`; no filtra `sub`, `email`, `age` ni `id`.
+- 401 y 404 no revelan si el `sub` existe o no (respuestas genéricas).
+
+### `POST /api/register`
+- `POST` correcto para una mutación.
+- Todas las queries a D1 están parametrizadas: `SELECT … WHERE sub = ?`, `SELECT … WHERE username = ?`, `INSERT INTO users … VALUES (?, ?, …)`.
+- Validaciones presentes: tipo de campo, longitud de username (3–30), regex `[a-zA-Z0-9_]`, rango de edad (5–120), email contiene `@`, allowlist de `how_heard`.
+- `username.trim()` y `email.trim()` eliminan whitespace antes de almacenar.
+
 ## Auth — `functions/api/auth/`
 
 - **Secrets fuera del repo:** `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` se leen de
@@ -39,8 +62,9 @@ desplegados en producción).
 - **XSS:** los campos de `userInfo` (`name`, `email`, `picture`, `sub`) solo se escriben en
   la cookie — **no se renderizan en el DOM** en el callback. Cuando en el futuro se use la
   sesión para mostrar el nombre en la UI, debe pasar por `escapeHtml`.
-- **Redirects seguros:** todos los redirects de error usan `${url.origin}/login?error=…`
-  (origen fijado por el runtime de Cloudflare, no controlado por el cliente) → sin open redirect.
+- **Redirects seguros:** los redirects de error usan el origen fijado por el runtime de
+  Cloudflare (no controlable por el cliente) → sin open redirect. El redirect "sin code /
+  error de Google" va a `/login.html?error=…`; el resto van a `/login?error=…`.
 - **Cookie:** `HttpOnly; SameSite=Lax; Path=/; Max-Age=604800`. `HttpOnly` impide acceso
   desde JS; `SameSite=Lax` mitiga CSRF de formularios cross-site.
 
@@ -115,12 +139,25 @@ No son vulnerabilidades confirmadas, pero se registran:
   en el DOM (requiere otro vector previo) se ejecutaría sin restricción. Aceptado por
   complejidad de configurar CSP con `unsafe-inline` y CDN externo. Mitigación futura:
   añadir CSP permisiva pero explícita a `_headers`.
-- **Cookie `war_session` sin firma (HMAC):** el valor es JSON base64 sin verificación
-  criptográfica. Alguien con acceso al dispositivo (o con JS malicioso ya ejecutándose)
-  puede forjar o alterar la cookie y suplantar otro `sub`/`email`. En HTTPS (Cloudflare
-  Pages) requiere compromiso previo del cliente. La cookie hoy solo guarda datos de
-  presentación; **no controla acceso a recursos protegidos**. Mitigación futura: HMAC
-  con un secret de Cloudflare Workers. **Aceptado para MVP.**
+- **Cookie `war_session` sin firma (HMAC) — impacto escalado:** el valor es JSON base64
+  sin verificación criptográfica. Con la adición de `/api/profile` y `/api/register`, la
+  cookie ya no es solo cosmética: ahora **controla escrituras en D1**. Un atacante que
+  forje una cookie con un `sub` arbitrario puede (1) registrar cuentas con identidades
+  inventadas y (2) leer el perfil de cualquier `sub` conocido. Escenario: forja
+  `war_session = btoa(JSON.stringify({ sub: "<sub_real_de_víctima>" }))` y llama a
+  `GET /api/profile` o `POST /api/register`. En HTTPS requiere compromiso del cliente o
+  MitM (poco probable en Cloudflare Pages), pero el impacto ha crecido de cosmético a
+  escritura real en DB. Mitigación futura: HMAC del payload con un secret de Workers
+  (`crypto.subtle.sign`). **Aceptado para MVP, prioridad elevada respecto a sesiones anteriores.**
+- **Validación de email débil en `/api/register`:** `email.includes("@")` acepta valores
+  como `@`, `a@`, `@@@`. El email se almacena pero no controla acceso ni se usa para
+  enviar correos, así que no hay riesgo de seguridad estricto — es un vector de datos
+  basura en la tabla `users`. Mitigación sugerida si el email pasa a usarse: validación
+  RFC básica o confirmación por envío.
+- **Sin rate-limiting en `/api/register`:** combinado con la cookie forjable, permite
+  crear registros masivos en `users`. La constraint `UNIQUE(sub)` limita a una fila por
+  `sub`, pero no limita el volumen de intentos (ni el coste en DB). Mitigación futura:
+  Cloudflare Rate Limiting o verificación Turnstile en el formulario.
 - **Sin parámetro `state` en OAuth (Login CSRF):** `/api/auth/google` no genera un
   `state` ni `/api/auth/callback` lo verifica. Permite **Login CSRF**: un atacante
   puede hacer que una víctima complete el flujo OAuth con la cuenta del atacante (la
@@ -194,3 +231,14 @@ Para cada cambio que toque la superficie de ataque:
   usa exclusivamente el script `.mjs` dev-only; no se cargan en el cliente ni se despliegan).
   Sin cambios en backend, queries, esquema ni cabeceras. El self-XSS de `winner.name` sigue
   pendiente (no tocado en esta sesión).
+- **2026-06-15** — Registro de usuarios: `functions/api/auth/callback.js` (bifurca
+  `/register` vs `/game` consultando D1), `functions/api/gamers.js`, `functions/api/profile.js`,
+  `functions/api/register.js`, `migrations/0001_users.sql` (tabla `users`). **Hallazgos:**
+  (1) **Cookie sin HMAC — impacto escalado:** la cookie ahora controla escrituras en D1
+  (`POST /api/register`); un `sub` forjado puede crear registros en `users`. Antes era
+  cosmético; ahora es una escritura real. Aceptado para MVP, prioridad elevada. (2) Email
+  débil en `/api/register` (`includes("@")`) — vector de datos basura, sin riesgo de
+  seguridad directo. (3) Sin rate-limiting en `/api/register`. Mecanismos positivos: todas
+  las queries parametrizadas; `username` restringido a `[a-zA-Z0-9_]` (XSS imposible desde
+  este campo en cualquier sink DOM); `getSession()` aísla excepciones de cookies malformadas.
+  Sin cambios en cabeceras ni secrets.

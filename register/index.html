@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crear perfil — WAR</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0a0a0f;
+      color: #e8e8e8;
+      font-family: 'Courier New', monospace;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    .container {
+      background: #12121a;
+      border: 1px solid #e63946;
+      border-radius: 8px;
+      padding: 2.5rem;
+      width: 100%;
+      max-width: 460px;
+    }
+    h1 {
+      font-size: 1.5rem;
+      color: #e63946;
+      margin-bottom: 0.5rem;
+    }
+    .subtitle {
+      font-size: 0.8rem;
+      color: #888;
+      margin-bottom: 2rem;
+    }
+    label {
+      display: block;
+      font-size: 0.75rem;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 0.4rem;
+    }
+    input, select {
+      width: 100%;
+      background: #0a0a0f;
+      border: 1px solid #333;
+      border-radius: 4px;
+      color: #e8e8e8;
+      font-family: inherit;
+      font-size: 1rem;
+      padding: 0.6rem 0.8rem;
+      margin-bottom: 1.25rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus, select:focus { border-color: #e63946; }
+    select option { background: #12121a; }
+    button {
+      width: 100%;
+      background: #e63946;
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: bold;
+      padding: 0.75rem;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: opacity 0.2s;
+    }
+    button:hover { opacity: 0.85; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .error {
+      background: #2a0a0a;
+      border: 1px solid #e63946;
+      border-radius: 4px;
+      color: #e63946;
+      font-size: 0.85rem;
+      padding: 0.6rem 0.8rem;
+      margin-bottom: 1.25rem;
+      display: none;
+    }
+    .hint {
+      font-size: 0.72rem;
+      color: #666;
+      margin-top: -1rem;
+      margin-bottom: 1.25rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Crea tu perfil</h1>
+    <p class="subtitle">Primera vez aquí — cuéntanos quién eres</p>
+
+    <div id="error" class="error"></div>
+
+    <form id="registerForm">
+      <label for="username">Nombre de usuario único</label>
+      <input type="text" id="username" name="username" placeholder="ej: GuerreroDark99" maxlength="30" autocomplete="off" required>
+      <p class="hint">Solo letras, números y _ (3–30 caracteres)</p>
+
+      <label for="age">Edad</label>
+      <input type="number" id="age" name="age" min="5" max="120" placeholder="25" required>
+
+      <label for="email">Correo electrónico</label>
+      <input type="email" id="email" name="email" placeholder="tu@correo.com" required>
+
+      <label for="how_heard">¿Cómo te enteraste del juego?</label>
+      <select id="how_heard" name="how_heard" required>
+        <option value="" disabled selected>Selecciona una opción...</option>
+        <option value="YouTube">YouTube</option>
+        <option value="Twitter / X">Twitter / X</option>
+        <option value="Un amigo me lo recomendó">Un amigo me lo recomendó</option>
+        <option value="Reddit">Reddit</option>
+        <option value="Discord">Discord</option>
+        <option value="Encontré el link por casualidad">Encontré el link por casualidad</option>
+      </select>
+
+      <button type="submit" id="submitBtn">Entrar al juego →</button>
+    </form>
+  </div>
+
+  <script>
+    // Pre-llenar email desde la sesión (cookie decodificada en cliente)
+    (function() {
+      try {
+        const match = document.cookie.match(/war_session=([^;]+)/);
+        if (match) {
+          const session = JSON.parse(atob(match[1]));
+          if (session.email) document.getElementById('email').value = session.email;
+        }
+      } catch(_) {}
+    })();
+
+    document.getElementById('registerForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const btn = document.getElementById('submitBtn');
+      const errorEl = document.getElementById('error');
+      errorEl.style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = 'Guardando...';
+
+      const data = {
+        username: document.getElementById('username').value.trim(),
+        age: parseInt(document.getElementById('age').value, 10),
+        email: document.getElementById('email').value.trim(),
+        how_heard: document.getElementById('how_heard').value,
+      };
+
+      try {
+        const res = await fetch('/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        const json = await res.json();
+        if (res.ok) {
+          window.location.href = '/game';
+        } else {
+          errorEl.textContent = json.error || 'Error desconocido';
+          errorEl.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = 'Entrar al juego →';
+        }
+      } catch(_) {
+        errorEl.textContent = 'Error de red. Intenta de nuevo.';
+        errorEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Entrar al juego →';
+      }
+    });
+  </script>
+</body>
+</html>

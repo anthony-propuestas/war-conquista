@@ -1,7 +1,7 @@
 # Autenticación — Google OAuth 2.0
 
 WAR usa el flujo **Authorization Code** de OAuth 2.0 con Google. La sesión se guarda
-en una cookie `HttpOnly` en el navegador; no hay base de datos de usuarios.
+en una cookie `HttpOnly` en el navegador; los datos del usuario se persisten en D1 (`users`).
 
 ## Flujo completo
 
@@ -19,8 +19,9 @@ GET /api/auth/callback?code=<code>
     │ POST https://oauth2.googleapis.com/token  → access_token
     │ GET  https://openidconnect.googleapis.com/v1/userinfo → perfil
     │ Set-Cookie: war_session=<base64>
-    ▼ 302
-/game  (pantalla de juego)
+    │ SELECT id FROM users WHERE sub = ?
+    ├─ fila encontrada ──302──> /game  (usuario ya registrado)
+    └─ sin fila      ──302──> /register  (primer login: completar registro)
 ```
 
 ## Cookie de sesión (`war_session`)
@@ -67,5 +68,6 @@ export async function onRequestGet({ request }) {
 | Logout | No implementado. La sesión expira sola en 7 días o borrando la cookie manualmente. |
 | Renovación de token | No — solo se usa el `access_token` para obtener el perfil en el callback; no se guarda para llamadas posteriores. |
 | Revocación | No — si el usuario revoca el acceso en Google, la cookie sigue válida hasta que expire. |
+| Registro obligatorio | El primer login no entra directamente a `/game`: el usuario debe completar el formulario de `/register` (`POST /api/register`) antes de poder jugar. |
 
 Ver endpoints en [api.md](api.md), secrets en [environment.md](environment.md).

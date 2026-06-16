@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi perfil — WAR</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0a0a0f;
+      color: #e8e8e8;
+      font-family: 'Courier New', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2rem;
+      padding: 2rem;
+    }
+    .card {
+      background: #12121a;
+      border: 1px solid #e63946;
+      border-radius: 8px;
+      padding: 3rem 4rem;
+      text-align: center;
+      max-width: 400px;
+      width: 100%;
+    }
+    .label {
+      font-size: 0.75rem;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 0.5rem;
+    }
+    .username {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #e63946;
+    }
+    .nav {
+      display: flex;
+      gap: 1.5rem;
+    }
+    .nav a {
+      color: #888;
+      text-decoration: none;
+      font-size: 0.85rem;
+      letter-spacing: 1px;
+      transition: color 0.2s;
+    }
+    .nav a:hover { color: #e63946; }
+    #loading { color: #888; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <p class="label">Tu nombre de usuario</p>
+    <h1 class="username" id="username"><span id="loading">Cargando...</span></h1>
+  </div>
+  <nav class="nav">
+    <a href="/game">← Jugar</a>
+    <a href="/gamers">Ranking</a>
+  </nav>
+
+  <script>
+    (async function() {
+      try {
+        const res = await fetch('/api/profile');
+        if (res.status === 401 || res.status === 404) {
+          window.location.href = '/login.html';
+          return;
+        }
+        const data = await res.json();
+        document.getElementById('username').textContent = data.username;
+        document.title = data.username + ' — WAR';
+      } catch(_) {
+        document.getElementById('loading').textContent = 'Error al cargar';
+      }
+    })();
+  </script>
+</body>
+</html>

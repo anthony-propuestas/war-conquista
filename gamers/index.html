@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ranking — WAR</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0a0a0f;
+      color: #e8e8e8;
+      font-family: 'Courier New', monospace;
+      min-height: 100vh;
+      padding: 3rem 2rem;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+    h1 {
+      font-size: 1.8rem;
+      color: #e63946;
+      letter-spacing: 3px;
+      margin-bottom: 0.4rem;
+    }
+    .subtitle {
+      font-size: 0.8rem;
+      color: #666;
+      letter-spacing: 1px;
+    }
+    .table-wrapper {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    thead th {
+      font-size: 0.7rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      padding: 0.5rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid #222;
+    }
+    thead th.wins-col { text-align: right; }
+    tbody tr {
+      border-bottom: 1px solid #1a1a22;
+      transition: background 0.15s;
+    }
+    tbody tr:hover { background: #12121a; }
+    tbody td {
+      padding: 0.75rem 1rem;
+      font-size: 0.9rem;
+    }
+    .rank {
+      color: #555;
+      width: 3rem;
+      font-size: 0.8rem;
+    }
+    .rank-1 { color: #ffd700; }
+    .rank-2 { color: #c0c0c0; }
+    .rank-3 { color: #cd7f32; }
+    .player-link {
+      color: #e8e8e8;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .player-link:hover { color: #e63946; }
+    .wins-td {
+      text-align: right;
+      color: #e63946;
+      font-weight: bold;
+    }
+    #status {
+      text-align: center;
+      color: #666;
+      padding: 2rem;
+      font-size: 0.85rem;
+    }
+    .back {
+      display: block;
+      text-align: center;
+      margin-top: 2rem;
+      color: #555;
+      text-decoration: none;
+      font-size: 0.8rem;
+      letter-spacing: 1px;
+    }
+    .back:hover { color: #e63946; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>RANKING</h1>
+    <p class="subtitle">Top 100 jugadores por victorias</p>
+  </div>
+
+  <div class="table-wrapper">
+    <div id="status">Cargando...</div>
+    <table id="table" style="display:none">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Jugador</th>
+          <th class="wins-col">Wins</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <a class="back" href="/game">← Volver al juego</a>
+  </div>
+
+  <script>
+    (async function() {
+      const statusEl = document.getElementById('status');
+      const tableEl = document.getElementById('table');
+      const tbodyEl = document.getElementById('tbody');
+
+      try {
+        const res = await fetch('/api/gamers');
+        const gamers = await res.json();
+
+        if (!gamers.length) {
+          statusEl.textContent = 'Aún no hay jugadores registrados.';
+          return;
+        }
+
+        statusEl.style.display = 'none';
+        tableEl.style.display = 'table';
+
+        gamers.forEach((g, i) => {
+          const rank = i + 1;
+          const tr = document.createElement('tr');
+          const rankClass = rank <= 3 ? ` rank-${rank}` : '';
+          tr.innerHTML = `
+            <td class="rank${rankClass}">${rank}</td>
+            <td><a class="player-link" href="/gamers/${encodeURIComponent(g.username)}">${escapeHtml(g.username)}</a></td>
+            <td class="wins-td">${g.wins}</td>
+          `;
+          tbodyEl.appendChild(tr);
+        });
+      } catch(_) {
+        statusEl.textContent = 'Error al cargar el ranking.';
+      }
+    })();
+
+    function escapeHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+  </script>
+</body>
+</html>

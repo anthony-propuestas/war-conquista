@@ -1,55 +1,101 @@
 # Base de datos (Cloudflare D1)
 
-WAR usa una única base de datos D1 (`war-scores`) solo para el **salón de la fama**.
-El juego en sí es 100% cliente; la DB nunca participa en la partida, solo registra
-victorias acumuladas por nombre.
+WAR usa una única base de datos D1 (`war-scores`) para persistir usuarios y victorias.
+El juego en sí es 100% cliente; la DB nunca participa en la partida, solo gestiona
+identidades y registra victorias acumuladas.
 
-## Esquema (`schema.sql`)
+## Esquema actual — tabla `users` (migración 0001)
 
 ```sql
-CREATE TABLE IF NOT EXISTS scores (
-  name       TEXT PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS users (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  sub        TEXT UNIQUE NOT NULL,
+  username   TEXT UNIQUE NOT NULL COLLATE NOCASE,
+  age        INTEGER NOT NULL,
+  email      TEXT NOT NULL,
+  how_heard  TEXT NOT NULL,
   wins       INTEGER NOT NULL DEFAULT 0,
-  updated_at INTEGER
+  created_at INTEGER NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_scores_wins ON scores (wins DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_wins ON users(wins DESC);
 ```
 
 | Columna | Tipo | Rol |
 |---|---|---|
-| `name` | `TEXT` PK | Nombre del jugador (clave natural; ≤16 chars, recortado en la API). Sirve para el upsert. |
-| `wins` | `INTEGER` | Victorias acumuladas. Arranca en 1 al insertar, `+1` en cada conflicto. |
-| `updated_at` | `INTEGER` | Timestamp epoch-ms (`Date.now()`) de la última victoria. Desempata el ranking. |
+| `id` | `INTEGER` PK autoincrement | Clave interna. |
+| `sub` | `TEXT UNIQUE` | Google Subject ID (`userinfo.sub`). Identifica al usuario de forma estable. |
+| `username` | `TEXT UNIQUE NOCASE` | Nombre elegido por el usuario (3–30 chars, `[a-zA-Z0-9_]`). Insensible a mayúsculas. |
+| `age` | `INTEGER` | Edad declarada (5–120). |
+| `email` | `TEXT` | Email de Google o editado en registro. |
+| `how_heard` | `TEXT` | Cómo conoció el juego (dropdown de 6 opciones). |
+| `wins` | `INTEGER` | Victorias acumuladas. Arranca en 0. |
+| `created_at` | `INTEGER` | Timestamp epoch-ms (`Date.now()`) del registro. |
 
-El índice `idx_scores_wins (wins DESC)` acelera el `ORDER BY wins DESC` del top 10.
+Los dos índices aceleran la búsqueda por username (registro/perfil) y el ranking `ORDER BY wins DESC`.
 
-## Queries vivas (`functions/api/scores.js`)
+## Esquema anterior — tabla `scores` (eliminada por migración 0001)
 
-**Lectura — top 10:**
+La tabla `scores` (name TEXT PK, wins INTEGER, updated_at INTEGER) existió en el MVP inicial.
+La migración `0001_users.sql` la borra (`DROP TABLE IF EXISTS scores`) y la reemplaza por `users`.
+El endpoint `GET /api/scores` queda inoperativo hasta que se migre o elimine.
+
+## Queries vivas
+
+### `functions/api/auth/callback.js` — verificar registro tras OAuth
 
 ```sql
-SELECT name, wins FROM scores ORDER BY wins DESC, updated_at DESC LIMIT 10
+SELECT id FROM users WHERE sub = ?
 ```
+Si devuelve fila → redirige a `/game`. Si no → redirige a `/register`.
 
-**Escritura — registrar/incrementar victoria (upsert):**
+### `functions/api/register.js` — registrar usuario
 
 ```sql
-INSERT INTO scores (name, wins, updated_at) VALUES (?, 1, ?)
-ON CONFLICT(name) DO UPDATE SET wins = wins + 1, updated_at = ?
+-- Verificar si ya existe por sub
+SELECT id FROM users WHERE sub = ?
+
+-- Verificar si el username está tomado
+SELECT id FROM users WHERE username = ?
+
+-- Insertar nuevo usuario
+INSERT INTO users (sub, username, age, email, how_heard, wins, created_at)
+VALUES (?, ?, ?, ?, ?, 0, ?)
 ```
 
-El `ON CONFLICT(name)` depende de que `name` sea PRIMARY KEY: la primera victoria
-inserta con `wins = 1`; las siguientes incrementan en vez de duplicar filas.
+### `functions/api/gamers.js` — ranking top 100
+
+```sql
+SELECT username, wins FROM users ORDER BY wins DESC LIMIT 100
+```
+
+### `functions/api/profile.js` — perfil del usuario autenticado
+
+```sql
+SELECT username, wins FROM users WHERE sub = ?
+```
 
 ## Migraciones
 
+Las migraciones viven en `migrations/` y se aplican en orden ascendente.
+
+| Migración | Archivo | Qué hace |
+|---|---|---|
+| 0001 | `migrations/0001_users.sql` | Borra `scores`; crea `users` con sus índices. |
+
+### Comandos
+
 | Comando | Qué hace |
 |---|---|
-| `npm run db:init` | Aplica `schema.sql` a la D1 **local** (entorno de `wrangler pages dev`). |
-| `npm run db:init:remote` | Aplica `schema.sql` a la D1 **remota** (producción). |
+| `npm run db:init` | Aplica `schema.sql` a la D1 **local**. ⚠️ `schema.sql` contiene el esquema legacy (`scores`); para el esquema actual (`users`) aplica también `migrations/0001_users.sql` manualmente. |
+| `npm run db:init:remote` | Igual que `db:init` pero en la D1 **remota** (producción). Mismo aviso sobre `schema.sql`. |
 | `npm run db:create` | Crea la base `war-scores` (una sola vez; devuelve el `database_id`). |
 
-El esquema es idempotente (`IF NOT EXISTS`), así que re-ejecutarlo es seguro.
+Para aplicar una migración manualmente:
+```bash
+wrangler d1 execute war-scores --local  --file migrations/0001_users.sql
+wrangler d1 execute war-scores --remote --file migrations/0001_users.sql
+```
 
-Ver también: [environment.md](environment.md) (binding `DB`), [api.md](api.md) (consumidor de estas queries).
+Ver también: [environment.md](environment.md) (binding `DB`), [api.md](api.md) (consumidores de estas queries).

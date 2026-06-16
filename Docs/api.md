@@ -76,15 +76,62 @@ Google redirige aquí tras la autorización del usuario.
 
 | Caso | Status | Destino |
 |---|---|---|
-| Flujo exitoso | `302` | `/game` con `Set-Cookie: war_session=…` |
-| Sin `?code` | `302` | `/login?error=no_code` |
+| Usuario ya registrado en DB | `302` | `/game` con `Set-Cookie: war_session=…` |
+| Usuario nuevo (no en DB) | `302` | `/register` con `Set-Cookie: war_session=…` |
+| Sin `?code` o Google devuelve `?error` | `302` | `/login.html?error=no_code` |
 | Env vars ausentes | `500` | — |
+| Error de red al canjear code (excepción de fetch) | `302` | `/login?error=token_fetch` |
 | Google devuelve error de token | `302` | `/login?error=<error_de_google>` |
 | Error al obtener userinfo | `302` | `/login?error=userinfo_fetch` |
 
 La cookie `war_session` es `HttpOnly; SameSite=Lax; Max-Age=604800` (7 días).
 Su valor es un JSON base64 con `{ sub, name, email, picture }`.
-Todos los redirects de error usan URLs absolutas (`<origen>/login?error=…`).
+El redirect "sin code" usa `/login.html`; el resto usan `/login` (sin extensión).
+Tras el callback el servidor consulta `users WHERE sub = ?` para decidir el destino.
+
+---
+
+# API — Gamers, perfil y registro
+
+## `GET /api/gamers` — ranking de jugadores
+
+Sin autenticación. Devuelve hasta 100 jugadores ordenados por victorias.
+
+**200 OK**
+```json
+[ { "username": "Ana", "wins": 15 }, { "username": "Bob", "wins": 9 } ]
+```
+
+No hay degradación: si falla `env.DB` el error se propaga (500 del runtime).
+
+## `GET /api/profile` — perfil del usuario autenticado
+
+Requiere cookie `war_session` válida.
+
+| Caso | Status | Body |
+|---|---|---|
+| Sin cookie o cookie inválida | `401` | `{ "error": "No autenticado" }` |
+| Usuario no registrado aún | `404` | `{ "error": "Usuario no registrado" }` |
+| Éxito | `200` | `{ "username": "Ana", "wins": 3 }` |
+
+## `POST /api/register` — registrar usuario
+
+Requiere cookie `war_session`. Body JSON `{ username, age, email, how_heard }`.
+
+| Caso | Status | Body / Destino |
+|---|---|---|
+| Sin sesión | `302` | `/login.html` |
+| JSON inválido | `400` | `{ "error": "Cuerpo inválido" }` |
+| `username` <3 o >30 chars | `400` | `{ "error": "El nombre de usuario debe tener entre 3 y 30 caracteres" }` |
+| `username` con chars inválidos (solo `[a-zA-Z0-9_]`) | `400` | `{ "error": "Solo letras, números y guion bajo" }` |
+| `age` fuera de `[5, 120]` | `400` | `{ "error": "Edad inválida" }` |
+| `email` sin `@` | `400` | `{ "error": "Correo inválido" }` |
+| `how_heard` no en lista permitida | `400` | `{ "error": "Opción inválida" }` |
+| `sub` ya registrado | `409` | `{ "error": "Usuario ya registrado" }` |
+| `username` ya tomado | `409` | `{ "error": "Ese nombre de usuario ya está en uso" }` |
+| Éxito | `200` | `{ "ok": true }` |
+
+Valores válidos de `how_heard`: `"YouTube"`, `"Twitter / X"`, `"Un amigo me lo recomendó"`, `"Reddit"`, `"Discord"`, `"Encontré el link por casualidad"`.
 
 ---
 

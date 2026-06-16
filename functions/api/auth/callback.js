@@ -59,11 +59,22 @@ export async function onRequestGet({ request, env }) {
     picture: userInfo.picture,
   }));
 
+  const cookie = `war_session=${session}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800`;
+
+  // Verificar si el usuario ya está registrado
+  let isRegistered = false;
+  try {
+    const row = await env.DB.prepare("SELECT id FROM users WHERE sub = ?").bind(userInfo.sub).first();
+    isRegistered = !!row;
+  } catch (_) {
+    // Si la tabla no existe aún, tratar como no registrado
+  }
+
   return new Response(null, {
     status: 302,
     headers: {
-      Location: "/game",
-      "Set-Cookie": `war_session=${session}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800`,
+      Location: isRegistered ? "/game" : "/register",
+      "Set-Cookie": cookie,
     },
   });
 }

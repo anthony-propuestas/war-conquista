@@ -2,7 +2,7 @@
 
 Filosofía: **lo mínimo que funciona**. Sin paso de build ni bundler: el navegador carga
 los ES Modules directamente, y las pocas librerías de runtime (`pixi.js`, `ethers`) se
-resuelven con un **`importmap`** que apunta a `/node_modules/` (sin empaquetar). No hay
+resuelven con un **`importmap`** que apunta a **esm.sh** (CDN ESM-native). No hay
 framework de UI (React/Vue) ni transpilación.
 
 ## Frontend
