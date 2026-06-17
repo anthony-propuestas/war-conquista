@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import { Game } from "../js/game.js";
 import {
-  TERRITORIES, CONTINENTS, INITIAL_ARMIES,
+  TERRITORIES, CONTINENTS,
 } from "../js/map-data.js";
 
 const ALL_IDS = Object.keys(TERRITORIES);
@@ -43,7 +43,7 @@ test("constructor entrega un continente completo a cada jugador y deja el resto 
     const [cid] = conts;
     const fullCont = ALL_IDS.filter((id) => TERRITORIES[id].continent === cid);
     assert.equal(owned.length, fullCont.length);
-    assert.equal(g.setupRemaining[p.id], INITIAL_ARMIES[2] - owned.length);
+    assert.equal(g.setupRemaining[p.id], 5);
   }
 
   // los continentes no asignados quedan sin dueño
@@ -86,6 +86,7 @@ test("canAttack respeta fase, propiedad, adyacencia y ejercitos", () => {
   const g = newGame();
   g.phase = "attack";
   g.pendingConquest = null;
+  g.attackUnlocked = true;
   g.board["alaska"] = { owner: 0, armies: 5 };
   g.board["kamchatka"] = { owner: 1, armies: 1 };
   assert.equal(g.canAttack("alaska", "kamchatka"), true);
@@ -108,6 +109,7 @@ test("attack: atacante gana, conquista y fija pendingConquest", () => {
   const g = newGame();
   g.phase = "attack";
   g.pendingConquest = null;
+  g.attackUnlocked = true;
   g.board["alaska"] = { owner: 0, armies: 5 };   // atkCount = 3
   g.board["kamchatka"] = { owner: 1, armies: 1 }; // defCount = 1
   // 3 dados atacante = 6, 1 dado defensor = 1
@@ -123,6 +125,7 @@ test("attack: empate gana defensor (sin conquista)", () => {
   const g = newGame();
   g.phase = "attack";
   g.pendingConquest = null;
+  g.attackUnlocked = true;
   g.board["alaska"] = { owner: 0, armies: 3 };   // atkCount = 2
   g.board["kamchatka"] = { owner: 1, armies: 2 }; // defCount = 2
   // todos los dados = 3 -> empate en ambos pares -> atacante pierde 2
@@ -204,4 +207,63 @@ test("_checkWin declara ganador al poseer los 44 territorios", () => {
   g._checkWin();
   assert.equal(g.phase, "gameover");
   assert.equal(g.winner, g.players[0]);
+});
+
+// ---------- setup 5-por-jugador ----------
+test("setup: setupRemaining es 5 por jugador tras construir", () => {
+  const g = newGame();
+  assert.equal(g.setupRemaining[0], 5);
+  assert.equal(g.setupRemaining[1], 5);
+  assert.equal(g.phase, "setup");
+});
+
+test("setup: placeSetupArmy mantiene al mismo jugador hasta agotar sus 5", () => {
+  const g = newGame();
+  const p0Terrs = g.territoriesOf(0);
+  for (let i = 0; i < 4; i++) g.placeSetupArmy(p0Terrs[0]);
+  assert.equal(g.currentIndex, 0);
+  assert.equal(g.setupRemaining[0], 1);
+  g.placeSetupArmy(p0Terrs[0]);
+  assert.equal(g.currentIndex, 1);
+  assert.equal(g.setupRemaining[0], 0);
+});
+
+test("setup: autoPlaceSetup de ambos jugadores inicia la partida en reinforce", () => {
+  const g = newGame();
+  g.autoPlaceSetup(); // coloca los 5 de p0, rota a p1
+  g.autoPlaceSetup(); // coloca los 5 de p1, inicia partida
+  assert.equal(g.phase, "reinforce");
+  assert.equal(g.currentIndex, 0);
+});
+
+// ---------- attackUnlocked ----------
+test("canAttack devuelve false cuando attackUnlocked es false", () => {
+  const g = newGame();
+  g.phase = "attack";
+  g.pendingConquest = null;
+  g.board["alaska"] = { owner: 0, armies: 5 };
+  g.board["kamchatka"] = { owner: 1, armies: 1 };
+  // attackUnlocked sigue false por defecto
+  assert.equal(g.canAttack("alaska", "kamchatka"), false);
+});
+
+test("endTurn: attackUnlocked se activa tras la primera ronda completa", () => {
+  const g = newGame();
+  g.autoPlaceSetup();
+  g.autoPlaceSetup(); // fase reinforce, currentIndex=0
+
+  // turno de p0
+  g.reinforcements = 0;
+  g.endReinforce();   // attack
+  g.endAttack();      // fortify
+  g.skipFortify();    // endTurn: firstRoundTurnsLeft=1, aun false
+  assert.equal(g.attackUnlocked, false);
+
+  // turno de p1
+  g.reinforcements = 0;
+  g.endReinforce();
+  g.endAttack();
+  g.skipFortify();    // endTurn: firstRoundTurnsLeft=0, ahora true
+  assert.equal(g.attackUnlocked, true);
+  assert.ok(g.log.some((e) => e.msg.includes("Primera ronda completa")));
 });

@@ -72,11 +72,10 @@ export class Game {
         if (TERRITORIES[id].continent === cid) this.board[id].owner = i;
       }
     });
-    // ejercitos restantes a colocar por jugador durante el setup
-    const initial = INITIAL_ARMIES[n];
-    this.setupRemaining = this.players.map(
-      (p) => initial - this.territoriesOf(p.id).length
-    );
+    // cada jugador coloca exactamente 5 ejercitos en su turno de setup
+    this.setupRemaining = this.players.map(() => 5);
+    this.attackUnlocked = false;
+    this.firstRoundTurnsLeft = this.players.length;
     // empieza el jugador 0 colocando
     this.currentIndex = 0;
     this.phase = "setup";
@@ -116,10 +115,12 @@ export class Game {
       this._beginTurn();
       return;
     }
-    // pasar al siguiente jugador que aun tenga ejercitos
-    do {
-      this.currentIndex = (this.currentIndex + 1) % this.players.length;
-    } while (this.setupRemaining[this.current.id] <= 0);
+    // solo rotar si el jugador actual ya termino sus 5
+    if (this.setupRemaining[this.current.id] <= 0) {
+      do {
+        this.currentIndex = (this.currentIndex + 1) % this.players.length;
+      } while (this.setupRemaining[this.current.id] <= 0);
+    }
   }
 
   // ---------- inicio de turno / refuerzo ----------
@@ -164,6 +165,7 @@ export class Game {
   // ---------- combate ----------
   canAttack(fromId, toId) {
     return (
+      this.attackUnlocked &&
       this.phase === "attack" &&
       !this.pendingConquest &&
       this.board[fromId].owner === this.current.id &&
@@ -264,6 +266,13 @@ export class Game {
 
   // ---------- fin de turno ----------
   endTurn() {
+    if (!this.attackUnlocked) {
+      this.firstRoundTurnsLeft--;
+      if (this.firstRoundTurnsLeft <= 0) {
+        this.attackUnlocked = true;
+        this._log("Primera ronda completa. Los ataques ahora estan habilitados.");
+      }
+    }
     // siguiente jugador vivo
     do {
       this.currentIndex = (this.currentIndex + 1) % this.players.length;

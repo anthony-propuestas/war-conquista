@@ -16,7 +16,7 @@ Los tests viven en `tests/` (versionados, excluidos del deploy vía `.assetsigno
 | Suite | Archivo bajo prueba | Casos | Estado |
 |---|---|---|---|
 | tests/map-data.test.js | js/map-data.js | 5 | ✅ |
-| tests/game.test.js | js/game.js | 14 | ✅ |
+| tests/game.test.js | js/game.js | 19 | ✅ |
 | tests/map-shapes.test.js | js/map-shapes.js | 4 | ✅ |
 | tests/api/auth/google.test.js | functions/api/auth/google.js | 2 | ✅ |
 | tests/api/auth/callback.test.js | functions/api/auth/callback.js | 5 | ✅ |
@@ -28,7 +28,7 @@ Los tests viven en `tests/` (versionados, excluidos del deploy vía `.assetsigno
 | tests/api/auth/wallet.test.js | functions/api/auth/wallet.js | 5 | ✅ |
 | tests/api/wallet/link.test.js | functions/api/wallet/link.js | 6 | ✅ |
 | tests/api/win.test.js | functions/api/win.js | 3 | ✅ |
-| **Total** | | **87** | ✅ |
+| **Total** | | **92** | ✅ |
 
 ## Pendiente (diferido)
 

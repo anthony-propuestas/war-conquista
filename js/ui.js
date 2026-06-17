@@ -284,7 +284,9 @@ export class UI {
       if (g.phase === "setup") cls += " current";
       else if (order[key] < cur) cls += " done";
       else if (order[key] === cur) cls += " current";
-      return `<span class="${cls}">${label}</span>`;
+      if (key === "attack" && !g.attackUnlocked) cls += " locked";
+      const displayLabel = (key === "attack" && !g.attackUnlocked) ? label + " 🔒" : label;
+      return `<span class="${cls}">${displayLabel}</span>`;
     }).join('<span class="step-sep">›</span>');
 
     const initial = (p.name.trim().charAt(0) || "?").toUpperCase();
@@ -318,7 +320,9 @@ export class UI {
     const hints = {
       setup: `Coloca tus ejercitos en tus territorios. Restantes: ${g.setupRemaining[g.current.id]}`,
       reinforce: "Haz clic en tus territorios para colocar tropas. (Shift+clic = 5)",
-      attack: "Elige un territorio propio y ataca a un vecino enemigo.",
+      attack: g.attackUnlocked
+        ? "Elige un territorio propio y ataca a un vecino enemigo."
+        : "Ataques suspendidos en la primera ronda. Pasa directamente a Fortificacion.",
       fortify: "Mueve tropas entre dos territorios propios conectados.",
       gameover: "Partida terminada.",
     };

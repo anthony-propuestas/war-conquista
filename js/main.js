@@ -122,7 +122,7 @@ function onLobbyMessage(msg) {
     lobbyPlayers = msg.players;
     renderLobby();
   } else if (msg.type === 'start_game') {
-    beginOnlineGame(msg.payload.players, msg.payload.board, msg.payload.setupRemaining);
+    beginOnlineGame(msg.payload.players, msg.payload.board, msg.payload.setupRemaining, msg.payload.attackUnlocked);
   }
 }
 
@@ -142,7 +142,7 @@ function renderLobby() {
 }
 
 // ---------- pasar del lobby a la partida sincronizada ----------
-function beginOnlineGame(players, initialBoard, initialSetup) {
+function beginOnlineGame(players, initialBoard, initialSetup, initialAttackUnlocked) {
   const configs = players.map((p, i) => ({ name: p.name, color: PLAYER_COLORS[i] }));
   const game = new Game(configs);
   myIndex = players.findIndex((p) => p.id === lobby.playerId);
@@ -153,6 +153,7 @@ function beginOnlineGame(players, initialBoard, initialSetup) {
   if (initialBoard) {
     Object.assign(game.board, initialBoard);
     if (initialSetup) game.setupRemaining = [...initialSetup];
+    if (initialAttackUnlocked != null) game.attackUnlocked = initialAttackUnlocked;
   }
 
   setMessageHandler((msg) => {
@@ -161,6 +162,7 @@ function beginOnlineGame(players, initialBoard, initialSetup) {
       if (msg.payload.currentIndex != null) game.currentIndex = msg.payload.currentIndex;
       if (msg.payload.phase) game.phase = msg.payload.phase;
       if (msg.payload.setupRemaining) game.setupRemaining = msg.payload.setupRemaining;
+      if (msg.payload.attackUnlocked != null) game.attackUnlocked = msg.payload.attackUnlocked;
       ui.refresh();
     }
   });
@@ -171,6 +173,7 @@ function beginOnlineGame(players, initialBoard, initialSetup) {
       currentIndex: game.currentIndex,
       phase: game.phase,
       setupRemaining: game.setupRemaining,
+      attackUnlocked: game.attackUnlocked,
     });
   };
   ['placeSetupArmy','placeReinforcement','attack','endReinforce','endAttack','skipFortify','fortify','moveAfterConquest','autoPlaceSetup']
@@ -294,7 +297,7 @@ $("#btn-lobby-start")?.addEventListener("click", () => {
   const players = shuffle(lobbyPlayers);
   const configs = players.map((p, i) => ({ name: p.name, color: PLAYER_COLORS[i] }));
   const seedGame = new Game(configs);
-  sendStartGame({ players, board: seedGame.board, setupRemaining: seedGame.setupRemaining });
+  sendStartGame({ players, board: seedGame.board, setupRemaining: seedGame.setupRemaining, attackUnlocked: seedGame.attackUnlocked });
 });
 
 $("#btn-lobby-leave")?.addEventListener("click", () => {
