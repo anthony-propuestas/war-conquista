@@ -383,6 +383,22 @@ Para cada cambio que toque la superficie de ataque:
   `currentIndex`, etc. ya aceptados; (3) "`Object.assign` sin schema" aplica al estado
   inicial además del estado en-juego. Misma disposición: aceptados para MVP. Sin cambios
   en endpoints HTTP, queries D1, esquema, cookies, cabeceras ni secrets.
+- **2026-06-17** — Rediseño del combate (elegir unidades de ataque; ocupación
+  automática al conquistar): `js/game.js` (`attack(from,to,attackUnits)` nuevo 3.º
+  parámetro, `maxAttackUnits()`, se eliminan `pendingConquest`/`moveAfterConquest`;
+  el defensor tira con todas sus tropas y los supervivientes ocupan la zona),
+  `js/ui.js` (`openAttackModal`/`resolveAttack` reemplazan el modal de conquista),
+  `js/main.js` (`moveAfterConquest` fuera de la lista de métodos parcheados online).
+  **Hallazgo: ninguno nuevo.** Cambio 100% client-side: sin endpoints HTTP, queries
+  D1, esquema, cabeceras ni secrets nuevos. `attackUnits` se **acota** en `attack` a
+  `[1, armies-1]` (`Math.max(1, Math.min(attackUnits|0||maxAtk, maxAtk))`), así que un
+  valor manipulado no permite atacar con más tropas de las disponibles ni dejar el
+  origen en 0 (`armies - atkCount ≥ 1`, sin underflow). El modal solo interpola
+  `TERRITORIES[*].name` (constantes de `map-data.js`) y números — sin datos de usuario
+  ni de DB en `innerHTML`, sin XSS. La falta de validación server-side del `game_state`
+  sincronizado (ya aceptada para MVP) ahora abarca también el board resultante del
+  ataque; misma raíz y disposición que el spoofing de `phase`/`currentIndex` ya
+  registrado.
 - **2026-06-16** — Lobby de sala (ready/start) y registro de victorias:
   `functions/api/win.js` (nuevo), `worker/index.js` (mapa `players`, flag `started`,
   mensajes `set_ready`/`start_game`/`lobby_update`, `resetRoom()`), `js/multiplayer.js`

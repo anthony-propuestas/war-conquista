@@ -36,7 +36,6 @@ export class Game {
     this.currentIndex = 0;
     this.phase = "setup";          // setup | reinforce | attack | fortify | gameover
     this.reinforcements = 0;       // ejercitos por colocar (refuerzo o setup)
-    this.pendingConquest = null;   // { from, to, min, max }
     this.fortifyDone = false;
     this.winner = null;
     this.log = [];
@@ -126,7 +125,6 @@ export class Game {
   // ---------- inicio de turno / refuerzo ----------
   _beginTurn() {
     this.phase = "reinforce";
-    this.pendingConquest = null;
     this.fortifyDone = false;
     this.reinforcements = this.reinforcementsFor(this.current.id);
     this._log(
@@ -167,7 +165,6 @@ export class Game {
     return (
       this.attackUnlocked &&
       this.phase === "attack" &&
-      !this.pendingConquest &&
       this.board[fromId].owner === this.current.id &&
       this.board[toId].owner !== this.current.id &&
       this.board[fromId].armies >= 2 &&
@@ -175,11 +172,21 @@ export class Game {
     );
   }
 
-  attack(fromId, toId) {
+  // numero maximo de unidades con las que se puede atacar (siempre queda 1 atras)
+  maxAttackUnits(fromId) {
+    return Math.max(1, this.board[fromId].armies - 1);
+  }
+
+  // attackUnits: unidades elegidas para atacar -> tantos dados.
+  // El defensor tira con TODAS sus unidades. Se ordenan y comparan por pares
+  // (empate gana defensor). Si el defensor llega a 0, las unidades atacantes
+  // supervivientes ocupan la zona automaticamente (nunca queda en 0).
+  attack(fromId, toId, attackUnits) {
     if (!this.canAttack(fromId, toId)) return null;
 
-    const atkCount = Math.min(3, this.board[fromId].armies - 1);
-    const defCount = Math.min(2, this.board[toId].armies);
+    const maxAtk = this.maxAttackUnits(fromId);
+    const atkCount = Math.max(1, Math.min(attackUnits | 0 || maxAtk, maxAtk));
+    const defCount = this.board[toId].armies; // defiende con todas
 
     const atkDice = Array.from({ length: atkCount }, d6).sort((a, b) => b - a);
     const defDice = Array.from({ length: defCount }, d6).sort((a, b) => b - a);
@@ -207,29 +214,20 @@ export class Game {
 
     if (this.board[toId].armies <= 0) {
       result.conquered = true;
-      const min = atkCount;                       // al menos los dados usados
-      const max = this.board[fromId].armies - 1;  // dejar 1 atras
+      const survivors = atkCount - atkLoss;     // atacantes que sobrevivieron
+      this.board[fromId].armies -= survivors;   // salen del origen (queda >=1)
+      this.board[toId].armies = survivors;      // ocupan la zona (>=1)
       this.board[toId].owner = this.current.id;
-      this.pendingConquest = { from: fromId, to: toId, min, max };
-      this._log(`${this.current.name} conquista ${TERRITORIES[toId].name}!`);
+      result.moved = survivors;
+      this._log(`${this.current.name} conquista ${TERRITORIES[toId].name} con ${survivors}!`);
+      this._checkElimination();
+      this._checkWin();
     }
     return result;
   }
 
-  moveAfterConquest(count) {
-    if (!this.pendingConquest) return false;
-    const { from, to, min, max } = this.pendingConquest;
-    const c = Math.max(min, Math.min(count, max));
-    this.board[from].armies -= c;
-    this.board[to].armies += c;
-    this.pendingConquest = null;
-    this._checkElimination();
-    this._checkWin();
-    return true;
-  }
-
   endAttack() {
-    if (this.phase !== "attack" || this.pendingConquest) return false;
+    if (this.phase !== "attack") return false;
     this.phase = "fortify";
     return true;
   }

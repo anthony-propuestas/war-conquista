@@ -146,7 +146,7 @@ export class UI {
       this.stopTimer();
       return;
     }
-    const key = `${g.phase}:${g.currentIndex}:${g.pendingConquest ? 1 : 0}`;
+    const key = `${g.phase}:${g.currentIndex}`;
     if (key !== this.timerKey) {
       this.timerKey = key;
       this.startTimer();
@@ -188,10 +188,7 @@ export class UI {
       }
       g.endReinforce();
     } else if (g.phase === "attack") {
-      if (g.pendingConquest) {
-        g.moveAfterConquest(g.pendingConquest.min);
-        this.closeModal();
-      }
+      this.closeModal();
       g.endAttack();
     } else if (g.phase === "fortify") {
       this.closeModal();
@@ -365,10 +362,6 @@ export class UI {
         g.reinforcements > 0);
     } else if (g.phase === "attack") {
       addBtn("Terminar ataque →", "btn-ok", () => {
-        if (g.pendingConquest) {
-          g.moveAfterConquest(g.pendingConquest.min);
-          this.closeModal();
-        }
         if (g.endAttack()) { this.selected = null; this.hideDice(); this.refresh(); }
       });
     } else if (g.phase === "fortify") {
@@ -442,18 +435,20 @@ export class UI {
       if (g.armies(id) >= 2) { this.selected = id; this.updateMap(); }
       return;
     }
-    // intentar atacar
+    // intentar atacar -> elegir con cuantas unidades
     if (g.canAttack(this.selected, id)) {
-      const res = g.attack(this.selected, id);
-      playBattleAnimation($("#map"), this.selected, id, !!res.conquered);
-      this.showDice(res);
-      if (res.conquered) {
-        this.openConquestModal();
-      } else {
-        this.selected = null;
-        this.refresh();
-      }
+      this.openAttackModal(this.selected, id);
     }
+  }
+
+  resolveAttack(from, to, units) {
+    const g = this.game;
+    const res = g.attack(from, to, units);
+    if (!res) return;
+    this.showDice(res);
+    playBattleAnimation($("#map"), from, to, !!res.conquered);
+    this.selected = null;
+    this.refresh(); // repinta dueño y contadores de inmediato
   }
 
   handleFortifyClick(id) {
@@ -503,27 +498,34 @@ export class UI {
   }
   closeModal() { $("#modal").classList.add("hidden"); }
 
-  openConquestModal() {
+  openAttackModal(from, to) {
     const g = this.game;
-    const { from, to, min, max } = g.pendingConquest;
-    const val = min;
+    const max = g.maxAttackUnits(from);   // origen - 1 (siempre queda 1)
+    const def = g.armies(to);
     this.openModal(`
-      <h2>Territorio conquistado</h2>
-      <p>Mueve tus ejercitos a <b>${TERRITORIES[to].name}</b> desde ${TERRITORIES[from].name}.</p>
+      <h2>Atacar ${TERRITORIES[to].name}</h2>
+      <p>Desde ${TERRITORIES[from].name}. Defiende con <b>${def}</b> ${def === 1 ? "tropa" : "tropas"} (${def} dados).</p>
       <div class="row">
-        <input type="range" id="m-range" min="${min}" max="${max}" value="${val}" />
-        <b id="m-val" style="min-width:2ch;text-align:center">${val}</b>
+        <input type="range" id="a-range" min="1" max="${max}" value="${max}" />
+        <b id="a-val" style="min-width:2ch;text-align:center">${max}</b>
       </div>
+      <p class="phase-hint" id="a-hint"></p>
       <div class="modal-actions">
-        <button class="btn btn-primary" id="m-ok">Mover</button>
+        <button class="btn btn-ghost" id="a-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="a-ok">Lanzar dados</button>
       </div>`);
-    const range = $("#m-range"), out = $("#m-val");
-    range.addEventListener("input", () => out.textContent = range.value);
-    $("#m-ok").addEventListener("click", () => {
-      g.moveAfterConquest(parseInt(range.value, 10));
+    const range = $("#a-range"), out = $("#a-val"), hint = $("#a-hint");
+    const upd = () => {
+      out.textContent = range.value;
+      hint.textContent = `Atacas con ${range.value} ${range.value === "1" ? "dado" : "dados"}.`;
+    };
+    upd();
+    range.addEventListener("input", upd);
+    $("#a-cancel").addEventListener("click", () => this.closeModal());
+    $("#a-ok").addEventListener("click", () => {
+      const units = parseInt(range.value, 10);
       this.closeModal();
-      if (g.armies(this.selected) < 2) this.selected = null;
-      this.refresh();
+      this.resolveAttack(from, to, units);
     });
   }
 

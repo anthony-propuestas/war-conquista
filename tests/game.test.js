@@ -85,7 +85,6 @@ test("reinforcementsFor: base >3 sin completar continente", () => {
 test("canAttack respeta fase, propiedad, adyacencia y ejercitos", () => {
   const g = newGame();
   g.phase = "attack";
-  g.pendingConquest = null;
   g.attackUnlocked = true;
   g.board["alaska"] = { owner: 0, armies: 5 };
   g.board["kamchatka"] = { owner: 1, armies: 1 };
@@ -105,59 +104,72 @@ test("canAttack respeta fase, propiedad, adyacencia y ejercitos", () => {
   assert.equal(g.canAttack("alaska", "kamchatka"), false); // fase incorrecta
 });
 
-test("attack: atacante gana, conquista y fija pendingConquest", () => {
+test("attack: atacante gana, conquista y los supervivientes ocupan la zona", () => {
   const g = newGame();
   g.phase = "attack";
-  g.pendingConquest = null;
   g.attackUnlocked = true;
-  g.board["alaska"] = { owner: 0, armies: 5 };   // atkCount = 3
-  g.board["kamchatka"] = { owner: 1, armies: 1 }; // defCount = 1
-  // 3 dados atacante = 6, 1 dado defensor = 1
-  const res = withDice([0.9, 0.9, 0.9, 0.0], () => g.attack("alaska", "kamchatka"));
+  g.board["alaska"] = { owner: 0, armies: 5 };
+  g.board["kamchatka"] = { owner: 1, armies: 1 }; // defiende con 1
+  // atacar con 3 unidades -> 3 dados = 6, 1 dado defensor = 1
+  const res = withDice([0.9, 0.9, 0.9, 0.0], () => g.attack("alaska", "kamchatka", 3));
   assert.equal(res.atkLoss, 0);
   assert.equal(res.defLoss, 1);
   assert.equal(res.conquered, true);
+  assert.equal(res.moved, 3);                  // supervivientes = atkCount - atkLoss
   assert.equal(g.board["kamchatka"].owner, 0);
-  assert.deepEqual(g.pendingConquest, { from: "alaska", to: "kamchatka", min: 3, max: 4 });
+  assert.equal(g.board["kamchatka"].armies, 3); // ocupan con los supervivientes
+  assert.equal(g.board["alaska"].armies, 2);    // 5 - 3 que salieron
 });
 
 test("attack: empate gana defensor (sin conquista)", () => {
   const g = newGame();
   g.phase = "attack";
-  g.pendingConquest = null;
   g.attackUnlocked = true;
-  g.board["alaska"] = { owner: 0, armies: 3 };   // atkCount = 2
-  g.board["kamchatka"] = { owner: 1, armies: 2 }; // defCount = 2
-  // todos los dados = 3 -> empate en ambos pares -> atacante pierde 2
-  const res = withDice([0.4, 0.4, 0.4, 0.4], () => g.attack("alaska", "kamchatka"));
+  g.board["alaska"] = { owner: 0, armies: 3 };
+  g.board["kamchatka"] = { owner: 1, armies: 2 }; // defiende con 2
+  // atacar con 2: todos los dados = 3 -> empate en ambos pares -> atacante pierde 2
+  const res = withDice([0.4, 0.4, 0.4, 0.4], () => g.attack("alaska", "kamchatka", 2));
   assert.equal(res.atkLoss, 2);
   assert.equal(res.defLoss, 0);
   assert.equal(res.conquered, false);
+  assert.equal(res.moved, undefined);
   assert.equal(g.board["alaska"].armies, 1);
   assert.equal(g.board["kamchatka"].armies, 2);
-  assert.equal(g.pendingConquest, null);
 });
 
-test("moveAfterConquest clampa el conteo a [min, max]", () => {
+test("maxAttackUnits = armies - 1 (siempre deja 1 atras, minimo 1)", () => {
   const g = newGame();
-  ownOnly(g, 1, ["argentina"]); // el rival conserva un territorio (sin victoria)
-  g.board["alaska"] = { owner: 0, armies: 6 };
-  g.board["kamchatka"] = { owner: 0, armies: 0 };
-  g.pendingConquest = { from: "alaska", to: "kamchatka", min: 3, max: 5 };
-  assert.equal(g.moveAfterConquest(10), true); // pedido 10 -> clamp a max 5
-  assert.equal(g.board["alaska"].armies, 1);
-  assert.equal(g.board["kamchatka"].armies, 5);
-  assert.equal(g.pendingConquest, null);
+  g.board["alaska"] = { owner: 0, armies: 5 };
+  assert.equal(g.maxAttackUnits("alaska"), 4);
+  g.board["alaska"].armies = 1;
+  assert.equal(g.maxAttackUnits("alaska"), 1);
 });
 
-test("moveAfterConquest respeta el minimo", () => {
+test("attack sin unidades usa el maximo (armies - 1)", () => {
   const g = newGame();
-  ownOnly(g, 1, ["argentina"]);
-  g.board["alaska"] = { owner: 0, armies: 6 };
-  g.board["kamchatka"] = { owner: 0, armies: 0 };
-  g.pendingConquest = { from: "alaska", to: "kamchatka", min: 3, max: 5 };
-  g.moveAfterConquest(1); // pedido 1 -> clamp a min 3
+  g.phase = "attack";
+  g.attackUnlocked = true;
+  g.board["alaska"] = { owner: 0, armies: 4 };    // maxAtk = 3
+  g.board["kamchatka"] = { owner: 1, armies: 1 };
+  const res = withDice([0.9, 0.9, 0.9, 0.0], () => g.attack("alaska", "kamchatka"));
+  assert.equal(res.conquered, true);
+  assert.equal(res.moved, 3);
+  assert.equal(g.board["alaska"].armies, 1);     // dejo 1 atras
   assert.equal(g.board["kamchatka"].armies, 3);
+});
+
+test("attack con menos unidades deja mas tropas en el origen", () => {
+  const g = newGame();
+  g.phase = "attack";
+  g.attackUnlocked = true;
+  g.board["alaska"] = { owner: 0, armies: 10 };
+  g.board["kamchatka"] = { owner: 1, armies: 1 };
+  // atacar con solo 2 unidades aunque haya 9 disponibles
+  const res = withDice([0.9, 0.9, 0.0], () => g.attack("alaska", "kamchatka", 2));
+  assert.equal(res.conquered, true);
+  assert.equal(res.moved, 2);
+  assert.equal(g.board["alaska"].armies, 8);     // 10 - 2 que salieron
+  assert.equal(g.board["kamchatka"].armies, 2);
 });
 
 // ---------- transiciones de fase ----------
@@ -171,12 +183,11 @@ test("endReinforce bloquea con refuerzos pendientes", () => {
   assert.equal(g.phase, "attack");
 });
 
-test("endAttack bloquea con conquista pendiente", () => {
+test("endAttack pasa a fortify y se rechaza fuera de fase", () => {
   const g = newGame();
+  g.phase = "reinforce";
+  assert.equal(g.endAttack(), false); // fase incorrecta
   g.phase = "attack";
-  g.pendingConquest = { from: "a", to: "b", min: 1, max: 1 };
-  assert.equal(g.endAttack(), false);
-  g.pendingConquest = null;
   assert.equal(g.endAttack(), true);
   assert.equal(g.phase, "fortify");
 });
@@ -240,7 +251,6 @@ test("setup: autoPlaceSetup de ambos jugadores inicia la partida en reinforce", 
 test("canAttack devuelve false cuando attackUnlocked es false", () => {
   const g = newGame();
   g.phase = "attack";
-  g.pendingConquest = null;
   g.board["alaska"] = { owner: 0, armies: 5 };
   g.board["kamchatka"] = { owner: 1, armies: 1 };
   // attackUnlocked sigue false por defecto
@@ -250,24 +260,24 @@ test("canAttack devuelve false cuando attackUnlocked es false", () => {
 test("multiples ataques consecutivos en el mismo turno sin limite", () => {
   const g = newGame();
   g.phase = "attack";
-  g.pendingConquest = null;
   g.attackUnlocked = true;
   g.board["alaska"] = { owner: 0, armies: 5 };
   g.board["kamchatka"] = { owner: 1, armies: 3 };
 
-  // primer ataque: atacante gana los 2 pares, kamchatka 3->1, sin conquista
-  const r1 = withDice([0.9, 0.9, 0.9, 0.0, 0.0], () => g.attack("alaska", "kamchatka"));
+  // primer ataque con 2 unidades: gana ambos pares, kamchatka 3->1, sin conquista
+  const r1 = withDice([0.9, 0.9, 0.0, 0.0, 0.0], () => g.attack("alaska", "kamchatka", 2));
   assert.equal(r1.conquered, false);
-  assert.equal(g.pendingConquest, null);
+  assert.equal(g.board["kamchatka"].armies, 1);
+  assert.equal(g.board["alaska"].armies, 5); // no perdio tropas
   assert.equal(g.phase, "attack");
 
   // canAttack sigue activo en el mismo turno — no hay limite de 1 ataque por turno
   assert.equal(g.canAttack("alaska", "kamchatka"), true);
 
   // segundo ataque: conquista (kamchatka 1->0)
-  const r2 = withDice([0.9, 0.9, 0.9, 0.0], () => g.attack("alaska", "kamchatka"));
+  const r2 = withDice([0.9, 0.9, 0.0], () => g.attack("alaska", "kamchatka", 2));
   assert.equal(r2.conquered, true);
-  assert.notEqual(g.pendingConquest, null);
+  assert.equal(g.board["kamchatka"].owner, 0);
 });
 
 test("endTurn: attackUnlocked se activa tras la primera ronda completa", () => {

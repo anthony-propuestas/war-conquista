@@ -14,7 +14,9 @@ Conquista territorios, domina continentes y elimina a tus rivales. **Multijugado
 ## ✨ Características
 
 - 🗺️ **Mapa de 44 territorios** repartidos en 6 continentes con bonus por dominio.
-- 🎲 **Combate con dados** fiel al original (hasta 3 dados de ataque, 2 de defensa).
+- 🎲 **Combate con dados**: eliges con cuántas unidades atacar (1 hasta tus tropas − 1)
+  = ese número de dados; el defensor tira con **todas** sus tropas. Al conquistar, los
+  atacantes supervivientes ocupan la zona automáticamente.
 - ♻️ **Fases de turno**: despliegue → refuerzo → ataque → fortificación.
 - 👥 **1 a 3 jugadores** en la misma máquina (hotseat), cada uno con su color.
 - 🌐 **Multijugador online** en tiempo real: crea o únete a una sala, marca que estás listo y el anfitrión arranca la partida (WebSocket + Durable Object `GameRoom`).
@@ -30,8 +32,9 @@ Conquista territorios, domina continentes y elimina a tus rivales. **Multijugado
 
 1. **Despliegue:** cada jugador coloca sus ejércitos iniciales en sus territorios.
 2. **Refuerzo:** recibes tropas según los territorios y continentes que domines.
-3. **Ataque:** elige un territorio propio con 2+ ejércitos y ataca a un vecino enemigo.
-   Se comparan los dados más altos; el empate favorece al defensor.
+3. **Ataque:** elige un territorio propio con 2+ ejércitos, un vecino enemigo y con
+   cuántas unidades atacar. Se comparan los dados más altos por pares; el empate
+   favorece al defensor. Si vacías el territorio, tus supervivientes lo ocupan.
 4. **Fortificación:** mueve tropas entre dos territorios propios conectados.
 5. **Victoria:** gana quien conquiste **todos** los territorios o quede como **único jugador con territorios** (todos los rivales eliminados).
 

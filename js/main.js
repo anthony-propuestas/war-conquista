@@ -179,7 +179,7 @@ function beginOnlineGame(players, initialBoard, initialSetup, initialAttackUnloc
       firstRoundTurnsLeft: game.firstRoundTurnsLeft,
     });
   };
-  ['placeSetupArmy','placeReinforcement','attack','endReinforce','endAttack','skipFortify','fortify','moveAfterConquest','autoPlaceSetup']
+  ['placeSetupArmy','placeReinforcement','attack','endReinforce','endAttack','skipFortify','fortify','autoPlaceSetup']
     .forEach(method => {
       const orig = game[method].bind(game);
       game[method] = (...args) => {

@@ -113,8 +113,14 @@ main.js  ──crea──>  Game (estado/reglas)
 - **Game → UI:** la UI nunca muta el tablero directamente; llama métodos de `Game`
   (que validan con sus guardas: `canAttack`, `canFortify`, fase, etc.) y luego
   `refresh()` para re-leer el estado.
-- **Conquista/fortificación:** `Game` deja `pendingConquest`; la UI abre un modal con
-  un rango `[min, max]` y confirma con `moveAfterConquest` / `fortify`.
+- **Ataque:** al elegir origen+destino, la UI abre un modal donde el jugador elige
+  con **cuántas unidades** atacar (1 hasta `maxAttackUnits` = `armies-1`, siempre deja
+  1 atrás) = ese número de dados; el defensor tira con **todas** sus tropas. `attack`
+  resuelve los dados de una vez y, si el defensor llega a 0, los atacantes
+  supervivientes **ocupan la zona automáticamente** (no hay paso de movimiento
+  posterior). `endAttack` pasa a fortificación.
+- **Fortificación:** la UI abre un modal con un rango `[min, max]` y confirma con
+  `fortify`.
 - **Red:** `main.js` toca `fetch` solo para `/api/win` (registro de victoria al ganar
   una partida online). Los endpoints `/api/auth/*` se invocan por **navegación del
   browser** desde `login.html` (vía `<a href>`), no por `fetch` programático.

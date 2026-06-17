@@ -92,7 +92,7 @@ Al crear o unirse a una sala, `enterLobby(code, playerName)`:
    `initialAttackUnlocked` e `initialFirstRoundTurnsLeft` del host. Luego reemplaza el
    handler con `setMessageHandler` y **parchea los métodos mutadores de `Game`**
    (`placeSetupArmy`, `placeReinforcement`, `attack`, `endReinforce`, `endAttack`,
-   `skipFortify`, `fortify`, `moveAfterConquest`, `autoPlaceSetup`): cada uno, tras
+   `skipFortify`, `fortify`, `autoPlaceSetup`): cada uno, tras
    ejecutar el original, llama `sendGameState({ board, currentIndex, phase, setupRemaining, attackUnlocked, firstRoundTurnsLeft })`.
 5. En el handler de partida, al recibir `game_state` aplica el estado remoto sobre el
    `Game` local (`Object.assign(game.board, …)`, `currentIndex`, `phase`,
@@ -104,8 +104,8 @@ Al terminar la partida (gana el jugador local) hace `POST /api/win` (ver
 En partidas online, `ui.js` bloquea clics y acciones cuando no es tu turno
 (`isMyTurn()`) y corre un temporizador de 30s por fase (`syncTimer`/`startTimer`); si
 se agota, `handleTimeout()` resuelve la fase automáticamente (coloca refuerzos al
-azar, confirma el mínimo de conquista, salta fortificación) para que un jugador
-inactivo no bloquee la partida.
+azar, cierra el modal de ataque y termina el ataque, salta fortificación) para que un
+jugador inactivo no bloquee la partida.
 
 > **Modelo de consistencia (MVP):** es *last-write-wins* por broadcast; no hay autoridad
 > de servidor ni resolución de conflictos. El DO solo retransmite y guarda el último
