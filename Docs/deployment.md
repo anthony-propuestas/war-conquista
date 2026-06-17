@@ -64,6 +64,8 @@ Despliegue automático (**Workers Builds**, configurado en el panel):
 4. **Branch:** `main`.
 5. Cada `git push` a `main` redespliega este Worker, igual que Pages.
 
+> **Estado actual (confirmado):** Workers Builds está configurado y conectado al repo `anthony-propuestas/war-conquista` (root directory `/worker`, deploy command `npx wrangler deploy`, production branch `main`). Cada `git push` a `main` redespliega el Worker automáticamente — **no se requiere ninguna acción manual tras cada commit**.
+
 **Migraciones del Durable Object:** si se cambia la clase `GameRoom` con storage ya
 existente en producción, hay que agregar una nueva entrada `[[migrations]]` con `tag`
 incremental (`v2`, `v3`, ...) en `worker/wrangler.toml` *antes* de pushear — la migración

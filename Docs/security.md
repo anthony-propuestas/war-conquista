@@ -356,6 +356,7 @@ Para cada cambio que toque la superficie de ataque:
   Los tres aceptados para MVP; suben la prioridad de firmar `war_session` con HMAC. Sin
   cambios en `_headers` ni secrets. El self-XSS de `winner.name` sigue pendiente (no
   tocado en esta sesión).
+- **2026-06-17** — Corrección de export en `functions/api/game-room.js` (Worker format → Pages Functions `onRequest`) y eliminación de `loadLeaderboard()` al inicio de `js/main.js`. **Hallazgo: ninguno.** El cambio de export es una corrección de convención sin modificación de comportamiento; el routing al DO `GameRoom` es idéntico. La eliminación de `loadLeaderboard()` suprime un `GET /api/gamers` en el arranque; el sink de `escapeHtml` en esa función queda inactivo (código muerto, no un riesgo). Sin cambios en endpoints, queries, esquema, cabeceras ni secrets.
 - **2026-06-16** — Página `/lobby` (hub de navegación): `lobby/index.html` (nuevo) +
   enlaces agregados/cambiados en `home/index.html`, `my-profile/index.html`,
   `gamers/index.html`, `game/index.html`. **Hallazgo: ninguno.** `lobby/index.html`

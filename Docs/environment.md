@@ -19,10 +19,7 @@ database_id = "405ca0f4-51eb-48bf-8d56-a1040bfb7c06"
 [[durable_objects.bindings]]
 name = "GAME_ROOM"
 class_name = "GameRoom"
-
-[[migrations]]
-tag = "v1"
-new_classes = ["GameRoom"]
+script_name = "war-game-room"
 ```
 
 | Clave | Significado |
@@ -31,8 +28,9 @@ new_classes = ["GameRoom"]
 | `compatibility_date` | Fija el runtime de Workers/Functions. |
 | `[[d1_databases]]` | Declara el binding **`DB`** → base `war-scores`. La Function accede vía `env.DB`. |
 | `database_id` | ID de la D1 remota (de `npm run db:create`). |
-| `[[durable_objects.bindings]]` | Declara el binding **`GAME_ROOM`** → clase `GameRoom` (`worker/index.js`, Worker separado `script_name = "war-game-room"`). La Pages Function de routing (`functions/api/game-room.js`) lo usa vía `env.GAME_ROOM`. |
-| `[[migrations]]` | Registra la clase del Durable Object (`tag = v1`). Se aplica al desplegar. |
+| `[[durable_objects.bindings]]` | Declara el binding **`GAME_ROOM`** → clase `GameRoom` en el Worker separado `war-game-room` (`script_name`). La Pages Function de routing (`functions/api/game-room.js`) lo usa vía `env.GAME_ROOM`. |
+
+> La sección `[[migrations]]` (registro de la clase DO, `new_sqlite_classes = ["GameRoom"]`) vive en `worker/wrangler.toml`, no en el `wrangler.toml` principal.
 
 ## Secrets de Google OAuth
 

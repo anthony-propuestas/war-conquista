@@ -295,4 +295,3 @@ $("#btn-lobby-leave")?.addEventListener("click", () => {
 walletAddress = sessionStorage.getItem('walletAddress');
 renderWalletUI();
 renderPlayerFields();
-loadLeaderboard();

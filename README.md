@@ -112,8 +112,8 @@ WAR/
 │   ├── pixi-overlay.js     # animaciones de batalla (Pixi.js)
 │   ├── multiplayer.js      # cliente WebSocket de la sala
 │   ├── wallet.js           # wallet Web3 (ethers)
-│   └── main.js             # arranque y leaderboard
-├── functions/api/scores.js # Pages Function: /api/scores (D1, leaderboard legacy)
+│   └── main.js             # arranque y orquestación
+├── functions/api/win.js    # Pages Function: /api/win (victoria del usuario autenticado)
 ├── functions/api/gamers.js # Pages Function: /api/gamers (ranking)
 ├── functions/api/profile.js # Pages Function: /api/profile
 ├── functions/api/register.js # Pages Function: /api/register
@@ -122,13 +122,12 @@ WAR/
 │   ├── callback.js         # completa OAuth, guarda cookie de sesión
 │   └── wallet.js           # login alterno con wallet
 ├── functions/api/wallet/link.js # vincula wallet a la cuenta de la sesión
-├── functions/game-room.js  # routing de /api/game-room hacia el Durable Object GameRoom
+├── functions/api/game-room.js # Pages Function: routing de /api/game-room al Durable Object
 ├── worker/                 # Worker separado "war-game-room" que aloja el Durable Object
 ├── migrations/             # migraciones D1 (estado actual del esquema)
 ├── scripts/build-map-shapes.mjs # genera js/map-shapes.js (npm run build:map)
 ├── tests/                  # tests unitarios (node --test)
 ├── Docs/                   # documentación del proyecto
-├── schema.sql              # esquema original (legacy; ver migrations/ para el actual)
 ├── wrangler.toml           # configuración de Cloudflare
 ├── _headers                # cabeceras de seguridad/caché
 ├── _redirects              # redirige / → /home (Cloudflare Pages)

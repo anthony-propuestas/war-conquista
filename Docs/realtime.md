@@ -9,7 +9,7 @@ se conecta y recibe/emite el estado del juego.
 | Pieza | Archivo | Rol |
 |---|---|---|
 | Cliente WS | `js/multiplayer.js` | Abre el socket, parsea mensajes, expone `send*`. |
-| Endpoint + routing | `functions/api/game-room.js` (default export) | Pages Function que enruta `/api/game-room` al Durable Object por `roomId`. |
+| Endpoint + routing | `functions/api/game-room.js` | Pages Function (`onRequest`) que enruta `/api/game-room` al Durable Object por `roomId`. |
 | Sala (estado) | `worker/index.js` (clase `GameRoom`) | Durable Object, desplegado como Worker separado (`script_name = "war-game-room"`): mantiene las conexiones, el lobby, persiste el estado y hace broadcast. |
 | Orquestación | `js/main.js` | Une el cliente con el motor `Game` (ver más abajo). |
 
@@ -30,7 +30,7 @@ API (un único socket por pestaña, guardado en módulo):
 
 ## Sala — Durable Object `GameRoom` (`worker/index.js`)
 
-El default export de `functions/api/game-room.js` resuelve el DO por nombre de sala
+La Pages Function `functions/api/game-room.js` resuelve el DO por nombre de sala
 (`env.GAME_ROOM.idFromName(roomId)`) y delega la request en él. La clase mantiene un
 mapa `players` (`playerId` → `{ name, ready }`) y una bandera `started`:
 
@@ -64,7 +64,7 @@ mapa `players` (`playerId` → `{ name, ready }`) y una bandera `started`:
   uno con `state.getTags(ws)` y envía a los que no coinciden con `excludeId` (`null`
   envía a todos; errores de envío se tragan en try/catch).
 
-El binding `GAME_ROOM` y la migración `v1` se declaran en `wrangler.toml`
+El binding `GAME_ROOM` se declara en `wrangler.toml`; la migración `v1` está en `worker/wrangler.toml`
 (ver [environment.md](environment.md)).
 
 ## Sincronización en `js/main.js`

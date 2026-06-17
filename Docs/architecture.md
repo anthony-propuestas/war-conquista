@@ -25,7 +25,7 @@ WAR/
 │   ├── pixi-overlay.js     # animaciones de batalla sobre el mapa (Pixi.js, DOM)
 │   ├── multiplayer.js      # cliente WebSocket de la sala (red)
 │   ├── wallet.js           # wallet Web3 / ethers (red externa)
-│   └── main.js             # arranque + leaderboard + wallet + sala (DOM + fetch)
+│   └── main.js             # arranque + wallet + sala (DOM + fetch)
 ├── functions/api/win.js     # Pages Function: /api/win — +1 victoria del usuario autenticado (D1)
 ├── functions/api/gamers.js # Pages Function: /api/gamers — ranking top 100 (D1)
 ├── functions/api/profile.js # Pages Function: /api/profile — perfil autenticado (D1)
@@ -42,7 +42,6 @@ WAR/
 │   └── 0001_users.sql      # migración: borra scores, crea users
 ├── scripts/build-map-shapes.mjs # dev-only: genera map-shapes.js desde Natural Earth
 ├── tests/                  # node --test (excluido del deploy)
-├── schema.sql              # esquema D1 original (scores; ver migrations/ para estado actual)
 ├── wrangler.toml           # config Cloudflare (binding DB)
 ├── _headers                # cabeceras de seguridad/caché
 ├── _redirects              # redirige / → /home (Cloudflare Pages)
