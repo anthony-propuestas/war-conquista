@@ -24,7 +24,7 @@ API (un único socket por pestaña, guardado en módulo):
 | `sendAction(type, payload = {})` | Envía `{ type, payload }`. **No-op** si el socket no está `OPEN`. |
 | `sendGameState(state)` | Atajo de `sendAction('game_state', state)`. |
 | `setReady(ready)` | Atajo de `sendAction('set_ready', { ready })`. |
-| `startGame(payload)` | Atajo de `sendAction('start_game', payload)`. El host le pasa `{ players, board, setupRemaining, attackUnlocked }` — el estado inicial ya generado — para que todos los clientes (incluido el host) arranquen con un estado idéntico. |
+| `startGame(payload)` | Atajo de `sendAction('start_game', payload)`. El host le pasa `{ players, board, setupRemaining, attackUnlocked, firstRoundTurnsLeft }` — el estado inicial ya generado — para que todos los clientes (incluido el host) arranquen con un estado idéntico. |
 | `disconnect()` | Cierra el socket y lo descarta. |
 | `isConnected()` | `true` solo si hay socket y está `OPEN`. |
 
@@ -48,7 +48,7 @@ mapa `players` (`playerId` → `{ name, ready }`) y una bandera `started`:
   - `type === 'set_ready'` → marca `players.get(playerId).ready` y difunde
     `lobby_update`.
   - `type === 'start_game'` → marca `started = true` y retransmite el payload
-    tal como llegó — `{ players, board, setupRemaining, attackUnlocked }` — a
+    tal como llegó — `{ players, board, setupRemaining, attackUnlocked, firstRoundTurnsLeft }` — a
     **todos** (incluido el emisor) via `broadcast(null, …)`. El DO no genera ni
     modifica el estado inicial; lo calcula el host en el cliente (crea un `Game`
     temporal) y lo envía dentro del mensaje `start_game`.
@@ -80,23 +80,23 @@ Al crear o unirse a una sala, `enterLobby(code, playerName)`:
 2. `onLobbyMessage` reacciona a dos tipos: `lobby_update` (redibuja la lista de
    jugadores y su estado "listo"; el botón "Iniciar" solo aparece para el host —primer
    jugador de la lista— cuando todos están listos) y `start_game` (llama
-   `beginOnlineGame(payload.players, payload.board, payload.setupRemaining, payload.attackUnlocked)`).
+   `beginOnlineGame(payload.players, payload.board, payload.setupRemaining, payload.attackUnlocked, payload.firstRoundTurnsLeft)`).
 3. El checkbox "Estoy listo" llama `setReady(checked)`; el botón "Iniciar" (solo host)
    crea un `Game` temporal para generar el reparto de continentes y llama
-   `startGame({ players, board, setupRemaining, attackUnlocked })` — el estado inicial viaja dentro del mensaje
+   `startGame({ players, board, setupRemaining, attackUnlocked, firstRoundTurnsLeft })` — el estado inicial viaja dentro del mensaje
    para que todos los clientes (incluido el host) arranquen de forma idéntica.
-4. `beginOnlineGame(players, initialBoard, initialSetup, initialAttackUnlocked)` crea el `Game` + `UI` (con
+4. `beginOnlineGame(players, initialBoard, initialSetup, initialAttackUnlocked, initialFirstRoundTurnsLeft)` crea el `Game` + `UI` (con
    `myIndex` = posición del jugador local) y, si recibe `initialBoard`, pisa
    inmediatamente el board aleatorio local con el del host — eliminando la divergencia
-   que producía `Math.random()` en `_distributeTerritories()`; también aplica `setupRemaining` e
-   `initialAttackUnlocked` del host. Luego reemplaza el
+   que producía `Math.random()` en `_distributeTerritories()`; también aplica `setupRemaining`,
+   `initialAttackUnlocked` e `initialFirstRoundTurnsLeft` del host. Luego reemplaza el
    handler con `setMessageHandler` y **parchea los métodos mutadores de `Game`**
    (`placeSetupArmy`, `placeReinforcement`, `attack`, `endReinforce`, `endAttack`,
    `skipFortify`, `fortify`, `moveAfterConquest`, `autoPlaceSetup`): cada uno, tras
-   ejecutar el original, llama `sendGameState({ board, currentIndex, phase, setupRemaining, attackUnlocked })`.
+   ejecutar el original, llama `sendGameState({ board, currentIndex, phase, setupRemaining, attackUnlocked, firstRoundTurnsLeft })`.
 5. En el handler de partida, al recibir `game_state` aplica el estado remoto sobre el
    `Game` local (`Object.assign(game.board, …)`, `currentIndex`, `phase`,
-   `setupRemaining`, `attackUnlocked`) y hace `ui.refresh()`.
+   `setupRemaining`, `attackUnlocked`, `firstRoundTurnsLeft`) y hace `ui.refresh()`.
 
 Al terminar la partida (gana el jugador local) hace `POST /api/win` (ver
 [api.md](api.md)); al terminar o salir, `main.js` llama `disconnect()`.

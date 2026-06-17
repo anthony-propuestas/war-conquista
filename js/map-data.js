@@ -113,8 +113,8 @@ const RAW_ADJ = {
   afganistan:    ["china", "india", "medio_oriente"],
   china:         ["india", "siam", "mongolia"],
   medio_oriente: ["india"],
-  india:         ["siam"],
-  siam:          ["indonesia"],
+  india:         ["siam", "china"],
+  siam:          ["indonesia", "china", "india"],
 
   indonesia:     ["nueva_guinea", "australia_oeste"],
   nueva_guinea:  ["australia_oeste", "australia_este"],
