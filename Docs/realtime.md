@@ -24,7 +24,7 @@ API (un único socket por pestaña, guardado en módulo):
 | `sendAction(type, payload = {})` | Envía `{ type, payload }`. **No-op** si el socket no está `OPEN`. |
 | `sendGameState(state)` | Atajo de `sendAction('game_state', state)`. |
 | `setReady(ready)` | Atajo de `sendAction('set_ready', { ready })`. |
-| `startGame(players)` | Atajo de `sendAction('start_game', { players })`. Solo el host debería llamarlo. |
+| `startGame(payload)` | Atajo de `sendAction('start_game', payload)`. El host le pasa `{ players, board, setupRemaining }` — el board inicial ya generado — para que todos los clientes (incluido el host) arranquen con un estado idéntico. |
 | `disconnect()` | Cierra el socket y lo descarta. |
 | `isConnected()` | `true` solo si hay socket y está `OPEN`. |
 
@@ -77,19 +77,22 @@ Al crear o unirse a una sala, `enterLobby(code, playerName)`:
 2. `onLobbyMessage` reacciona a dos tipos: `lobby_update` (redibuja la lista de
    jugadores y su estado "listo"; el botón "Iniciar" solo aparece para el host —primer
    jugador de la lista— cuando todos están listos) y `start_game` (llama
-   `beginOnlineGame(payload.players)`).
+   `beginOnlineGame(payload.players, payload.board, payload.setupRemaining)`).
 3. El checkbox "Estoy listo" llama `setReady(checked)`; el botón "Iniciar" (solo host)
-   llama `startGame(players)`.
-4. `beginOnlineGame(players)` crea el `Game` + `UI` (con `myIndex` = posición del
-   jugador local), reemplaza el handler con `setMessageHandler` para procesar
-   `game_state` durante la partida, y **parchea los métodos mutadores de `Game`**
+   crea un `Game` temporal para generar el reparto de continentes y llama
+   `startGame({ players, board, setupRemaining })` — el board viaja dentro del mensaje
+   para que todos los clientes (incluido el host) arranquen con el mismo estado inicial.
+4. `beginOnlineGame(players, initialBoard, initialSetup)` crea el `Game` + `UI` (con
+   `myIndex` = posición del jugador local) y, si recibe `initialBoard`, pisa
+   inmediatamente el board aleatorio local con el del host — eliminando la divergencia
+   que producía `Math.random()` en `_distributeTerritories()`. Luego reemplaza el
+   handler con `setMessageHandler` y **parchea los métodos mutadores de `Game`**
    (`placeSetupArmy`, `placeReinforcement`, `attack`, `endReinforce`, `endAttack`,
    `skipFortify`, `fortify`, `moveAfterConquest`, `autoPlaceSetup`): cada uno, tras
-   ejecutar el original, llama `sendGameState({ board, currentIndex, phase })`. Así
-   cualquier acción local se propaga sin tocar el motor.
+   ejecutar el original, llama `sendGameState({ board, currentIndex, phase, setupRemaining })`.
 5. En el handler de partida, al recibir `game_state` aplica el estado remoto sobre el
-   `Game` local (`Object.assign(game.board, …)`, `currentIndex`, `phase`) y hace
-   `ui.refresh()`.
+   `Game` local (`Object.assign(game.board, …)`, `currentIndex`, `phase`,
+   `setupRemaining`) y hace `ui.refresh()`.
 
 Al terminar la partida (gana el jugador local) hace `POST /api/win` (ver
 [api.md](api.md)); al terminar o salir, `main.js` llama `disconnect()`.

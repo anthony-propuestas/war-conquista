@@ -365,6 +365,17 @@ Para cada cambio que toque la superficie de ataque:
   `innerHTML`). Los enlaces nuevos son anchors estáticos (`href="/lobby"`, `/game`, etc.)
   sin interpolar datos de usuario ni de DB → sin XSS ni open redirect. Sin cambios en
   `functions/api/`, `schema.sql`, `_headers`, `wrangler.toml` ni secrets.
+- **2026-06-17** — Sincronización de estado inicial online: `js/main.js`
+  (`beginOnlineGame` aplica board autoritativo del host; `patchedRefresh` y handler
+  de `game_state` incluyen `setupRemaining`) y `js/multiplayer.js` (`startGame`
+  acepta payload completo `{players, board, setupRemaining}`). **Hallazgo: ninguno nuevo.**
+  Los dos riesgos WebSocket ya aceptados se extienden en alcance: (1) "start_game no
+  restringido al host" ahora cubre también `board` y `setupRemaining` en el payload
+  inicial — un cliente malicioso puede forzar un tablero de arranque arbitrario (todos
+  los territorios para sí mismo, 0 ejércitos al rival); (2) "`Object.assign` sin schema"
+  aplica ahora también al estado inicial (no solo al `game_state` en-juego). Misma
+  disposición: aceptados para MVP. Sin cambios en endpoints HTTP, queries D1, esquema,
+  cookies, cabeceras ni secrets.
 - **2026-06-16** — Lobby de sala (ready/start) y registro de victorias:
   `functions/api/win.js` (nuevo), `worker/index.js` (mapa `players`, flag `started`,
   mensajes `set_ready`/`start_game`/`lobby_update`, `resetRoom()`), `js/multiplayer.js`

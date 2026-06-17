@@ -122,7 +122,7 @@ function onLobbyMessage(msg) {
     lobbyPlayers = msg.players;
     renderLobby();
   } else if (msg.type === 'start_game') {
-    beginOnlineGame(msg.payload.players);
+    beginOnlineGame(msg.payload.players, msg.payload.board, msg.payload.setupRemaining);
   }
 }
 
@@ -142,16 +142,25 @@ function renderLobby() {
 }
 
 // ---------- pasar del lobby a la partida sincronizada ----------
-function beginOnlineGame(players) {
+function beginOnlineGame(players, initialBoard, initialSetup) {
   const configs = players.map((p, i) => ({ name: p.name, color: PLAYER_COLORS[i] }));
   const game = new Game(configs);
   myIndex = players.findIndex((p) => p.id === lobby.playerId);
+
+  // Aplicar el estado inicial autoritativo generado por el host.
+  // Todos los clientes (incluido el host) reciben el mismo board via start_game,
+  // eliminando cualquier divergencia por aleatoriedad local.
+  if (initialBoard) {
+    Object.assign(game.board, initialBoard);
+    if (initialSetup) game.setupRemaining = [...initialSetup];
+  }
 
   setMessageHandler((msg) => {
     if (msg.type === 'game_state' && ui) {
       Object.assign(game.board, msg.payload.board ?? {});
       if (msg.payload.currentIndex != null) game.currentIndex = msg.payload.currentIndex;
       if (msg.payload.phase) game.phase = msg.payload.phase;
+      if (msg.payload.setupRemaining) game.setupRemaining = msg.payload.setupRemaining;
       ui.refresh();
     }
   });
@@ -161,6 +170,7 @@ function beginOnlineGame(players) {
       board: game.board,
       currentIndex: game.currentIndex,
       phase: game.phase,
+      setupRemaining: game.setupRemaining,
     });
   };
   ['placeSetupArmy','placeReinforcement','attack','endReinforce','endAttack','skipFortify','fortify','moveAfterConquest','autoPlaceSetup']
@@ -281,7 +291,10 @@ function shuffle(arr) {
 }
 
 $("#btn-lobby-start")?.addEventListener("click", () => {
-  sendStartGame(shuffle(lobbyPlayers));
+  const players = shuffle(lobbyPlayers);
+  const configs = players.map((p, i) => ({ name: p.name, color: PLAYER_COLORS[i] }));
+  const seedGame = new Game(configs);
+  sendStartGame({ players, board: seedGame.board, setupRemaining: seedGame.setupRemaining });
 });
 
 $("#btn-lobby-leave")?.addEventListener("click", () => {

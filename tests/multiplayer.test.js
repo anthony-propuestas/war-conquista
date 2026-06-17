@@ -169,14 +169,16 @@ test("setReady envía sendAction('set_ready', {ready})", () => {
   });
 });
 
-test("startGame envía sendAction('start_game', {players})", () => {
+test("startGame envía sendAction('start_game', payload completo)", () => {
   joinRoom("s", "p", () => {});
   instances[0].readyState = OPEN;
   const players = [{ id: "p1", name: "Ana" }];
-  startGame(players);
+  const board = { "AF": { owner: 0, armies: 3 } };
+  const setupRemaining = [5, 5];
+  startGame({ players, board, setupRemaining });
   assert.deepEqual(JSON.parse(instances[0].sent[0]), {
     type: "start_game",
-    payload: { players },
+    payload: { players, board, setupRemaining },
   });
 });
 

@@ -122,7 +122,10 @@ main.js  ──crea──>  Game (estado/reglas)
   **lobby** (`enterLobby`) que abre un WebSocket (`joinRoom`) y muestra la lista de
   jugadores conectados con su estado "listo" (`lobby_update`). Solo el host puede
   pulsar "Iniciar" y solo cuando todos están listos; al hacerlo emite `start_game`,
-  que dispara `beginOnlineGame()` en todos los clientes. A partir de ahí **parchea los
+  que dispara `beginOnlineGame()` en todos los clientes. El mensaje `start_game` lleva
+  embebido el board inicial (`{ players, board, setupRemaining }`) generado por el host,
+  garantizando que todos arranquen con el mismo mapa sin importar la aleatoriedad local.
+  A partir de ahí **parchea los
   métodos mutadores de `Game`** para emitir `sendGameState` tras cada acción → el
   Durable Object `GameRoom` hace `broadcast` → los demás reciben `game_state`, lo
   aplican al `Game` local y hacen `ui.refresh()`. En modo online, `ui.js` además

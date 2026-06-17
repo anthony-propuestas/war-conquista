@@ -16,7 +16,8 @@ Conquista territorios, domina continentes y elimina a tus rivales. **Multijugado
 - 🗺️ **Mapa de 44 territorios** repartidos en 6 continentes con bonus por dominio.
 - 🎲 **Combate con dados** fiel al original (hasta 3 dados de ataque, 2 de defensa).
 - ♻️ **Fases de turno**: despliegue → refuerzo → ataque → fortificación.
-- 👥 **1 a 3 jugadores** en la misma máquina, cada uno con su color.
+- 👥 **1 a 3 jugadores** en la misma máquina (hotseat), cada uno con su color.
+- 🌐 **Multijugador online** en tiempo real: crea o únete a una sala, marca que estás listo y el anfitrión arranca la partida (WebSocket + Durable Object `GameRoom`).
 - 🏆 **Salón de la fama** global persistido en Cloudflare D1.
 - 🔐 **Login con Google o wallet MetaMask** para vincular tus victorias a tu cuenta.
 - 📱 Interfaz responsive, sin librerías JS ni frameworks. Dependencias externas en
@@ -89,6 +90,16 @@ npm run deploy
 4. En **Settings → Functions → D1 database bindings** añade el binding
    `DB` → `war-scores`.
 5. Cada `git push` a `main` despliega automáticamente a producción.
+
+### 4. Desplegar el Worker del Durable Object
+
+El Durable Object `GameRoom` vive en un Worker separado y tiene su propio pipeline:
+
+```bash
+npm run deploy:worker    # wrangler deploy --config worker/wrangler.toml
+```
+
+Ver [Docs/deployment.md](Docs/deployment.md) para configurar despliegue automático desde GitHub.
 
 ---
 

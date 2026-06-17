@@ -50,8 +50,8 @@ export function setReady(ready) {
   sendAction('set_ready', { ready });
 }
 
-export function startGame(players) {
-  sendAction('start_game', { players });
+export function startGame(payload) {
+  sendAction('start_game', payload);
 }
 
 export function disconnect() {
