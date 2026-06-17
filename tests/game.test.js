@@ -247,6 +247,29 @@ test("canAttack devuelve false cuando attackUnlocked es false", () => {
   assert.equal(g.canAttack("alaska", "kamchatka"), false);
 });
 
+test("multiples ataques consecutivos en el mismo turno sin limite", () => {
+  const g = newGame();
+  g.phase = "attack";
+  g.pendingConquest = null;
+  g.attackUnlocked = true;
+  g.board["alaska"] = { owner: 0, armies: 5 };
+  g.board["kamchatka"] = { owner: 1, armies: 3 };
+
+  // primer ataque: atacante gana los 2 pares, kamchatka 3->1, sin conquista
+  const r1 = withDice([0.9, 0.9, 0.9, 0.0, 0.0], () => g.attack("alaska", "kamchatka"));
+  assert.equal(r1.conquered, false);
+  assert.equal(g.pendingConquest, null);
+  assert.equal(g.phase, "attack");
+
+  // canAttack sigue activo en el mismo turno — no hay limite de 1 ataque por turno
+  assert.equal(g.canAttack("alaska", "kamchatka"), true);
+
+  // segundo ataque: conquista (kamchatka 1->0)
+  const r2 = withDice([0.9, 0.9, 0.9, 0.0], () => g.attack("alaska", "kamchatka"));
+  assert.equal(r2.conquered, true);
+  assert.notEqual(g.pendingConquest, null);
+});
+
 test("endTurn: attackUnlocked se activa tras la primera ronda completa", () => {
   const g = newGame();
   g.autoPlaceSetup();

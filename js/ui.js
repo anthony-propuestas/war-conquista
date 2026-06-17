@@ -364,8 +364,13 @@ export class UI {
         () => { if (g.endReinforce()) { this.selected = null; this.refresh(); } },
         g.reinforcements > 0);
     } else if (g.phase === "attack") {
-      addBtn("Terminar ataque →", "btn-ok",
-        () => { if (g.endAttack()) { this.selected = null; this.hideDice(); this.refresh(); } });
+      addBtn("Terminar ataque →", "btn-ok", () => {
+        if (g.pendingConquest) {
+          g.moveAfterConquest(g.pendingConquest.min);
+          this.closeModal();
+        }
+        if (g.endAttack()) { this.selected = null; this.hideDice(); this.refresh(); }
+      });
     } else if (g.phase === "fortify") {
       addBtn("Saltar y terminar turno", "btn-small",
         () => { this.selected = null; this.hideDice(); g.skipFortify(); this.refresh(); });
@@ -445,7 +450,7 @@ export class UI {
       if (res.conquered) {
         this.openConquestModal();
       } else {
-        if (g.armies(this.selected) < 2) this.selected = null;
+        this.selected = null;
         this.refresh();
       }
     }
