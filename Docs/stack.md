@@ -27,8 +27,8 @@ no, el navegador usa el fallback serif/sans). `pixi.js` y `ethers` se sirven des
 | Servicio | Uso |
 |---|---|
 | **Pages** | Hosting de los estáticos. |
-| **Pages Functions** | Endpoints `/api/scores`, `/api/auth/*` y routing de `/api/game-room`. |
-| **D1** | Base SQLite del salón de la fama (binding `DB`). |
+| **Pages Functions** | Endpoints `/api/win`, `/api/gamers`, `/api/profile`, `/api/register`, `/api/auth/*` y routing de `/api/game-room`. |
+| **D1** | Base SQLite de usuarios y victorias (binding `DB`). |
 | **Durable Objects** | Sala multijugador `GameRoom` (binding `GAME_ROOM`). Ver [realtime.md](realtime.md). |
 
 ## Dependencias

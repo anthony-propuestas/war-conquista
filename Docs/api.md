@@ -1,54 +1,32 @@
-# API — `/api/scores`
+# API — `/api/win`
 
-Endpoint del salón de la fama. Es una **Cloudflare Pages Function**
-(`functions/api/scores.js`) sobre D1; la lógica del juego no toca la red.
-(Los otros endpoints son `/api/auth/*` —abajo— y `/api/game-room` —WebSocket, ver
-[realtime.md](realtime.md)—.)
+Endpoint de registro de victorias. Es una **Cloudflare Pages Function**
+(`functions/api/win.js`) sobre D1; la lógica del juego no toca la red.
+(Los otros endpoints son `/api/auth/*` —abajo—, `/api/gamers`/`/api/profile`/`/api/register`
+y `/api/game-room` —WebSocket, ver [realtime.md](realtime.md)—.)
 
-**Diseño clave:** degrada de forma segura. Si no hay D1 vinculado (`env.DB`
-ausente), responde sin error para que el juego siga funcionando sin backend.
+## `POST /api/win` — registrar una victoria
 
-## `GET /api/scores` — top 10 ganadores
+Requiere cookie `war_session` (mismo formato que el login, ver [auth.md](auth.md)).
+Sin body.
 
-Sin parámetros. Devuelve hasta 10 filas ordenadas por victorias.
-
-**200 OK**
-```json
-[ { "name": "Ana", "wins": 5 }, { "name": "Beto", "wins": 3 } ]
-```
-
-- Sin `env.DB` → `200 []`.
-- Error de DB (excepción en la query) → `200 []` (degradación silenciosa; el front
-  trata `[]` como "sin salón de la fama").
-
-## `POST /api/scores` — registrar una victoria
-
-**Request body**
-```json
-{ "name": "Ana" }
-```
-El `name` se normaliza: `String(name).trim().slice(0, 16)` (máx. 16 caracteres).
-
-| Resultado | Status | Body |
+| Caso | Status | Body |
 |---|---|---|
-| Éxito (upsert `+1`) | `200` | `{ "ok": true }` |
-| Sin D1 vinculado | `200` | `{ "ok": false, "reason": "no-db" }` |
-| JSON inválido en el body | `400` | `{ "ok": false, "reason": "bad-json" }` |
-| `name` vacío tras `trim` | `400` | `{ "ok": false, "reason": "no-name" }` |
-| Error al escribir en D1 | `500` | `{ "ok": false, "reason": "db-error" }` |
+| Sin cookie o cookie inválida (sin `sub`) | `200` | `{ "ok": false }` |
+| Éxito (`UPDATE users SET wins = wins + 1 WHERE sub = ?`) | `200` | `{ "ok": true }` |
 
-Todas las respuestas son `application/json`.
+**Diseño clave:** degrada de forma silenciosa — una sesión inválida no es un error
+de protocolo, simplemente no incrementa nada. No hay rama `500`: si la query
+fallara se propagaría como excepción no controlada (no hay try/catch).
 
 ## Consumidores
 
-`js/main.js`:
-- `submitScore(name)` → `POST` al terminar la partida (envuelto en try/catch: si falla,
-  el juego no se ve afectado).
-- `loadLeaderboard()` → `GET` al volver al menú; si la respuesta no es `ok` o está
-  vacía, oculta el bloque del salón de la fama.
+`js/main.js` → `onGameOver(winner)`: si `myIndex` (índice del jugador local en
+la partida online) coincide con el ganador, hace `POST /api/win` (sin esperar
+ni manejar la respuesta; envuelto en `.catch(() => {})`). Solo se llama en
+partidas online — el modo local (`startLocalGame`) no reporta victorias.
 
 Ver también: [database.md](database.md) (queries y esquema), [architecture.md](architecture.md).
-Las ramas de error de este endpoint están cubiertas por tests — ver [testing.md](testing.md).
 
 ---
 
@@ -172,17 +150,22 @@ firma del mensaje `Vincular esta wallet a mi cuenta WAR (${sub})`.
 
 # API — Sala multijugador (`/api/game-room`)
 
-Endpoint **WebSocket** servido por `functions/game-room.js`, que enruta al Durable Object
-`GameRoom` por `roomId`.
+Endpoint **WebSocket**. El routing lo hace la Pages Function
+`functions/api/game-room.js`, que enruta al Durable Object `GameRoom` (clase
+definida en `worker/index.js`, desplegado como Worker separado
+`war-game-room`) por `roomId`.
 
-## `GET /api/game-room?roomId=<id>&playerId=<id>` (upgrade WebSocket)
+## `GET /api/game-room?roomId=<id>&playerId=<id>&playerName=<nombre>` (upgrade WebSocket)
 
 | Caso | Status | Resultado |
 |---|---|---|
-| Header `Upgrade: websocket` presente | `101` | Conexión WebSocket aceptada en la sala `roomId`. |
+| Header `Upgrade: websocket` presente y la sala no inició | `101` | Conexión WebSocket aceptada en la sala `roomId`. |
 | Sin ese header | `426` | `Expected WebSocket`. |
+| La sala ya inició (`start_game` ya se envió) | `409` | `Room already started`. |
 
 Mensajes (JSON `{ type, payload }`): el cliente envía `game_state` (se persiste y
-retransmite) u otras acciones (solo retransmiten). El servidor reenvía a los demás con
-`from: <playerId>` y emite `player_left` al cerrar. Protocolo y semántica completos en
+retransmite), `set_ready` (marca al jugador listo en el lobby) o `start_game`
+(el host arranca la partida). El servidor reenvía a los demás con
+`from: <playerId>`, emite `lobby_update` con la lista de jugadores y
+`player_left` al cerrar. Protocolo y semántica completos en
 [realtime.md](realtime.md).

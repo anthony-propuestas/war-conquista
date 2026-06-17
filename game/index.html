@@ -22,33 +22,67 @@
       <p class="tagline">Conquista el mundo. Domina cada continente.</p>
 
       <div class="setup">
-        <label class="field">
-          <span>Numero de jugadores</span>
-          <select id="player-count">
-            <option value="1">1 jugador</option>
-            <option value="2" selected>2 jugadores</option>
-            <option value="3">3 jugadores</option>
-          </select>
-        </label>
-
-        <div id="player-fields" class="player-fields"></div>
-
-        <!-- Wallet + sala (multijugador online) -->
+        <!-- Wallet -->
         <div class="online-setup">
           <button id="btn-wallet" class="btn btn-ghost wallet-btn">Conectar Wallet</button>
           <span id="wallet-badge" class="wallet-badge hidden"></span>
         </div>
 
-        <label class="field room-field">
-          <span>Sala online (opcional)</span>
-          <div class="room-row">
-            <input id="room-input" type="text" maxlength="24" placeholder="Ej: sala-42 (deja vacío para local)" />
-            <button type="button" class="btn btn-ghost btn-small" id="btn-gen-room">Generar</button>
-          </div>
-          <span class="room-hint">Comparte el código con tus amigos para jugar en línea</span>
-        </label>
+        <div class="mode-tabs" id="mode-tabs">
+          <button type="button" class="mode-tab active" data-mode="local">Local</button>
+          <button type="button" class="mode-tab" data-mode="create">Crear sala</button>
+          <button type="button" class="mode-tab" data-mode="join">Unirse a sala</button>
+        </div>
 
-        <button id="btn-start" class="btn btn-primary btn-big">Iniciar partida</button>
+        <!-- ---- modo local (hotseat, sin conexión) ---- -->
+        <div id="mode-local" class="mode-panel">
+          <label class="field">
+            <span>Numero de jugadores</span>
+            <select id="player-count">
+              <option value="1">1 jugador</option>
+              <option value="2" selected>2 jugadores</option>
+              <option value="3">3 jugadores</option>
+            </select>
+          </label>
+
+          <div id="player-fields" class="player-fields"></div>
+
+          <button id="btn-start-local" class="btn btn-primary btn-big">Iniciar partida</button>
+        </div>
+
+        <!-- ---- modo crear sala online ---- -->
+        <div id="mode-create" class="mode-panel hidden">
+          <label class="field">
+            <span>Tu nombre</span>
+            <input id="create-name" type="text" maxlength="16" placeholder="Tu nombre" />
+          </label>
+
+          <label class="field room-field">
+            <span>Codigo de sala</span>
+            <div class="room-row">
+              <input id="create-room-code" type="text" maxlength="24" placeholder="Ej: sala-42" />
+              <button type="button" class="btn btn-ghost btn-small" id="btn-gen-room">Generar</button>
+            </div>
+            <span class="room-hint">Comparte este código con tus amigos para que se unan</span>
+          </label>
+
+          <button id="btn-create-room" class="btn btn-primary btn-big">Crear y entrar a la sala</button>
+        </div>
+
+        <!-- ---- modo unirse a sala existente ---- -->
+        <div id="mode-join" class="mode-panel hidden">
+          <label class="field">
+            <span>Tu nombre</span>
+            <input id="join-name" type="text" maxlength="16" placeholder="Tu nombre" />
+          </label>
+
+          <label class="field">
+            <span>Código de la sala</span>
+            <input id="join-room-code" type="text" maxlength="24" placeholder="Ej: sala-42" />
+          </label>
+
+          <button id="btn-join-room" class="btn btn-primary btn-big">Unirse a la sala</button>
+        </div>
       </div>
 
       <details class="rules">
@@ -63,6 +97,27 @@
       </details>
 
       <div id="leaderboard" class="leaderboard"></div>
+    </div>
+  </section>
+
+  <!-- ============ SALA DE ESPERA (LOBBY) ============ -->
+  <section id="screen-lobby" class="screen">
+    <div class="start-card">
+      <h1 class="logo">Sala<span>·</span></h1>
+      <p class="tagline">Código de la sala: <strong id="lobby-room-code"></strong></p>
+
+      <div class="players-box">
+        <h3>Jugadores conectados</h3>
+        <ul id="lobby-players-list"></ul>
+      </div>
+
+      <label class="field lobby-ready-field">
+        <input type="checkbox" id="lobby-ready-checkbox" />
+        <span>Estoy listo</span>
+      </label>
+
+      <button id="btn-lobby-start" class="btn btn-primary btn-big hidden">Iniciar partida</button>
+      <button id="btn-lobby-leave" class="btn btn-ghost">Salir de la sala</button>
     </div>
   </section>
 

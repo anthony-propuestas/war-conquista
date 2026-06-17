@@ -3,8 +3,11 @@ import assert from "node:assert/strict";
 
 import {
   joinRoom,
+  setMessageHandler,
   sendAction,
   sendGameState,
+  setReady,
+  startGame,
   disconnect,
   isConnected,
 } from "../js/multiplayer.js";
@@ -64,8 +67,13 @@ test("joinRoom construye URL wss en https y registra onMessage", () => {
   assert.equal(instances.length, 1);
   assert.match(
     instances[0].url,
-    /^wss:\/\/war\.example\.com\/api\/game-room\?roomId=sala1&playerId=p1$/
+    /^wss:\/\/war\.example\.com\/api\/game-room\?roomId=sala1&playerId=p1&playerName=Jugador$/
   );
+});
+
+test("joinRoom incluye el playerName explícito url-encoded", () => {
+  joinRoom("sala1", "p1", () => {}, "Ana López");
+  assert.ok(instances[0].url.includes("playerName=Ana%20L%C3%B3pez"));
 });
 
 test("joinRoom usa ws cuando el protocolo no es https", () => {
@@ -75,6 +83,21 @@ test("joinRoom usa ws cuando el protocolo no es https", () => {
   // valores con caracteres especiales van url-encoded
   assert.ok(instances[0].url.includes("roomId=sala%202"));
   assert.ok(instances[0].url.includes("playerId=p%262"));
+});
+
+test("onJoinFailed se llama si el socket cierra sin haber abierto", () => {
+  let failed = 0;
+  joinRoom("s", "p", () => {}, "Jugador", () => { failed++; });
+  instances[0].emit("close", {});
+  assert.equal(failed, 1);
+});
+
+test("onJoinFailed NO se llama si el socket abrió antes de cerrar", () => {
+  let failed = 0;
+  joinRoom("s", "p", () => {}, "Jugador", () => { failed++; });
+  instances[0].emit("open", {});
+  instances[0].emit("close", {});
+  assert.equal(failed, 0);
 });
 
 test("el handler de message parsea JSON y llama onMessage", () => {
@@ -89,6 +112,16 @@ test("JSON inválido en message no lanza y no llama onMessage", () => {
   joinRoom("s", "p", () => { calls++; });
   assert.doesNotThrow(() => instances[0].emit("message", { data: "{no-json" }));
   assert.equal(calls, 0);
+});
+
+test("setMessageHandler reemplaza el handler de mensajes", () => {
+  let viaOriginal = null;
+  let viaNuevo = null;
+  joinRoom("s", "p", (data) => { viaOriginal = data; });
+  setMessageHandler((data) => { viaNuevo = data; });
+  instances[0].emit("message", { data: JSON.stringify({ type: "ping" }) });
+  assert.equal(viaOriginal, null);
+  assert.deepEqual(viaNuevo, { type: "ping" });
 });
 
 test("sendAction no envía si el socket no está OPEN", () => {
@@ -123,6 +156,27 @@ test("sendGameState delega en sendAction('game_state', state)", () => {
   assert.deepEqual(JSON.parse(instances[0].sent[0]), {
     type: "game_state",
     payload: { turn: 3 },
+  });
+});
+
+test("setReady envía sendAction('set_ready', {ready})", () => {
+  joinRoom("s", "p", () => {});
+  instances[0].readyState = OPEN;
+  setReady(true);
+  assert.deepEqual(JSON.parse(instances[0].sent[0]), {
+    type: "set_ready",
+    payload: { ready: true },
+  });
+});
+
+test("startGame envía sendAction('start_game', {players})", () => {
+  joinRoom("s", "p", () => {});
+  instances[0].readyState = OPEN;
+  const players = [{ id: "p1", name: "Ana" }];
+  startGame(players);
+  assert.deepEqual(JSON.parse(instances[0].sent[0]), {
+    type: "start_game",
+    payload: { players },
   });
 });
 

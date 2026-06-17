@@ -1,70 +1,100 @@
-# Workflow — Comparación código ⟷ documentación
+# Workflow — Comparación código ⟷ documentación + reparación
 
-**Propósito:** detectar desfases entre el código real y la documentación, y reportarlos al usuario para que decida. **Es de análisis y reporte: nunca edita código ni docs.**
+**Propósito:** detectar desfases entre el código real y la documentación, reportarlos y repararlos en la misma sesión.
 
 ## Documentos del proyecto a verificar
 
-- `README.md` — portada, características, instrucciones y arquitectura.
-- `Docs/database.md` — *(lo crea `workflow-documentacion.md`)*
-- `Docs/api.md` — *(lo crea `workflow-documentacion.md`)*
-- `Docs/stack.md` — *(lo crea `workflow-documentacion.md`)*
-- `Docs/architecture.md` — *(lo crea `workflow-documentacion.md`)*
-- `Docs/environment.md` — *(lo crea `workflow-documentacion.md`)*
-- `Docs/deployment.md` — *(lo crea `workflow-documentacion.md`)*
-- `Docs/security.md` — *(lo crea `workflow-security.md`)*
-- `Docs/testing.md` — *(lo crea `workflow-test-despues-de-cambios.md`)*
-- `Docs/style.md` — *(lo crea `workflow-documentacion.md`)*
-
-> Hoy solo existe `README.md`. Verificar únicamente los documentos que existan; anotar como "pendiente de crear" los que aún no estén.
+- `README.md` — portada, características, arquitectura, instrucciones de deploy
+- `Docs/database.md` — tablas D1, queries, migraciones
+- `Docs/api.md` — rutas HTTP, handlers, shapes de request/response, errores
+- `Docs/stack.md` — dependencias y versiones, razones técnicas
+- `Docs/architecture.md` — estructura de carpetas, patrones, flujos
+- `Docs/environment.md` — env vars, bindings, wrangler.toml
+- `Docs/deployment.md` — comandos de deploy, infra, notas de producción
+- `Docs/security.md` — mecanismos de auth/validación, superficies de ataque
+- `Docs/testing.md` — suites, runner, convención de tests
+- `Docs/style.md` — tokens de diseño, paleta, tipografía
+- `Docs/realtime.md` — WebSockets, Durable Object, protocolo de mensajes
+- `Docs/auth.md` — autenticación, sesiones, wallet (si aplica)
+- `Docs/onchain.md` — contratos, ABIs, ethers.js (si aplica)
 
 ## Paso 1 — Leer todos los documentos existentes
 
-Leer cada `.md` de la lista anterior que exista en el repo.
+Leer cada `.md` de la lista anterior que exista en el repo. Todos existen en `Docs/`; verificar igual que no se haya borrado alguno.
 
 ## Paso 2 — Verificar cada documento contra el código real
 
 Preguntas concretas por documento:
 
 **README.md**
-- ¿La arquitectura listada (`js/map-data.js`, `js/game.js`, `js/ui.js`, `js/main.js`, `functions/api/scores.js`, `schema.sql`, `wrangler.toml`, `_headers`) coincide con los archivos reales? ¿Hay archivos nuevos sin listar?
-- ¿Los comandos (`npm run dev`, `deploy`, `db:create`, `db:init:remote`) coinciden con los `scripts` de `package.json`?
-- ¿El stack descrito ("HTML/CSS/JS puro, sin frameworks", Pages + D1) sigue siendo cierto? ¿`package.json` añadió dependencias que lo contradigan?
-- ¿La URL de la demo y el flujo de juego (fases, nº de jugadores, 42 territorios/6 continentes) coinciden con `js/map-data.js` y `js/game.js`?
+- ¿El árbol de carpetas listado en Arquitectura coincide con los archivos reales? En particular: ¿menciona archivos que ya no existen (`schema.sql`, `functions/game-room.js`, `functions/api/scores.js`)? ¿Falta listar archivos nuevos (`functions/api/game-room.js`, `functions/api/win.js`, `worker/index.js`, `js/multiplayer.js`)?
+- ¿Las Características describen el multijugador online real (salas WebSocket + Durable Object, lobby con ready/start) además del hotseat local?
+- ¿Los comandos (`npm run dev`, `deploy`, `deploy:worker`) coinciden con los `scripts` de `package.json`?
+- ¿El stack descrito sigue siendo cierto en `package.json` (dependencias, devDependencies)?
 
-**Docs/database.md** (si existe)
-- ¿La tabla `scores` documentada (`name` PK, `wins`, `updated_at`) y el índice `idx_scores_wins` coinciden con `schema.sql`?
-- ¿Las queries descritas coinciden con el `SELECT` y el `INSERT … ON CONFLICT` de `functions/api/scores.js`?
+**Docs/architecture.md**
+- ¿Todos los archivos listados en la estructura de carpetas existen realmente? (`schema.sql` no existe; verificar que no esté listado)
+- ¿Están documentados `worker/index.js` (Durable Object GameRoom), `functions/api/game-room.js`, `functions/api/win.js` y `js/multiplayer.js`?
+- ¿El flujo de sala multijugador (crear sala → join → WebSocket → ready → start) está descrito?
 
-**Docs/api.md** (si existe)
-- ¿Los métodos/handlers (`onRequestGet`, `onRequestPost`) y sus shapes coinciden con `functions/api/scores.js`?
-- ¿Los códigos de error documentados (`bad-json`, `no-name`, `db-error`, degradación sin `DB`) siguen vigentes?
+**Docs/api.md**
+- ¿Están documentados todos los endpoints actuales: `GET/POST /api/game-room`, `POST /api/win`, y los handlers WebSocket del Durable Object?
+- ¿Los shapes de request/response y códigos de error reflejan el código en `functions/api/game-room.js` y `functions/api/win.js`?
 
-**Docs/stack.md / Docs/environment.md / Docs/deployment.md** (si existen)
-- ¿El binding `DB`, `database_name`, `compatibility_date` y `pages_build_output_dir` coinciden con `wrangler.toml`?
-- ¿Las cabeceras documentadas coinciden con `_headers`?
-- ¿Los pasos de deploy coinciden con los scripts reales de `package.json`?
+**Docs/database.md**
+- ¿El esquema documentado refleja las tablas actuales en D1? (`schema.sql` no existe; el esquema debe derivarse de las queries reales en el código o de las migraciones)
+- ¿La tabla `wins` (o equivalente usada por `functions/api/win.js`) está documentada?
 
-**Docs/testing.md** (si existe)
-- ¿Cada suite listada tiene su archivo en `tests/`? ¿Hay tests no registrados? ¿El runner/comando documentado coincide con `package.json`?
+**Docs/stack.md**
+- ¿La tabla de `dependencies` lista `ethers` correctamente como dependencia de producción (no devDependency)?
+- ¿La tabla de `devDependencies` incluye `pixi.js`, `d3-geo`, `d3-geo-projection`, `topojson-client`, `world-atlas`, `wrangler`?
+- ¿Menciona el Durable Object `GameRoom` (`worker/index.js`) como parte del stack?
 
-**Docs/security.md** (si existe)
-- ¿Los mecanismos documentados (parametrización D1, `escapeHtml`, validación de `name`, cabeceras `_headers`) siguen en el código? ¿Hay endpoints nuevos en `functions/` sin analizar?
+**Docs/environment.md**
+- ¿Los bindings documentados en `wrangler.toml` / `worker/wrangler.toml` coinciden con los archivos reales?
+- ¿Está documentado el binding del Durable Object `GameRoom`?
 
-**Docs/style.md** (si existe)
-- ¿Los valores de la tabla de tokens (`--bg`, `--accent`, `--radius`, `--shadow`, etc.) coinciden con los `:root` reales de `css/style.css`?
-- ¿La lista de "Páginas que siguen este sistema" sigue completa (sin páginas nuevas sin listar, sin páginas eliminadas que sigan listadas)?
-- ¿Sigue siendo cierto que el tablero SVG (`.map-wrap`, `.terr`, `--sea`/`--sea-2`) está fuera de alcance, o el código lo contradice?
+**Docs/deployment.md**
+- ¿El comando `deploy:worker` (`wrangler deploy --config worker/wrangler.toml`) está documentado?
+- ¿El flujo de deploy del Worker del Durable Object está separado del deploy de Pages?
+
+**Docs/realtime.md**
+- ¿El protocolo de mensajes WebSocket documentado coincide con el código en `worker/index.js` y `js/multiplayer.js`?
+- ¿Los tipos de mensaje (crear sala, join, ready, start, game-state, etc.) están actualizados?
+
+**Docs/testing.md**
+- ¿Cada suite listada tiene su archivo en `tests/`? ¿Hay tests no registrados (`tests/api/win.test.js`)?
+- ¿El runner/comando documentado (`node --test`) coincide con `package.json`?
+
+**Docs/security.md**
+- ¿Hay endpoints nuevos en `functions/` o en el Durable Object sin analizar?
+- ¿Los mecanismos documentados siguen vigentes en el código actual?
+
+**Docs/style.md**
+- ¿Los valores de la tabla de tokens (`--bg`, `--accent`, etc.) coinciden con los `:root` reales de `css/style.css`?
+
+**Docs/auth.md / Docs/onchain.md**
+- ¿El contenido refleja el uso actual de `ethers` en el código?
 
 ## Paso 3 — Reportar cada diferencia en el chat
 
-Por cada desfase encontrado:
+Por cada desfase encontrado, antes de editar nada:
 ```
 [ARCHIVO_DOC] Sección: X
 - Doc dice: "..."
 - Código dice: "..."
-- Acción sugerida: actualizar doc / actualizar código / investigar más
+- Acción sugerida: actualizar doc / eliminar sección / agregar sección
 ```
+Si no hay desfases: confirmarlo en una oración y terminar.
 
-## Paso 4 — Esperar la decisión del usuario
+## Paso 4 — Reparar los desfases
 
-No editar nada hasta que el usuario indique cómo resolver cada diferencia.
+Sin esperar más confirmación, editar cada doc para resolver los desfases reportados en Paso 3:
+- Actualizar listas, tablas y rutas de archivos para que coincidan con el código real.
+- Eliminar referencias a archivos que ya no existen (`schema.sql`, `functions/api/scores.js`, etc.).
+- Agregar secciones para archivos/flujos nuevos que faltan.
+- No reescribir secciones que ya están correctas.
+
+## Paso 5 — Confirmar en el chat
+
+Un resumen de qué docs se editaron, qué secciones cambiaron y cuáles estaban correctas.

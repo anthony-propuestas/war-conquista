@@ -147,6 +147,25 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 0;
 }
 .turn-name { font-weight: 800; font-size: 1.1rem; color: var(--ink); }
 
+.turn-timer {
+  font-family: "Oswald", sans-serif;
+  font-weight: 700;
+  font-size: .85rem;
+  color: var(--warn);
+  background: rgba(217,138,61,.14);
+  border: 1px solid rgba(217,138,61,.4);
+  border-radius: 999px;
+  padding: 4px 12px;
+  margin-left: 4px;
+}
+
+.waiting-turn {
+  color: var(--ink-dim);
+  font-size: .9rem;
+  text-align: center;
+  padding: 10px 4px;
+}
+
 .phase-steps { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .phase-steps .step {
   font-family: "Oswald", sans-serif; font-size: .8rem; letter-spacing: .5px;
@@ -327,6 +346,53 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 0;
   color: var(--ink-dim);
   margin-top: 4px;
 }
+
+/* ---------- Pestañas de modo (local / crear / unirse) ---------- */
+.mode-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+.mode-tab {
+  flex: 1;
+  font: inherit;
+  font-weight: 600;
+  font-size: .85rem;
+  color: var(--ink-dim);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 10px 4px;
+  cursor: pointer;
+}
+.mode-tab:hover { color: var(--ink); }
+.mode-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.mode-panel.hidden { display: none; }
+
+/* ---------- Sala de espera (lobby) ---------- */
+#screen-lobby { display: none; place-items: center; padding: 24px; overflow-y: auto; }
+#screen-lobby.active { display: grid; }
+#lobby-players-list { display: grid; gap: 8px; list-style: none; }
+#lobby-players-list li {
+  display: flex;
+  justify-content: space-between;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: .9rem;
+}
+#lobby-players-list li.ready { border-color: var(--ok); color: var(--ok); }
+.lobby-ready-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0;
+}
+.lobby-ready-field input { width: auto; }
+#btn-lobby-start.hidden { display: none; }
+#btn-lobby-leave { width: 100%; margin-top: 8px; }
 
 .multiplayer-indicator {
   display: inline-flex;

@@ -20,14 +20,15 @@ Los tests viven en `tests/` (versionados, excluidos del deploy vía `.assetsigno
 | tests/map-shapes.test.js | js/map-shapes.js | 4 | ✅ |
 | tests/api/auth/google.test.js | functions/api/auth/google.js | 2 | ✅ |
 | tests/api/auth/callback.test.js | functions/api/auth/callback.js | 5 | ✅ |
-| tests/multiplayer.test.js | js/multiplayer.js | 10 | ✅ |
-| tests/api/game-room.test.js | worker/index.js | 6 | ✅ |
+| tests/multiplayer.test.js | js/multiplayer.js | 16 | ✅ |
+| tests/api/game-room.test.js | worker/index.js | 12 | ✅ |
 | tests/api/gamers.test.js | functions/api/gamers.js | 1 | ✅ |
 | tests/api/profile.test.js | functions/api/profile.js | 4 | ✅ |
 | tests/api/register.test.js | functions/api/register.js | 10 | ✅ |
 | tests/api/auth/wallet.test.js | functions/api/auth/wallet.js | 5 | ✅ |
 | tests/api/wallet/link.test.js | functions/api/wallet/link.js | 6 | ✅ |
-| **Total** | | **72** | ✅ |
+| tests/api/win.test.js | functions/api/win.js | 3 | ✅ |
+| **Total** | | **87** | ✅ |
 
 ## Pendiente (diferido)
 

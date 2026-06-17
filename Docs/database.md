@@ -88,6 +88,15 @@ SELECT sub, username, email FROM users WHERE wallet_address = ? COLLATE NOCASE
 ```
 Requiere firma del mensaje `Iniciar sesión en WAR con esta wallet (${address})`. Si hay fila, emite la misma cookie `war_session` que el login con Google.
 
+### `functions/api/win.js` — registrar una victoria
+
+```sql
+UPDATE users SET wins = wins + 1 WHERE sub = ?
+```
+Solo corre si la cookie `war_session` trae un `sub` válido (si no, el endpoint
+responde `{ok:false}` sin tocar la DB). No valida que `sub` exista en la tabla:
+si no hay fila, el `UPDATE` simplemente afecta 0 filas.
+
 ## Migraciones
 
 Las migraciones viven en `migrations/` y se aplican en orden ascendente.

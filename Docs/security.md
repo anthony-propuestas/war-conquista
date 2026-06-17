@@ -6,7 +6,7 @@ qué riesgos se aceptan por diseño. Mantenido por `workflow-security.md`.
 ## Modelo de seguridad / alcance
 
 WAR es un juego de estrategia multijugador. La superficie de red comprende:
-- `/api/scores` — salón de la fama legacy (público y anónimo)
+- `/api/win` — registra +1 victoria del usuario autenticado (requiere `war_session`, escribe en DB)
 - `/api/gamers` — ranking de jugadores registrados (público, sin auth)
 - `/api/profile` — perfil del usuario autenticado (requiere `war_session`)
 - `/api/register` — registro de nuevo usuario en D1 (requiere `war_session`, escribe en DB)
@@ -19,20 +19,28 @@ La sesión se guarda en una cookie `war_session` (`HttpOnly; SameSite=Lax`).
 No hay uploads/archivos. La wallet Web3 (`wallet.js`) es experimental (sin contratos
 desplegados en producción).
 
-## Backend — `functions/api/scores.js`
+## Backend — `functions/api/win.js`
 
-- **Separación de métodos:** lecturas solo `GET` (`onRequestGet`), mutación solo `POST`
-  (`onRequestPost`). No hay mutación por GET.
-- **Queries parametrizadas:** todo acceso a D1 usa `.prepare(...).bind(...)`; ningún
-  valor del usuario se interpola en el SQL → sin inyección.
-- **Validación de input:** `name = String(body?.name ?? "").trim().slice(0, 16)`;
-  se rechaza vacío (`400 no-name`) y JSON inválido (`400 bad-json`).
-- **`SELECT` acotado:** `ORDER BY wins DESC, updated_at DESC LIMIT 10` con límite
-  **fijo en el servidor** (no controlado por el cliente). Expone solo `name` y `wins`
-  (no `updated_at` ni columnas internas).
-- **Degradación segura:** sin `env.DB` responde `[]` (GET) o `{ok:false,"no-db"}` (POST)
-  en vez de fallar; los errores de DB devuelven `[]` / `{ok:false,"db-error"}` sin filtrar
-  detalles internos. Ver [api.md](api.md) y [database.md](database.md).
+- **Método correcto:** solo `POST` (`onRequestPost`); no hay mutación por GET.
+- **Query parametrizada:** `UPDATE users SET wins = wins + 1 WHERE sub = ?` — el
+  `sub` viene de la cookie, nunca se interpola en el SQL → sin inyección.
+- **Cookie validada con `try/catch`:** `JSON.parse(atob(...))` aislado; cookie
+  ausente, malformada o sin `sub` responde `200 {ok:false}` sin tocar la DB (no
+  hay rama `500`: no hay try/catch alrededor de la query en sí).
+- **Hallazgo — sin verificación de que el usuario ganó realmente:** el endpoint
+  confía por completo en que el cliente solo lo llama tras un `gameover` legítimo
+  (`onGameOver` en `js/main.js`). No hay token de partida ni verificación
+  server-side de que hubo una victoria real. Cualquier usuario autenticado puede
+  llamar `POST /api/win` repetidamente desde devtools/curl e inflar su propio
+  contador sin jugar. Es la misma clase de riesgo que el "inflado de wins" ya
+  aceptado para el leaderboard legacy (ver *Riesgos aceptados*), pero ahora afecta
+  a **cuentas reales** que se muestran en `/api/gamers`. **Aceptado para MVP**
+  (juego casual); mitigación futura: token de partida firmado server-side al
+  iniciar la sala, verificado al reportar la victoria.
+- **Hallazgo — otro endpoint de escritura gateado solo por la cookie sin HMAC:**
+  se suma a `profile`/`register`/`wallet/link` en la lista de endpoints cuyo único
+  control de acceso es el campo `sub` de `war_session`, que no está firmado (ver
+  hallazgo de cookie sin HMAC más abajo).
 
 ## Backend — endpoints de usuario (`gamers`, `profile`, `register`)
 
@@ -140,30 +148,57 @@ Baseline aplicado a todo el sitio (no debilitar):
 
 | Componente | Mecanismo |
 |---|---|
-| `multiplayer.js` | `encodeURIComponent` en parámetros URL del WebSocket. JSON parse con `try/catch`; mensajes con JSON inválido descartados. |
-| `functions/game-room.js` | Solo acepta conexiones con cabecera `Upgrade: websocket` (responde 426 en caso contrario). Parse JSON con `try/catch` en `webSocketMessage`. |
+| `multiplayer.js` | `encodeURIComponent` en parámetros URL del WebSocket (incluye `playerName` desde esta sesión). JSON parse con `try/catch`; mensajes con JSON inválido descartados. Si el socket se cierra sin abrir (`409` por sala ya iniciada), `onJoinFailed` avisa al usuario en vez de fallar en silencio. |
+| `worker/index.js` (`GameRoom`, routing en `functions/api/game-room.js`) | Solo acepta conexiones con cabecera `Upgrade: websocket` (426 si falta) y rechaza nuevas conexiones con `409` si la sala ya inició (`started`). Parse JSON con `try/catch` en `webSocketMessage`. **Sin autorización de host:** cualquier conectado puede enviar `set_ready`/`start_game`; el servidor no valida quién es el host ni el contenido de `payload.players` — ver hallazgo abajo. |
 | `js/wallet.js` | MetaMask requiere aprobación explícita del usuario antes de cualquier transacción o firma. Sin contratos desplegados en producción, no hay riesgo on-chain real. Desde esta sesión `signMessage()` también se usa para **auth real** (`/api/auth/wallet`, `/api/wallet/link`) — ver hallazgos en la sección de wallet arriba. |
 
 ## Riesgos aceptados / vectores conocidos
 
 No son vulnerabilidades confirmadas, pero se registran:
 
-- **Inflado de `wins`:** cualquiera puede `POST /api/scores` con un `name` y sumar
-  victorias sin haber jugado — no hay auth, rate-limit ni token de partida. **Aceptado
-  por diseño** (juego casual, leaderboard de vanidad). Mitigaciones posibles si llegara
-  a importar: Cloudflare Turnstile, rate-limit en la Function, o un token de partida
-  emitido y verificado server-side.
-- **Sin rate-limiting** en el endpoint en general (abuso/spam de escrituras).
-- **Spoofing de identidad en WebSocket (`game-room.js:14`):** `playerId` se toma del
+- **Inflado de `wins`:** cualquier usuario autenticado puede llamar `POST /api/win`
+  repetidas veces (devtools/curl) y sumar victorias sin haber jugado — no hay token de
+  partida, rate-limit, ni verificación server-side de que hubo un `gameover` real.
+  **Aceptado por diseño** (juego casual), pero ahora el contador inflado es visible en
+  `/api/gamers` bajo una **cuenta real registrada**, no un nombre anónimo como con el
+  leaderboard legacy. Mitigaciones posibles si llegara a importar: Cloudflare Turnstile,
+  rate-limit en la Function, o un token de partida emitido al crear la sala y verificado
+  al reportar la victoria.
+- **Sin rate-limiting** en los endpoints de escritura en general (abuso/spam de escrituras).
+- **Spoofing de identidad en WebSocket (`worker/index.js`):** `playerId` se toma del
   parámetro URL sin verificar contra la cookie `war_session`. Cualquier cliente puede
   conectarse declarando el `playerId` de otro jugador y enviar acciones como si fuera él.
   Aceptado para MVP (partidas efímeras de bajo valor). Mitigación futura: leer `war_session`
   en el DO y rechazar si `sub` no coincide con `playerId`.
-- **Persistencia de payload sin validar (`game-room.js:28`):** `data.payload` se escribe
-  en DO storage directamente. Un cliente malicioso puede corromper el estado compartido de
-  la sala. Aceptado para MVP. Mitigación futura: validar `payload` contra schema mínimo
-  (tipos y rangos de `board`, `currentIndex`, `phase`) antes de persistir.
-- **`Object.assign` sin schema (`main.js:85`):** `Object.assign(game.board, msg.payload.board ?? {})`
+- **Persistencia de payload sin validar (`worker/index.js`, `webSocketMessage`):**
+  `data.payload` se escribe en DO storage directamente. Un cliente malicioso puede
+  corromper el estado compartido de la sala, **e incluso forzar `resetRoom()`** enviando
+  `game_state` con `payload.phase: 'gameover'` sin haber ganado realmente (borra storage
+  y la lista de jugadores de la sala). Aceptado para MVP. Mitigación futura: validar
+  `payload` contra schema mínimo (tipos y rangos de `board`, `currentIndex`, `phase`)
+  antes de persistir o actuar sobre él.
+- **`start_game` no restringido al host (`worker/index.js`):** el servidor acepta
+  `{type:'start_game', payload:{players}}` de **cualquier** cliente conectado a la sala,
+  no solo del host — marca `started=true` y retransmite el `payload.players` tal cual a
+  todos. La regla "solo el host inicia cuando todos están listos" es **solo una
+  afordancia de UI** (`isHost`/`allReady` en `renderLobby()`, `js/main.js`); quien hable
+  el protocolo WS directamente puede forzar el inicio con una lista de jugadores
+  arbitraria (nombres, orden, colores) que los demás clientes adoptan sin más validación
+  para construir su `Game` local. Mismo patrón que los dos hallazgos anteriores —
+  aceptado para MVP. Mitigación futura: que el DO derive `players` de su propio estado
+  (`this.players`) en vez de confiar en el payload del cliente, y registre quién es el
+  host (primer `playerId` aceptado) para autorizar `start_game`.
+- **`playerName` sin límite de longitud/charset en el servidor:** el DO toma
+  `url.searchParams.get('playerName') || 'Jugador'` sin `slice` ni validación; el único
+  límite es el `maxlength="16"` del `<input>` del formulario, que no aplica a quien abra
+  el WebSocket directamente. Hoy no es XSS — los dos sinks de nombre (`updateBanner()` en
+  `ui.js` y el modal de victoria en `main.js`) ya pasan por `escapeHtml` — pero depende
+  enteramente del escape de salida en vez de validar en la entrada, y permite nombres
+  arbitrariamente largos en el broadcast/storage del DO. Riesgo bajo, registrado.
+  Mitigación futura: aplicar `String(playerName).trim().slice(0, 16)` en
+  `worker/index.js` antes de guardarlo en `players`, igual que ya se hace con `name` en
+  el leaderboard legacy.
+- **`Object.assign` sin schema (`main.js`):** `Object.assign(game.board, msg.payload.board ?? {})`
   acepta cualquier objeto del WebSocket. Permite sobrescribir campos internos del board
   desde la red. Aceptado para MVP. Mitigación futura: validar claves y tipos del payload
   antes de asignar, o reconstruir el objeto en vez de mutar el existente.
@@ -173,8 +208,9 @@ No son vulnerabilidades confirmadas, pero se registran:
   complejidad de configurar CSP con `unsafe-inline` y CDN externo. Mitigación futura:
   añadir CSP permisiva pero explícita a `_headers`.
 - **Cookie `war_session` sin firma (HMAC) — impacto escalado:** el valor es JSON base64
-  sin verificación criptográfica. Con la adición de `/api/profile` y `/api/register`, la
-  cookie ya no es solo cosmética: ahora **controla escrituras en D1**. Un atacante que
+  sin verificación criptográfica. Con la adición de `/api/profile`, `/api/register` y,
+  desde esta sesión, **`/api/win`**, la cookie ya no es solo cosmética: ahora **controla
+  escrituras en D1**. Un atacante que
   forje una cookie con un `sub` arbitrario puede (1) registrar cuentas con identidades
   inventadas y (2) leer el perfil de cualquier `sub` conocido. Escenario: forja
   `war_session = btoa(JSON.stringify({ sub: "<sub_real_de_víctima>" }))` y llama a
@@ -202,14 +238,15 @@ No son vulnerabilidades confirmadas, pero se registran:
   `${url.origin}/login?error=${tokenData.error}` no escapa el valor de `error` de Google.
   Si contiene `&` o `=` podría contaminar el query string del redirect. No es XSS ni SQL
   (no se renderiza en DOM), pero es un defecto menor de encoding. Riesgo muy bajo.
-- **XSS por nombre de jugador en el modal de victoria (`main.js`, `onGameOver`):** el modal
-  inyecta `winner.name` con `innerHTML` **sin** `escapeHtml` (a diferencia del banner y el
-  leaderboard, que sí escapan). El nombre es input local de la pantalla de inicio, así que
-  hoy es a lo sumo un **self-XSS** en una partida hotseat (el límite de 16 caracteres aún
-  permite payloads como `<svg/onload=...>`). **Pendiente de decisión del usuario:** envolver
-  `winner.name` (y por consistencia `winner.color`) con `escapeHtml`. No corregido aquí
-  porque queda fuera del cambio de esta sesión (visual) y el workflow de seguridad solo
-  registra; la corrección de código se confirma aparte.
+- **Resuelto — XSS por nombre de jugador en el modal de victoria (`main.js`,
+  `onGameOver`):** este riesgo se documentó como pendiente desde 2026-06-14 y se repitió
+  en varias entradas del historial. Verificado en esta sesión: el código actual ya usa
+  `${escapeHtml(winner.name)}` (`js/main.js:209`) — el fix ya está aplicado, el doc nunca
+  se actualizó. Relevante ahora porque el lobby online introduce nombres que llegan por
+  WebSocket (no input local); confirmado que ese sink también queda cubierto por el mismo
+  `escapeHtml`, así que **no hay XSS entre jugadores remotos** vía nombre de sala.
+  `winner.color` se interpola sin escapar en el `style` del modal, pero viene de
+  `PLAYER_COLORS` (array fijo del código, no input de usuario) — no explotable.
 
 - **Firma de wallet sin nonce/expiración:** los mensajes firmados para login
   (`/api/auth/wallet`) y vinculación (`/api/wallet/link`) son texto estático sin
@@ -243,6 +280,7 @@ Para cada cambio que toque la superficie de ataque:
 - [ ] (Si toca auth) Todo campo de `userInfo` renderizado en el DOM pasa por `escapeHtml`.
 - [ ] (Si toca WebSocket) `playerId` se valida contra la cookie `war_session` en el DO.
 - [ ] (Si toca WebSocket) El payload del mensaje se valida contra schema antes de persistir.
+- [ ] (Si toca WebSocket) `start_game`/`set_ready` (o cualquier acción de control de sala) están restringidos al host en el servidor, no solo en la UI.
 - [ ] (Si toca estado de juego en red) Los datos asignados al board tienen schema y tipo verificado.
 - [ ] (Si toca wallet) El mensaje firmado incluye nonce/expiración y el dominio de la app.
 - [ ] (Si toca wallet) Vincular una wallet no depende únicamente de un campo de la cookie sin verificar.
@@ -326,3 +364,20 @@ Para cada cambio que toque la superficie de ataque:
   `innerHTML`). Los enlaces nuevos son anchors estáticos (`href="/lobby"`, `/game`, etc.)
   sin interpolar datos de usuario ni de DB → sin XSS ni open redirect. Sin cambios en
   `functions/api/`, `schema.sql`, `_headers`, `wrangler.toml` ni secrets.
+- **2026-06-16** — Lobby de sala (ready/start) y registro de victorias:
+  `functions/api/win.js` (nuevo), `worker/index.js` (mapa `players`, flag `started`,
+  mensajes `set_ready`/`start_game`/`lobby_update`, `resetRoom()`), `js/multiplayer.js`
+  (`playerName`, `onJoinFailed`, `setMessageHandler`, `setReady`, `startGame`),
+  `js/main.js` (pantalla de lobby, `enterLobby`/`beginOnlineGame`, `POST /api/win` al
+  ganar online), `js/ui.js` (bloqueo de turno + temporizador de 30s, sin red ni input
+  nuevo). **Hallazgos:** (1) `/api/win` no verifica que la victoria sea real — inflado de
+  `wins` ahora posible sobre cuentas reales, y es otro endpoint de escritura que depende
+  solo de la cookie sin HMAC; (2) `start_game` no está restringido al host en el
+  servidor — cualquier conectado puede forzarlo con un `payload.players` arbitrario
+  (extiende los hallazgos ya aceptados de spoofing de `playerId` y payload sin validar);
+  (3) `payload.phase: 'gameover'` puede disparar `resetRoom()` sin que haya ganado
+  realmente quien lo envía; (4) `playerName` sin límite server-side, mitigado por que los
+  sinks de nombre ya escapan. Todos aceptados para MVP. **Corrección de documentación:**
+  cerrado el hallazgo de self-XSS de `winner.name` en el modal de victoria — el código ya
+  lo escapa (`escapeHtml`), confirmado que el lobby online no lo reabre. Sin cambios en
+  `_headers` ni secrets.

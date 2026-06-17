@@ -31,7 +31,7 @@ new_classes = ["GameRoom"]
 | `compatibility_date` | Fija el runtime de Workers/Functions. |
 | `[[d1_databases]]` | Declara el binding **`DB`** → base `war-scores`. La Function accede vía `env.DB`. |
 | `database_id` | ID de la D1 remota (de `npm run db:create`). |
-| `[[durable_objects.bindings]]` | Declara el binding **`GAME_ROOM`** → clase `GameRoom` (`functions/game-room.js`). La Function lo usa vía `env.GAME_ROOM`. |
+| `[[durable_objects.bindings]]` | Declara el binding **`GAME_ROOM`** → clase `GameRoom` (`worker/index.js`, Worker separado `script_name = "war-game-room"`). La Pages Function de routing (`functions/api/game-room.js`) lo usa vía `env.GAME_ROOM`. |
 | `[[migrations]]` | Registra la clase del Durable Object (`tag = v1`). Se aplica al desplegar. |
 
 ## Secrets de Google OAuth
@@ -62,8 +62,8 @@ Ver flujo completo en [auth.md](auth.md).
 
 ## El binding `DB`
 
-`functions/api/scores.js` lee `env.DB`. Si el binding no existe, el endpoint degrada
-(ver [api.md](api.md)) en vez de fallar.
+`functions/api/win.js`, `functions/api/gamers.js`, `functions/api/profile.js` y
+`functions/api/register.js` leen `env.DB` (ver [api.md](api.md)).
 
 **En local** (`npm run dev`): wrangler crea una D1 local automáticamente a partir del
 binding del `wrangler.toml`. Aplica el esquema actual ejecutando la migración manualmente:
@@ -75,7 +75,7 @@ en **Settings → Functions → D1 database bindings**: nombre de variable `DB` 
 
 ## El binding `GAME_ROOM` (Durable Object)
 
-`functions/game-room.js` usa `env.GAME_ROOM` para resolver la sala
+`functions/api/game-room.js` usa `env.GAME_ROOM` para resolver la sala
 (`idFromName(roomId)`). En `npm run dev` wrangler instancia el DO localmente a partir del
 binding y la migración del `wrangler.toml`. En producción, la migración `v1` se aplica en
 el deploy; en CI/CD desde Git, confirmar el binding `GAME_ROOM` en el panel de Pages si no

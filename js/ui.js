@@ -28,17 +28,32 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+const TURN_SECONDS = 30;
+
 export class UI {
-  constructor(game, onGameOver) {
+  constructor(game, onGameOver, opts = {}) {
     this.game = game;
     this.onGameOver = onGameOver;
     this.selected = null;       // territorio seleccionado
     this.nodes = {};            // id -> { g, circle, count }
     this.gameOverHandled = false;
 
+    // restriccion de turno (solo partidas online en sala)
+    this.myIndex = opts.myIndex ?? null;
+    this.onlineMode = this.myIndex !== null;
+
+    // temporizador por fase (solo online y cuando es mi turno)
+    this.timerKey = null;
+    this.timerHandle = null;
+    this.timerRemaining = TURN_SECONDS;
+
     this.buildMap();
     this.refresh();
     initPixiOverlay($("#map")).catch(() => {});
+  }
+
+  isMyTurn() {
+    return !this.onlineMode || this.myIndex === this.game.current.id;
   }
 
   // ---------- construccion del mapa (una vez) ----------
@@ -117,10 +132,74 @@ export class UI {
     this.updateMap();
     this.updateSidebar();
     this.updateBanner();
+    this.syncTimer();
     if (this.game.phase === "gameover" && !this.gameOverHandled) {
       this.gameOverHandled = true;
       this.onGameOver(this.game.winner);
     }
+  }
+
+  // ---------- temporizador de 30s por fase (solo online, solo en mi turno) ----------
+  syncTimer() {
+    const g = this.game;
+    if (!this.onlineMode || !this.isMyTurn() || g.phase === "gameover") {
+      this.stopTimer();
+      return;
+    }
+    const key = `${g.phase}:${g.currentIndex}:${g.pendingConquest ? 1 : 0}`;
+    if (key !== this.timerKey) {
+      this.timerKey = key;
+      this.startTimer();
+    }
+  }
+
+  startTimer() {
+    this.stopTimer();
+    this.timerRemaining = TURN_SECONDS;
+    this.renderTimer();
+    this.timerHandle = setInterval(() => {
+      this.timerRemaining--;
+      this.renderTimer();
+      if (this.timerRemaining <= 0) {
+        this.stopTimer();
+        this.handleTimeout();
+      }
+    }, 1000);
+  }
+
+  stopTimer() {
+    if (this.timerHandle) clearInterval(this.timerHandle);
+    this.timerHandle = null;
+  }
+
+  renderTimer() {
+    const el = $("#turn-timer");
+    if (el) el.textContent = `⏱ ${this.timerRemaining}s`;
+  }
+
+  handleTimeout() {
+    const g = this.game;
+    if (g.phase === "setup") {
+      g.autoPlaceSetup();
+    } else if (g.phase === "reinforce") {
+      const mine = g.territoriesOf(g.current.id);
+      while (g.reinforcements > 0 && mine.length) {
+        g.placeReinforcement(mine[Math.floor(Math.random() * mine.length)], 1);
+      }
+      g.endReinforce();
+    } else if (g.phase === "attack") {
+      if (g.pendingConquest) {
+        g.moveAfterConquest(g.pendingConquest.min);
+        this.closeModal();
+      }
+      g.endAttack();
+    } else if (g.phase === "fortify") {
+      this.closeModal();
+      g.skipFortify();
+    }
+    this.selected = null;
+    this.hideDice();
+    this.refresh();
   }
 
   updateMap() {
@@ -140,7 +219,8 @@ export class UI {
       node.g.classList.remove("selectable", "selected", "target", "dim");
     }
 
-    // resaltar segun fase
+    // resaltar segun fase (solo si es mi turno)
+    if (!this.isMyTurn()) return;
     if (g.phase === "reinforce") {
       this.forEachOwn((id) => this.nodes[id].g.classList.add("selectable"));
     } else if (g.phase === "attack") {
@@ -215,6 +295,7 @@ export class UI {
           <span class="turn-label">Turno de</span>
           <span class="turn-name">${escapeHtml(p.name)}</span>
         </div>
+        ${this.onlineMode && this.isMyTurn() ? `<span id="turn-timer" class="turn-timer"></span>` : ""}
       </div>
       <div class="phase-steps">${stepsHtml}</div>`;
   }
@@ -246,16 +327,21 @@ export class UI {
       extra = `<div class="reinforce-num">${g.reinforcements} <span style="font-size:.9rem;color:var(--ink-dim)">tropas</span></div>`;
     if (g.phase === "setup")
       extra = `<div class="reinforce-num">${g.setupRemaining[g.current.id]} <span style="font-size:.9rem;color:var(--ink-dim)">por colocar</span></div>`;
+    const hint = this.isMyTurn() ? hints[g.phase] : `Esperando turno de ${escapeHtml(g.current.name)}...`;
     box.innerHTML = `
       <div class="phase-name">${labels[g.phase]}</div>
       ${extra}
-      <div class="phase-hint">${hints[g.phase]}</div>`;
+      <div class="phase-hint">${hint}</div>`;
   }
 
   renderActions() {
     const g = this.game;
     const box = $("#action-box");
     box.innerHTML = "";
+    if (!this.isMyTurn()) {
+      box.innerHTML = `<div class="waiting-turn">Esperando turno de ${escapeHtml(g.current.name)}...</div>`;
+      return;
+    }
     const addBtn = (text, cls, fn, disabled = false) => {
       const b = document.createElement("button");
       b.className = `btn ${cls}`;
@@ -316,6 +402,7 @@ export class UI {
   // ---------- clic en territorio ----------
   onTerritoryClick(id, e) {
     const g = this.game;
+    if (!this.isMyTurn()) return;
     if (g.phase === "setup") {
       if (g.placeSetupArmy(id)) this.refresh();
       return;
