@@ -13,13 +13,13 @@ Conquista territorios, domina continentes y elimina a tus rivales. **Multijugado
 
 ## ✨ Características
 
-- 🗺️ **Mapa de 44 territorios** repartidos en 6 continentes con bonus por dominio.
+- 🗺️ **Mapa de 44 territorios** repartidos en 6 continentes.
 - 🎲 **Combate con dados**: eliges con cuántas unidades atacar (1 hasta tus tropas − 1)
   = ese número de dados; el defensor tira con **todas** sus tropas. Al conquistar, los
   atacantes supervivientes ocupan la zona automáticamente.
 - ♻️ **Fases de turno**: despliegue → refuerzo → ataque → fortificación.
 - 👥 **1 a 3 jugadores** en la misma máquina (hotseat), cada uno con su color.
-- 🌐 **Multijugador online** en tiempo real: crea o únete a una sala, marca que estás listo y el anfitrión arranca la partida (WebSocket + Durable Object `GameRoom`).
+- 🌐 **Multijugador online** en tiempo real: crea o únete a una sala (auto-listo al unirse) y el anfitrión arranca la partida cuando hay 2+ jugadores (WebSocket + Durable Object `GameRoom`).
 - 🏆 **Salón de la fama** global persistido en Cloudflare D1.
 - 🔐 **Login con Google o wallet MetaMask** para vincular tus victorias a tu cuenta.
 - 📱 Interfaz responsive, sin librerías JS ni frameworks. Dependencias externas en
@@ -31,7 +31,7 @@ Conquista territorios, domina continentes y elimina a tus rivales. **Multijugado
 ## 🎮 Cómo se juega
 
 1. **Despliegue:** cada jugador coloca sus ejércitos iniciales en sus territorios.
-2. **Refuerzo:** recibes tropas según los territorios y continentes que domines.
+2. **Refuerzo:** recibes tropas proporcionales a los territorios que controles (⌊territorios / 2⌋).
 3. **Ataque:** elige un territorio propio con 2+ ejércitos, un vecino enemigo y con
    cuántas unidades atacar. Se comparan los dados más altos por pares; el empate
    favorece al defensor. Si vacías el territorio, tus supervivientes lo ocupan.

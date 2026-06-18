@@ -60,25 +60,22 @@ test("constructor entrega un continente completo a cada jugador y deja el resto 
 });
 
 // ---------- refuerzos ----------
-test("reinforcementsFor: minimo 3 + bonus de continente", () => {
+test("reinforcementsFor: floor(territorios / 2)", () => {
   const g = newGame();
-  ownOnly(g, 0, byCont("america_sur", 6)); // 6 territorios, continente completo, bonus 2
-  // max(3, floor(6/3)) + 2 = 3 + 2
-  assert.equal(g.reinforcementsFor(0), 5);
+  ownOnly(g, 0, byCont("america_sur", 6)); // 6 territorios
+  assert.equal(g.reinforcementsFor(0), 3); // floor(6/2)
 });
 
-test("reinforcementsFor: continente grande con bonus", () => {
+test("reinforcementsFor: 9 territorios", () => {
   const g = newGame();
-  ownOnly(g, 0, byCont("america_norte", 9)); // bonus 5
-  // max(3, floor(9/3)) + 5 = 3 + 5
-  assert.equal(g.reinforcementsFor(0), 8);
+  ownOnly(g, 0, byCont("america_norte", 9));
+  assert.equal(g.reinforcementsFor(0), 4); // floor(9/2)
 });
 
-test("reinforcementsFor: base >3 sin completar continente", () => {
+test("reinforcementsFor: 12 territorios", () => {
   const g = newGame();
-  ownOnly(g, 0, [...byCont("asia", 8), ...byCont("africa", 4)]); // 12, ninguno completo
-  // max(3, floor(12/3)) + 0 = 4
-  assert.equal(g.reinforcementsFor(0), 4);
+  ownOnly(g, 0, [...byCont("asia", 8), ...byCont("africa", 4)]); // 12
+  assert.equal(g.reinforcementsFor(0), 6); // floor(12/2)
 });
 
 // ---------- combate ----------

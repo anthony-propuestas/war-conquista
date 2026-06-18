@@ -264,6 +264,8 @@ No son vulnerabilidades confirmadas, pero se registran:
   de seguir forjando cookies. Convierte un riesgo de lectura/escritura puntual en una
   **puerta trasera persistente**. Sube la prioridad de firmar `war_session` con HMAC.
 
+- **2026-06-18** — Rediseño de dados y simplificación de refuerzos: `js/game.js` (`reinforcementsFor` reemplazado por `floor(territorios/2)`, sin bonus de continente ni mínimo 3), `js/ui.js` (`showDice` rediseñado con pares verticales atk/def vía `innerHTML` con datos numéricos, viewBox ampliado, etiquetas de continente sin `+bonus`), `css/style.css` (`.dice-tray` pasa de `absolute` a `fixed`, nuevas clases de layout), `game/index.html` (tray movido fuera de `.map-wrap`, checkbox "Estoy listo" eliminado). **Hallazgo: ninguno.** El nuevo `showDice` inyecta `atk[i]`/`def[i]` en `innerHTML` — son enteros 1-6 producidos por `Math.random()` escalado en `game.js`, nunca input de usuario ni dato de DB → sin XSS. El checkbox de lobby era solo UI (el DO ya marca `ready: true` al unirse). Sin cambios en endpoints, queries D1, esquema, cookies, cabeceras ni secrets.
+
 ## Checklist pre-producción
 
 Para cada cambio que toque la superficie de ataque:

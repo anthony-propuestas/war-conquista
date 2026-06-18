@@ -60,7 +60,7 @@ export class UI {
   buildMap() {
     const map = $("#map");
     map.innerHTML = "";
-    const DISPLAY_VIEWBOX = "0 15 1000 460"; // recorta el oceano vacio sin mover territorios
+    const DISPLAY_VIEWBOX = "0 0 1000 560"; // espacio SVG completo: todos los territorios visibles
     map.setAttribute("viewBox", DISPLAY_VIEWBOX);
     const [VX, VY, W, H] = DISPLAY_VIEWBOX.split(" ").map(Number);
 
@@ -121,7 +121,7 @@ export class UI {
       const cx = cs.reduce((s, p) => s + p[0], 0) / cs.length;
       const minY = Math.min(...cs.map((p) => p[1]));
       const label = svg("text", { x: cx, y: minY - 18, class: "continent-label" });
-      label.textContent = `${cont.name.toUpperCase()}  +${cont.bonus}`;
+      label.textContent = cont.name.toUpperCase();
       contLabels.appendChild(label);
     }
     map.appendChild(contLabels);
@@ -471,23 +471,34 @@ export class UI {
   showDice(res) {
     const tray = $("#dice-tray");
     tray.classList.remove("hidden");
-    const dieRow = (dice, cls, otherDice) => dice.map((d, i) => {
-      let mark = "";
-      if (otherDice[i] !== undefined) {
-        if (cls === "atk") mark = d > otherDice[i] ? "win" : "lose";
-        else mark = d >= otherDice[i] ? "win" : "lose";
-      }
-      return `<div class="die ${cls} ${mark}">${d}</div>`;
-    }).join("");
+    const atk = res.atkDice, def = res.defDice;
+    const pairs = Math.min(atk.length, def.length);
+
+    let pairsHTML = '';
+    for (let i = 0; i < pairs; i++) {
+      const atkWins = atk[i] > def[i];
+      pairsHTML += `
+        <div class="dice-pair">
+          <div class="die atk ${atkWins ? 'win' : 'lose'}">${atk[i]}</div>
+          <div class="pair-connector">${atkWins ? '›' : '‹'}</div>
+          <div class="die def ${atkWins ? 'lose' : 'win'}">${def[i]}</div>
+        </div>`;
+    }
+
+    let unmatchedHTML = '';
+    const extraAtk = atk.slice(pairs), extraDef = def.slice(pairs);
+    if (extraAtk.length || extraDef.length) {
+      const mkDie = (d, cls) => `<div class="die ${cls}">${d}</div>`;
+      unmatchedHTML = `<div class="dice-unmatched">`;
+      if (extraAtk.length) unmatchedHTML += `<div class="unmatched-group"><span class="unmatched-label">Atk</span>${extraAtk.map(d => mkDie(d, 'atk')).join('')}</div>`;
+      if (extraDef.length) unmatchedHTML += `<div class="unmatched-group"><span class="unmatched-label">Def</span>${extraDef.map(d => mkDie(d, 'def')).join('')}</div>`;
+      unmatchedHTML += `</div>`;
+    }
+
     tray.innerHTML = `
-      <div class="dice-group">
-        <h4>Atacante</h4>
-        <div class="dice-row">${dieRow(res.atkDice, "atk", res.defDice)}</div>
-      </div>
-      <div class="dice-group">
-        <h4>Defensor</h4>
-        <div class="dice-row">${dieRow(res.defDice, "def", res.atkDice)}</div>
-      </div>`;
+      <div class="dice-tray-title">⚔ Combate</div>
+      <div class="dice-pairs">${pairsHTML}</div>
+      ${unmatchedHTML}`;
   }
   hideDice() { $("#dice-tray").classList.add("hidden"); }
 

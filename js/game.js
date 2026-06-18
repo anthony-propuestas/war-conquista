@@ -133,14 +133,7 @@ export class Game {
   }
 
   reinforcementsFor(playerId) {
-    const count = this.territoriesOf(playerId).length;
-    let armies = Math.max(3, Math.floor(count / 3));
-    for (const contId of Object.keys(CONTINENTS)) {
-      if (this.ownsContinent(playerId, contId)) {
-        armies += CONTINENTS[contId].bonus;
-      }
-    }
-    return armies;
+    return Math.floor(this.territoriesOf(playerId).length / 2);
   }
 
   placeReinforcement(id, count = 1) {
