@@ -34,9 +34,8 @@ export class Game {
     for (const id of ALL_IDS) this.board[id] = { owner: null, armies: 0 };
 
     this.currentIndex = 0;
-    this.phase = "setup";          // setup | reinforce | attack | fortify | gameover
-    this.reinforcements = 0;       // ejercitos por colocar (refuerzo o setup)
-    this.fortifyDone = false;
+    this.phase = "setup";          // setup | play | gameover
+    this.reinforcements = 0;       // ejercitos por colocar
     this.winner = null;
     this.log = [];
 
@@ -124,8 +123,7 @@ export class Game {
 
   // ---------- inicio de turno / refuerzo ----------
   _beginTurn() {
-    this.phase = "reinforce";
-    this.fortifyDone = false;
+    this.phase = "play";
     this.reinforcements = this.reinforcementsFor(this.current.id);
     this._log(
       `Turno de ${this.current.name}. Refuerzos: ${this.reinforcements}.`
@@ -137,7 +135,7 @@ export class Game {
   }
 
   placeReinforcement(id, count = 1) {
-    if (this.phase !== "reinforce") return false;
+    if (this.phase !== "play") return false;
     if (this.board[id].owner !== this.current.id) return false;
     if (this.reinforcements <= 0) return false;
     const c = Math.min(count, this.reinforcements);
@@ -146,18 +144,11 @@ export class Game {
     return true;
   }
 
-  endReinforce() {
-    if (this.phase !== "reinforce" || this.reinforcements > 0) return false;
-    this.phase = "attack";
-    this._log(`${this.current.name} pasa a la fase de ataque.`);
-    return true;
-  }
-
   // ---------- combate ----------
   canAttack(fromId, toId) {
     return (
       this.attackUnlocked &&
-      this.phase === "attack" &&
+      this.phase === "play" &&
       this.board[fromId].owner === this.current.id &&
       this.board[toId].owner !== this.current.id &&
       this.board[fromId].armies >= 2 &&
@@ -219,17 +210,10 @@ export class Game {
     return result;
   }
 
-  endAttack() {
-    if (this.phase !== "attack") return false;
-    this.phase = "fortify";
-    return true;
-  }
-
-  // ---------- fortificacion ----------
+  // ---------- movimiento de tropas ----------
   canFortify(fromId, toId) {
     return (
-      this.phase === "fortify" &&
-      !this.fortifyDone &&
+      this.phase === "play" &&
       this.board[fromId].owner === this.current.id &&
       this.board[toId].owner === this.current.id &&
       fromId !== toId &&
@@ -243,14 +227,12 @@ export class Game {
     const c = Math.max(1, Math.min(count, this.board[fromId].armies - 1));
     this.board[fromId].armies -= c;
     this.board[toId].armies += c;
-    this.fortifyDone = true;
     this._log(`${this.current.name} fortifica ${TERRITORIES[toId].name} (+${c}).`);
-    this.endTurn();
     return true;
   }
 
   skipFortify() {
-    if (this.phase !== "fortify") return false;
+    if (this.phase !== "play") return false;
     this.endTurn();
     return true;
   }

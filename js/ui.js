@@ -28,7 +28,7 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-const TURN_SECONDS = 30;
+const TURN_SECONDS = 90;
 
 export class UI {
   constructor(game, onGameOver, opts = {}) {
@@ -37,6 +37,7 @@ export class UI {
     this.selected = null;       // territorio seleccionado
     this.nodes = {};            // id -> { g, circle, count }
     this.gameOverHandled = false;
+    this.placingMode = false;   // modo colocacion de tropas (activado por boton)
 
     // restriccion de turno (solo partidas online en sala)
     this.myIndex = opts.myIndex ?? null;
@@ -146,7 +147,7 @@ export class UI {
       this.stopTimer();
       return;
     }
-    const key = `${g.phase}:${g.currentIndex}`;
+    const key = `${g.currentIndex}`;
     if (key !== this.timerKey) {
       this.timerKey = key;
       this.startTimer();
@@ -181,19 +182,15 @@ export class UI {
     const g = this.game;
     if (g.phase === "setup") {
       g.autoPlaceSetup();
-    } else if (g.phase === "reinforce") {
+    } else if (g.phase === "play") {
+      this.closeModal();
       const mine = g.territoriesOf(g.current.id);
       while (g.reinforcements > 0 && mine.length) {
         g.placeReinforcement(mine[Math.floor(Math.random() * mine.length)], 1);
       }
-      g.endReinforce();
-    } else if (g.phase === "attack") {
-      this.closeModal();
-      g.endAttack();
-    } else if (g.phase === "fortify") {
-      this.closeModal();
-      g.skipFortify();
+      g.endTurn();
     }
+    this.placingMode = false;
     this.selected = null;
     this.hideDice();
     this.refresh();
@@ -218,36 +215,23 @@ export class UI {
 
     // resaltar segun fase (solo si es mi turno)
     if (!this.isMyTurn()) return;
-    if (g.phase === "reinforce") {
+    if (g.phase === "setup") {
       this.forEachOwn((id) => this.nodes[id].g.classList.add("selectable"));
-    } else if (g.phase === "attack") {
-      if (!sel) {
+    } else if (g.phase === "play") {
+      if (this.placingMode) {
+        this.forEachOwn((id) => this.nodes[id].g.classList.add("selectable"));
+      } else if (!sel) {
         this.forEachOwn((id) => {
-          if (g.armies(id) >= 2 && this.hasEnemyNeighbor(id))
+          if (g.armies(id) >= 2 && (this.hasEnemyNeighbor(id) || this.hasOwnNeighbor(id)))
             this.nodes[id].g.classList.add("selectable");
         });
       } else {
         this.nodes[sel].g.classList.add("selected");
         for (const nb of ADJACENCY[sel]) {
-          if (g.owner(nb) !== g.current.id)
-            this.nodes[nb].g.classList.add("target");
+          if (g.owner(nb) !== g.current.id) this.nodes[nb].g.classList.add("target");
+          else if (nb !== sel) this.nodes[nb].g.classList.add("target");
         }
       }
-    } else if (g.phase === "fortify") {
-      if (!sel) {
-        this.forEachOwn((id) => {
-          if (g.armies(id) >= 2 && this.hasOwnNeighbor(id))
-            this.nodes[id].g.classList.add("selectable");
-        });
-      } else {
-        this.nodes[sel].g.classList.add("selected");
-        for (const nb of ADJACENCY[sel]) {
-          if (g.owner(nb) === g.current.id)
-            this.nodes[nb].g.classList.add("target");
-        }
-      }
-    } else if (g.phase === "setup") {
-      this.forEachOwn((id) => this.nodes[id].g.classList.add("selectable"));
     }
   }
 
@@ -270,21 +254,8 @@ export class UI {
     const topbar = document.querySelector(".topbar");
     if (topbar) topbar.style.setProperty("--turn-color", p.color);
 
-    // stepper de fases
-    const order = { reinforce: 0, attack: 1, fortify: 2 };
-    const steps = g.phase === "setup"
-      ? [["setup", "Despliegue"]]
-      : [["reinforce", "Refuerzo"], ["attack", "Ataque"], ["fortify", "Fortificacion"]];
-    const cur = order[g.phase] ?? 0;
-    const stepsHtml = steps.map(([key, label]) => {
-      let cls = "step";
-      if (g.phase === "setup") cls += " current";
-      else if (order[key] < cur) cls += " done";
-      else if (order[key] === cur) cls += " current";
-      if (key === "attack" && !g.attackUnlocked) cls += " locked";
-      const displayLabel = (key === "attack" && !g.attackUnlocked) ? label + " 🔒" : label;
-      return `<span class="${cls}">${displayLabel}</span>`;
-    }).join('<span class="step-sep">›</span>');
+    const phaseLabel = g.phase === "setup" ? "Despliegue" : "Turno libre";
+    const attackStatus = !g.attackUnlocked ? `<span class="step locked">Ataques 🔒 primera ronda</span>` : "";
 
     const initial = (p.name.trim().charAt(0) || "?").toUpperCase();
     $("#turn-banner").innerHTML = `
@@ -296,7 +267,7 @@ export class UI {
         </div>
         ${this.onlineMode && this.isMyTurn() ? `<span id="turn-timer" class="turn-timer"></span>` : ""}
       </div>
-      <div class="phase-steps">${stepsHtml}</div>`;
+      <div class="phase-steps"><span class="step current">${phaseLabel}</span>${attackStatus}</div>`;
   }
 
   updateSidebar() {
@@ -310,27 +281,23 @@ export class UI {
   renderPhaseBox() {
     const g = this.game;
     const box = $("#phase-box");
-    const labels = {
-      setup: "Despliegue", reinforce: "Refuerzo",
-      attack: "Ataque", fortify: "Fortificacion", gameover: "Fin",
-    };
-    const hints = {
-      setup: `Coloca tus ejercitos en tus territorios. Restantes: ${g.setupRemaining[g.current.id]}`,
-      reinforce: "Haz clic en tus territorios para colocar tropas. (Shift+clic = 5)",
-      attack: g.attackUnlocked
-        ? "Elige un territorio propio y ataca a un vecino enemigo."
-        : "Ataques suspendidos en la primera ronda. Pasa directamente a Fortificacion.",
-      fortify: "Mueve tropas entre dos territorios propios conectados.",
-      gameover: "Partida terminada.",
-    };
+    const labels = { setup: "Despliegue", play: "Turno libre", gameover: "Fin" };
     let extra = "";
-    if (g.phase === "reinforce")
-      extra = `<div class="reinforce-num">${g.reinforcements} <span style="font-size:.9rem;color:var(--ink-dim)">tropas</span></div>`;
-    if (g.phase === "setup")
+    let hint = "";
+    if (!this.isMyTurn()) {
+      hint = `Esperando turno de ${escapeHtml(g.current.name)}...`;
+    } else if (g.phase === "setup") {
       extra = `<div class="reinforce-num">${g.setupRemaining[g.current.id]} <span style="font-size:.9rem;color:var(--ink-dim)">por colocar</span></div>`;
-    const hint = this.isMyTurn() ? hints[g.phase] : `Esperando turno de ${escapeHtml(g.current.name)}...`;
+      hint = "Coloca tus ejercitos en tus territorios.";
+    } else if (g.phase === "play") {
+      if (g.reinforcements > 0)
+        extra = `<div class="reinforce-num">${g.reinforcements} <span style="font-size:.9rem;color:var(--ink-dim)">refuerzos</span></div>`;
+      hint = g.reinforcements > 0
+        ? "Activa 'Colocar tropas' para reforzar. Tambien puedes atacar o mover tropas."
+        : "Ataca o mueve tropas libremente. Cuando termines, pulsa 'Terminar turno'.";
+    }
     box.innerHTML = `
-      <div class="phase-name">${labels[g.phase]}</div>
+      <div class="phase-name">${labels[g.phase] ?? g.phase}</div>
       ${extra}
       <div class="phase-hint">${hint}</div>`;
   }
@@ -356,17 +323,22 @@ export class UI {
       addBtn("Auto-colocar mis tropas", "btn-small", () => {
         g.autoPlaceSetup(); this.selected = null; this.refresh();
       });
-    } else if (g.phase === "reinforce") {
-      addBtn("Terminar refuerzo →", "btn-primary",
-        () => { if (g.endReinforce()) { this.selected = null; this.refresh(); } },
-        g.reinforcements > 0);
-    } else if (g.phase === "attack") {
-      addBtn("Terminar ataque →", "btn-ok", () => {
-        if (g.endAttack()) { this.selected = null; this.hideDice(); this.refresh(); }
+    } else if (g.phase === "play") {
+      if (g.reinforcements > 0) {
+        const placingCls = this.placingMode ? "btn-primary active" : "btn-ok";
+        addBtn(this.placingMode ? "Colocar tropas (activo)" : "Colocar tropas", placingCls, () => {
+          this.placingMode = !this.placingMode;
+          this.selected = null;
+          this.refresh();
+        });
+      }
+      addBtn("Terminar turno", "btn-small", () => {
+        this.placingMode = false;
+        this.selected = null;
+        this.hideDice();
+        g.endTurn();
+        this.refresh();
       });
-    } else if (g.phase === "fortify") {
-      addBtn("Saltar y terminar turno", "btn-small",
-        () => { this.selected = null; this.hideDice(); g.skipFortify(); this.refresh(); });
     }
   }
 
@@ -409,16 +381,41 @@ export class UI {
       if (g.placeSetupArmy(id)) this.refresh();
       return;
     }
-    if (g.phase === "reinforce") {
-      if (g.owner(id) === g.current.id) {
-        const amount = e && e.shiftKey ? 5 : 1;
-        g.placeReinforcement(id, amount);
-        this.refresh();
+    if (g.phase === "play") {
+      if (this.placingMode) {
+        if (g.owner(id) === g.current.id) {
+          const amount = e && e.shiftKey ? 5 : 1;
+          g.placeReinforcement(id, amount);
+          if (g.reinforcements <= 0) this.placingMode = false;
+          this.refresh();
+        }
+        return;
+      }
+      this.handlePlayClick(id);
+    }
+  }
+
+  handlePlayClick(id) {
+    const g = this.game;
+    if (!this.selected) {
+      if (g.owner(id) === g.current.id && g.armies(id) >= 2 &&
+          (this.hasEnemyNeighbor(id) || this.hasOwnNeighbor(id))) {
+        this.selected = id; this.updateMap();
       }
       return;
     }
-    if (g.phase === "attack") { this.handleAttackClick(id); return; }
-    if (g.phase === "fortify") { this.handleFortifyClick(id); return; }
+    if (id === this.selected) { this.selected = null; this.updateMap(); return; }
+    if (g.owner(id) !== g.current.id) {
+      // atacar
+      if (g.canAttack(this.selected, id)) this.openAttackModal(this.selected, id);
+    } else {
+      // mover tropas
+      if (g.canFortify(this.selected, id)) {
+        this.openFortifyModal(this.selected, id);
+      } else if (g.armies(id) >= 2) {
+        this.selected = id; this.updateMap();
+      }
+    }
   }
 
   handleAttackClick(id) {
@@ -499,6 +496,9 @@ export class UI {
       <div class="dice-tray-title">⚔ Combate</div>
       <div class="dice-pairs">${pairsHTML}</div>
       ${unmatchedHTML}`;
+    setTimeout(() => {
+      document.addEventListener("click", () => this.hideDice(), { once: true });
+    }, 0);
   }
   hideDice() { $("#dice-tray").classList.add("hidden"); }
 
@@ -552,7 +552,7 @@ export class UI {
       </div>
       <div class="modal-actions">
         <button class="btn btn-ghost" id="f-cancel">Cancelar</button>
-        <button class="btn btn-primary" id="f-ok">Mover y terminar turno</button>
+        <button class="btn btn-primary" id="f-ok">Mover tropas</button>
       </div>`);
     const range = $("#f-range"), out = $("#f-val");
     range.addEventListener("input", () => out.textContent = range.value);

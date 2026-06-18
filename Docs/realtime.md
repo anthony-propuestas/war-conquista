@@ -96,8 +96,8 @@ Al crear o unirse a una sala, `enterLobby(code, playerName)`:
    que producía `Math.random()` en `_distributeTerritories()`; también aplica `setupRemaining`,
    `initialAttackUnlocked` e `initialFirstRoundTurnsLeft` del host. Luego reemplaza el
    handler con `setMessageHandler` y **parchea los métodos mutadores de `Game`**
-   (`placeSetupArmy`, `placeReinforcement`, `attack`, `endReinforce`, `endAttack`,
-   `skipFortify`, `fortify`, `autoPlaceSetup`): cada uno, tras
+   (`placeSetupArmy`, `placeReinforcement`, `attack`, `endTurn`, `fortify`,
+   `autoPlaceSetup`): cada uno, tras
    ejecutar el original, llama `sendGameState({ board, currentIndex, phase, setupRemaining, attackUnlocked, firstRoundTurnsLeft })`.
 5. En el handler de partida, al recibir `game_state` aplica el estado remoto sobre el
    `Game` local (`Object.assign(game.board, …)`, `currentIndex`, `phase`,
@@ -107,10 +107,9 @@ Al terminar la partida (gana el jugador local) hace `POST /api/win` (ver
 [api.md](api.md)); al terminar o salir, `main.js` llama `disconnect()`.
 
 En partidas online, `ui.js` bloquea clics y acciones cuando no es tu turno
-(`isMyTurn()`) y corre un temporizador de 30s por fase (`syncTimer`/`startTimer`); si
-se agota, `handleTimeout()` resuelve la fase automáticamente (coloca refuerzos al
-azar, cierra el modal de ataque y termina el ataque, salta fortificación) para que un
-jugador inactivo no bloquee la partida.
+(`isMyTurn()`) y corre un temporizador de 90s por turno (`syncTimer`/`startTimer`); si
+se agota, `handleTimeout()` resuelve el turno automáticamente (coloca refuerzos al
+azar y termina el turno) para que un jugador inactivo no bloquee la partida.
 
 > **Modelo de consistencia (MVP):** es *last-write-wins* por broadcast; no hay autoridad
 > de servidor ni resolución de conflictos. El DO solo retransmite y guarda el último

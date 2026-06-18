@@ -81,7 +81,7 @@ test("reinforcementsFor: 12 territorios", () => {
 // ---------- combate ----------
 test("canAttack respeta fase, propiedad, adyacencia y ejercitos", () => {
   const g = newGame();
-  g.phase = "attack";
+  g.phase = "play";
   g.attackUnlocked = true;
   g.board["alaska"] = { owner: 0, armies: 5 };
   g.board["kamchatka"] = { owner: 1, armies: 1 };
@@ -97,13 +97,13 @@ test("canAttack respeta fase, propiedad, adyacencia y ejercitos", () => {
   g.board["kamchatka"].owner = 1;
   assert.equal(g.canAttack("alaska", "japon"), false); // no adyacente
 
-  g.phase = "fortify";
+  g.phase = "setup";
   assert.equal(g.canAttack("alaska", "kamchatka"), false); // fase incorrecta
 });
 
 test("attack: atacante gana, conquista y los supervivientes ocupan la zona", () => {
   const g = newGame();
-  g.phase = "attack";
+  g.phase = "play";
   g.attackUnlocked = true;
   g.board["alaska"] = { owner: 0, armies: 5 };
   g.board["kamchatka"] = { owner: 1, armies: 1 }; // defiende con 1
@@ -120,7 +120,7 @@ test("attack: atacante gana, conquista y los supervivientes ocupan la zona", () 
 
 test("attack: empate gana defensor (sin conquista)", () => {
   const g = newGame();
-  g.phase = "attack";
+  g.phase = "play";
   g.attackUnlocked = true;
   g.board["alaska"] = { owner: 0, armies: 3 };
   g.board["kamchatka"] = { owner: 1, armies: 2 }; // defiende con 2
@@ -144,7 +144,7 @@ test("maxAttackUnits = armies - 1 (siempre deja 1 atras, minimo 1)", () => {
 
 test("attack sin unidades usa el maximo (armies - 1)", () => {
   const g = newGame();
-  g.phase = "attack";
+  g.phase = "play";
   g.attackUnlocked = true;
   g.board["alaska"] = { owner: 0, armies: 4 };    // maxAtk = 3
   g.board["kamchatka"] = { owner: 1, armies: 1 };
@@ -157,7 +157,7 @@ test("attack sin unidades usa el maximo (armies - 1)", () => {
 
 test("attack con menos unidades deja mas tropas en el origen", () => {
   const g = newGame();
-  g.phase = "attack";
+  g.phase = "play";
   g.attackUnlocked = true;
   g.board["alaska"] = { owner: 0, armies: 10 };
   g.board["kamchatka"] = { owner: 1, armies: 1 };
@@ -170,33 +170,39 @@ test("attack con menos unidades deja mas tropas en el origen", () => {
 });
 
 // ---------- transiciones de fase ----------
-test("endReinforce bloquea con refuerzos pendientes", () => {
+test("placeReinforcement funciona en fase play y agota los refuerzos", () => {
   const g = newGame();
-  g.phase = "reinforce";
+  g.phase = "play";
   g.reinforcements = 2;
-  assert.equal(g.endReinforce(), false);
-  g.reinforcements = 0;
-  assert.equal(g.endReinforce(), true);
-  assert.equal(g.phase, "attack");
+  const id = g.territoriesOf(0)[0];
+  g.board[id] = { owner: 0, armies: 1 };
+  assert.equal(g.placeReinforcement(id), true);
+  assert.equal(g.reinforcements, 1);
+  assert.equal(g.placeReinforcement(id), true);
+  assert.equal(g.reinforcements, 0);
+  assert.equal(g.placeReinforcement(id), false); // sin refuerzos
 });
 
-test("endAttack pasa a fortify y se rechaza fuera de fase", () => {
+test("en fase play se puede atacar y luego mover tropas en el mismo turno", () => {
   const g = newGame();
-  g.phase = "reinforce";
-  assert.equal(g.endAttack(), false); // fase incorrecta
-  g.phase = "attack";
-  assert.equal(g.endAttack(), true);
-  assert.equal(g.phase, "fortify");
+  g.phase = "play";
+  g.attackUnlocked = true;
+  g.board["alaska"] = { owner: 0, armies: 5 };
+  g.board["kamchatka"] = { owner: 1, armies: 1 };
+  withDice([0.9, 0.9, 0.9, 0.0], () => g.attack("alaska", "kamchatka", 3));
+  assert.equal(g.board["kamchatka"].owner, 0);
+  assert.equal(g.phase, "play"); // sigue en play, no hay fase separada de fortify
+  assert.equal(g.canFortify("alaska", "kamchatka"), true);
 });
 
 test("skipFortify avanza al siguiente turno", () => {
   const g = newGame();
   ownOnly(g, 0, byCont("america_norte", 9)); // ambos jugadores con territorios
-  g.phase = "fortify";
+  g.phase = "play";
   g.currentIndex = 0;
   assert.equal(g.skipFortify(), true);
   assert.equal(g.currentIndex, 1);
-  assert.equal(g.phase, "reinforce");
+  assert.equal(g.phase, "play");
 });
 
 // ---------- victoria / eliminacion ----------
@@ -236,11 +242,11 @@ test("setup: placeSetupArmy mantiene al mismo jugador hasta agotar sus 5", () =>
   assert.equal(g.setupRemaining[0], 0);
 });
 
-test("setup: autoPlaceSetup de ambos jugadores inicia la partida en reinforce", () => {
+test("setup: autoPlaceSetup de ambos jugadores inicia la partida en play", () => {
   const g = newGame();
   g.autoPlaceSetup(); // coloca los 5 de p0, rota a p1
   g.autoPlaceSetup(); // coloca los 5 de p1, inicia partida
-  assert.equal(g.phase, "reinforce");
+  assert.equal(g.phase, "play");
   assert.equal(g.currentIndex, 0);
 });
 
@@ -256,7 +262,7 @@ test("canAttack devuelve false cuando attackUnlocked es false", () => {
 
 test("multiples ataques consecutivos en el mismo turno sin limite", () => {
   const g = newGame();
-  g.phase = "attack";
+  g.phase = "play";
   g.attackUnlocked = true;
   g.board["alaska"] = { owner: 0, armies: 5 };
   g.board["kamchatka"] = { owner: 1, armies: 3 };
@@ -266,7 +272,7 @@ test("multiples ataques consecutivos en el mismo turno sin limite", () => {
   assert.equal(r1.conquered, false);
   assert.equal(g.board["kamchatka"].armies, 1);
   assert.equal(g.board["alaska"].armies, 5); // no perdio tropas
-  assert.equal(g.phase, "attack");
+  assert.equal(g.phase, "play");
 
   // canAttack sigue activo en el mismo turno — no hay limite de 1 ataque por turno
   assert.equal(g.canAttack("alaska", "kamchatka"), true);
@@ -280,20 +286,14 @@ test("multiples ataques consecutivos en el mismo turno sin limite", () => {
 test("endTurn: attackUnlocked se activa tras la primera ronda completa", () => {
   const g = newGame();
   g.autoPlaceSetup();
-  g.autoPlaceSetup(); // fase reinforce, currentIndex=0
+  g.autoPlaceSetup(); // fase play, currentIndex=0
 
   // turno de p0
-  g.reinforcements = 0;
-  g.endReinforce();   // attack
-  g.endAttack();      // fortify
-  g.skipFortify();    // endTurn: firstRoundTurnsLeft=1, aun false
+  g.endTurn();    // endTurn: firstRoundTurnsLeft=1, aun false
   assert.equal(g.attackUnlocked, false);
 
   // turno de p1
-  g.reinforcements = 0;
-  g.endReinforce();
-  g.endAttack();
-  g.skipFortify();    // endTurn: firstRoundTurnsLeft=0, ahora true
+  g.endTurn();    // endTurn: firstRoundTurnsLeft=0, ahora true
   assert.equal(g.attackUnlocked, true);
   assert.ok(g.log.some((e) => e.msg.includes("Primera ronda completa")));
 });

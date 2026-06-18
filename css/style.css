@@ -181,7 +181,15 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 0;
 }
 .step-sep { color: var(--ink-dim); opacity: .5; font-size: .9rem; }
 
-.game-layout { display: grid; grid-template-columns: 1fr 340px; height: calc(100vh - 56px); }
+.game-layout { display: grid; grid-template-columns: 1fr 340px; height: calc(100vh - 56px - 40px); }
+
+.action-guide {
+  min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 10px;
+  background: rgba(0,0,0,.45); border-top: 1px solid var(--line);
+  padding: 6px 16px; font-size: .78rem; color: var(--ink-dim); flex-wrap: wrap;
+}
+.action-guide .guide-item { color: var(--ink); }
+.action-guide .guide-sep { opacity: .35; }
 
 .map-wrap { position: relative; overflow: hidden; background:
   radial-gradient(1200px 800px at 50% 30%, var(--sea) 0%, var(--sea-2) 70%, #123a55 100%); }

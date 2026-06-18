@@ -55,7 +55,7 @@ WAR/
 | `js/map-data.js` | Datos puros | 44 territorios, 6 continentes (cada uno con campo `bonus`, actualmente sin uso en cálculo de refuerzos), grafo de adyacencias (bidireccional vía `buildAdjacency()`), ejércitos iniciales, colores. |
 | `js/map-shapes.js` | Datos puros (**generado**) | Geometría del mapa: `TERRITORY_SHAPES` (paths SVG por territorio), `TERRITORY_CENTERS` (punto de etiqueta interior), `MAP_VIEWBOX`, `SEA_ROUTES` y `TERRITORY_CLIPS`. **No editar a mano**: lo regenera `scripts/build-map-shapes.mjs` (`npm run build:map`). |
 | `js/game.js` | Lógica pura (clase `Game`) | Estado del tablero, turnos y fases, combate por dados, refuerzos, conquista, eliminación y victoria. **Sin DOM.** El reparto inicial asigna un continente completo a cada jugador (resto del mapa sin dueño), en vez de territorios sueltos al azar. El setup es fijo: cada jugador coloca exactamente 5 ejércitos (`setupRemaining[i] = 5`); el turno no rota hasta agotar los 5. **Refuerzos:** `floor(territorios / 2)` — fórmula plana, sin mínimo ni bonus de continente. Los ataques comienzan bloqueados (`attackUnlocked = false`); `endTurn()` decrementa `firstRoundTurnsLeft` y activa `attackUnlocked` al completar la primera ronda completa. `canAttack()` exige `attackUnlocked === true`. |
-| `js/ui.js` | Vista (clase `UI`) | Construye el mapa SVG una vez a partir de las formas de `map-shapes.js` (paths reales con proyección geográfica, `clipPath` para los países partidos); cada nodo lleva el nombre del territorio (`<text class="label">`) sobre el contador de ejércitos (`<text class="count">`). Refresca nodos/sidebar/banner según el estado, traduce clics a llamadas del motor, muestra dados y modales (conquista/fortificación). **No decide reglas ni genera geometría**: solo refleja el estado y delega en `Game`. El banner de turno se renderiza como tarjeta de jugador + *stepper* de fases (refuerzo › ataque › fortificación), escapando el nombre con `escapeHtml`. En partidas online (`opts.myIndex` presente) bloquea clics/acciones fuera de tu turno (`isMyTurn()`) y corre un temporizador de 30s por fase que auto-resuelve la fase si se agota (`handleTimeout`). En fase de ataque, si `attackUnlocked === false`, muestra un indicador 🔒 con mensaje explicativo; el hint de ataque es condicional al estado de desbloqueo. |
+| `js/ui.js` | Vista (clase `UI`) | Construye el mapa SVG una vez a partir de las formas de `map-shapes.js` (paths reales con proyección geográfica, `clipPath` para los países partidos); cada nodo lleva el nombre del territorio (`<text class="label">`) sobre el contador de ejércitos (`<text class="count">`). Refresca nodos/sidebar/banner según el estado, traduce clics a llamadas del motor, muestra dados y modales (conquista/movimiento de tropas). **No decide reglas ni genera geometría**: solo refleja el estado y delega en `Game`. El banner de turno se renderiza como tarjeta de jugador + etiqueta de fase ("Despliegue" o "Turno libre"), escapando el nombre con `escapeHtml`. En fase `play`, el modo "Colocar tropas" (`placingMode`) se activa con un botón toggle; sin él, los clics unifican ataque y movimiento de tropas en un solo flujo. En partidas online (`opts.myIndex` presente) bloquea clics/acciones fuera de tu turno (`isMyTurn()`) y corre un temporizador de 90s por turno que auto-resuelve el turno si se agota (`handleTimeout`). Si `attackUnlocked === false`, muestra un indicador 🔒; el botón "Terminar turno" cierra el turno en cualquier momento. |
 | `js/main.js` | Arranque | Pantalla de inicio con pestañas Local / Crear sala / Unirse. `startLocalGame()` arranca una partida hotseat sin red; `enterLobby()` une al jugador a la sala (lobby con lista de jugadores y "listo"), y al recibir `start_game` llama `beginOnlineGame(players, initialBoard, initialSetup, initialAttackUnlocked, initialFirstRoundTurnsLeft)`, que crea `Game` + `UI`, aplica el estado inicial del host (incluyendo `attackUnlocked` y `firstRoundTurnsLeft`) y parchea los métodos mutadores para sincronizar por WebSocket (el payload de `sendGameState` incluye `attackUnlocked` y `firstRoundTurnsLeft`). Al terminar una partida online, si el jugador local ganó, hace `POST /api/win`. |
 | `js/pixi-overlay.js` | Vista (overlay) | Canvas Pixi.js superpuesto al mapa SVG; dibuja partículas/línea/etiqueta de cada batalla. Lo inicia y dispara `ui.js`. Ver [stack.md](stack.md). |
 | `js/multiplayer.js` | Cliente de red | Cliente WebSocket de la sala (`joinRoom`/`sendGameState`/…). Detalle en [realtime.md](realtime.md). |
@@ -117,10 +117,11 @@ main.js  ──crea──>  Game (estado/reglas)
   con **cuántas unidades** atacar (1 hasta `maxAttackUnits` = `armies-1`, siempre deja
   1 atrás) = ese número de dados; el defensor tira con **todas** sus tropas. `attack`
   resuelve los dados de una vez y, si el defensor llega a 0, los atacantes
-  supervivientes **ocupan la zona automáticamente** (no hay paso de movimiento
-  posterior). `endAttack` pasa a fortificación.
-- **Fortificación:** la UI abre un modal con un rango `[min, max]` y confirma con
-  `fortify`.
+  supervivientes **ocupan la zona automáticamente**. No hay transición de fase; el turno
+  sigue en `play` y el jugador puede seguir atacando o mover tropas antes de terminar.
+- **Movimiento de tropas:** en fase `play`, sin modo `placingMode` activo, clicar
+  propio→aliado adyacente abre un modal con un rango `[min, max]` y confirma con
+  `fortify`. El movimiento no termina el turno automáticamente.
 - **Red:** `main.js` toca `fetch` solo para `/api/win` (registro de victoria al ganar
   una partida online). Los endpoints `/api/auth/*` se invocan por **navegación del
   browser** desde `login.html` (vía `<a href>`), no por `fetch` programático.
@@ -135,8 +136,8 @@ main.js  ──crea──>  Game (estado/reglas)
   métodos mutadores de `Game`** para emitir `sendGameState` tras cada acción → el
   Durable Object `GameRoom` hace `broadcast` → los demás reciben `game_state`, lo
   aplican al `Game` local y hacen `ui.refresh()`. En modo online, `ui.js` además
-  bloquea la interacción fuera de tu turno y corre un temporizador de 30s por fase
-  que la auto-resuelve si se agota. Detalle en [realtime.md](realtime.md).
+  bloquea la interacción fuera de tu turno y corre un temporizador de 90s por turno
+  que lo auto-resuelve si se agota. Detalle en [realtime.md](realtime.md).
 - **Wallet (opcional):** la dirección de MetaMask sirve como identidad de jugador
   (`playerId` en la sala) y se muestra en la topbar. Ver [onchain.md](onchain.md).
 - **Animación:** en cada ataque, `ui.js` llama `playBattleAnimation` del overlay Pixi

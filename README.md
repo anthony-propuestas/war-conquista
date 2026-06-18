@@ -17,7 +17,7 @@ Conquista territorios, domina continentes y elimina a tus rivales. **Multijugado
 - 🎲 **Combate con dados**: eliges con cuántas unidades atacar (1 hasta tus tropas − 1)
   = ese número de dados; el defensor tira con **todas** sus tropas. Al conquistar, los
   atacantes supervivientes ocupan la zona automáticamente.
-- ♻️ **Fases de turno**: despliegue → refuerzo → ataque → fortificación.
+- ♻️ **Turno libre**: en tu turno puedes reforzar, atacar y mover tropas en cualquier orden antes de pasar.
 - 👥 **1 a 3 jugadores** en la misma máquina (hotseat), cada uno con su color.
 - 🌐 **Multijugador online** en tiempo real: crea o únete a una sala (auto-listo al unirse) y el anfitrión arranca la partida cuando hay 2+ jugadores (WebSocket + Durable Object `GameRoom`).
 - 🏆 **Salón de la fama** global persistido en Cloudflare D1.
