@@ -60,7 +60,7 @@ abajo); no llegan al cliente ni al deploy.
 | Script | Acción |
 |---|---|
 | `npm run build:map` | `node scripts/build-map-shapes.mjs` — regenera `js/map-shapes.js` desde Natural Earth. Dev-only; correr solo si cambia el reparto de territorios. |
-| `npm run dev` | `wrangler pages dev .` — sirve estáticos + Functions + D1 local. |
+| `npm run dev` | `wrangler pages dev . --do GameRoom=./worker/index.js` — sirve estáticos + Functions + D1 + Durable Object local. |
 | `npm run deploy` | `wrangler pages deploy .` — publica a Pages. |
 | `npm test` | `node --test` sobre `tests/**/*.test.js` (runner integrado, sin deps). |
 | `npm run test:watch` | Igual en modo watch. |

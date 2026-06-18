@@ -139,6 +139,17 @@ test("fetch con sala ya iniciada responde 409", async () => {
   assert.equal(res.status, 409);
 });
 
+test("fetch con sala llena (>=6 jugadores) responde 403", async () => {
+  const room = newRoom(makeState());
+  for (let i = 0; i < 6; i++) room.players.set(`p${i}`, { name: "J", ready: true });
+  const res = await room.fetch(
+    new Request("http://localhost/api/game-room?roomId=r", {
+      headers: { Upgrade: "websocket" },
+    })
+  );
+  assert.equal(res.status, 403);
+});
+
 test("webSocketMessage con set_ready actualiza al jugador y difunde lobby_update", async () => {
   const sender = makeWs("p1");
   const other = makeWs("p2");

@@ -146,6 +146,9 @@ export const INITIAL_ARMIES = { 1: 45, 2: 40, 3: 35 };
 export const PLAYER_COLORS = [
   "#e63946", // rojo
   "#f77f00", // naranja
-  "#2a9d8f", // verde
+  "#ffd166", // amarillo dorado
+  "#00c2d1", // cian
+  "#8338ec", // morado
+  "#06d6a0", // menta
 ];
 

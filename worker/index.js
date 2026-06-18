@@ -14,6 +14,9 @@ export class GameRoom {
     if (this.started) {
       return new Response('Room already started', { status: 409 });
     }
+    if (this.players.size >= 6) {
+      return new Response('Room is full', { status: 403 });
+    }
 
     const url = new URL(request.url);
     const playerId = url.searchParams.get('playerId') || crypto.randomUUID();
@@ -22,7 +25,7 @@ export class GameRoom {
     const [client, server] = Object.values(new WebSocketPair());
     this.state.acceptWebSocket(server, [playerId]);
 
-    this.players.set(playerId, { name: playerName, ready: false });
+    this.players.set(playerId, { name: playerName, ready: true });
     this.broadcastLobby();
 
     return new Response(null, { status: 101, webSocket: client });

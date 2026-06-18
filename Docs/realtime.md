@@ -19,7 +19,7 @@ API (un único socket por pestaña, guardado en módulo):
 
 | Función | Qué hace |
 |---|---|
-| `joinRoom(roomId, playerId, onMessage, playerName = 'Jugador', onJoinFailed)` | Cierra cualquier socket previo y abre `ws(s)://<host>/api/game-room?roomId=…&playerId=…&playerName=…`. El protocolo es `wss` en HTTPS y `ws` en HTTP. `onMessage(data)` recibe cada mensaje ya parseado de JSON (JSON inválido se ignora sin lanzar). Si el socket se cierra antes de llegar a abrirse (p. ej. la sala respondió `409` porque ya inició), llama `onJoinFailed?.()`. |
+| `joinRoom(roomId, playerId, onMessage, playerName = 'Jugador', onJoinFailed, onClose)` | Cierra cualquier socket previo y abre `ws(s)://<host>/api/game-room?roomId=…&playerId=…&playerName=…`. El protocolo es `wss` en HTTPS y `ws` en HTTP. `onMessage(data)` recibe cada mensaje ya parseado de JSON (JSON inválido se ignora sin lanzar). Si el socket se cierra **antes** de abrirse (p. ej. la sala respondió `409` porque ya inició), llama `onJoinFailed?.()`. Si el socket se cierra **después** de haber abierto (desconexión durante el lobby o partida), llama `onClose?.()`. |
 | `setMessageHandler(onMessage)` | Reemplaza el handler de mensajes del socket activo (lo usa `beginOnlineGame` al salir del lobby y entrar a la partida). |
 | `sendAction(type, payload = {})` | Envía `{ type, payload }`. **No-op** si el socket no está `OPEN`. |
 | `sendGameState(state)` | Atajo de `sendAction('game_state', state)`. |
@@ -35,12 +35,13 @@ La Pages Function `functions/api/game-room.js` resuelve el DO por nombre de sala
 mapa `players` (`playerId` → `{ name, ready }`) y una bandera `started`:
 
 - **`fetch(request)`** — exige el header `Upgrade: websocket` (si no, responde `426`).
-  Si `started` es `true`, responde `409` (sala ya en partida, no admite más jugadores).
+  Si `started` es `true`, responde `409` (sala ya en partida).
+  Si `players.size >= 6`, responde `403` (sala llena; límite de 6 jugadores).
   Si no, crea un `WebSocketPair`, toma `playerId` y `playerName` del query (o un
   `crypto.randomUUID()` para el id) y lo acepta con `state.acceptWebSocket(server,
   [playerId])` — el `playerId` queda como **tag** del socket. Agrega el jugador a
-  `players` con `ready: false` y difunde `lobby_update`. Responde `101` devolviendo el
-  extremo cliente.
+  `players` con `ready: true` (auto-listo al unirse) y difunde `lobby_update`. Responde
+  `101` devolviendo el extremo cliente.
 - **`webSocketMessage(ws, message)`** — parsea el JSON (inválido → ignora):
   - `type === 'game_state'` → persiste el payload en `state.storage` bajo la clave
     `gameState`, hace `broadcast` (con `from: playerId`) a todos menos al emisor, y si
@@ -74,17 +75,21 @@ El binding `GAME_ROOM` se declara en `wrangler.toml`; la migración `v1` está e
 
 Al crear o unirse a una sala, `enterLobby(code, playerName)`:
 
-1. Llama `joinRoom(roomId, playerId, onLobbyMessage, playerName, onJoinFailed)`. El
-   `playerId` es la dirección de wallet si hay una conectada (ver [onchain.md](onchain.md)),
-   o un id anónimo aleatorio. Muestra `#screen-lobby`.
+1. Llama `joinRoom(roomId, playerId, onLobbyMessage, playerName, onJoinFailed, onClose)`.
+   El `playerId` es la dirección de wallet si hay una conectada (ver
+   [onchain.md](onchain.md)), o un id anónimo aleatorio. Muestra `#screen-lobby`.
+   `onClose` limpia el estado de lobby y vuelve a `#screen-start` si se pierde la
+   conexión una vez ya dentro de la sala.
 2. `onLobbyMessage` reacciona a dos tipos: `lobby_update` (redibuja la lista de
-   jugadores y su estado "listo"; el botón "Iniciar" solo aparece para el host —primer
-   jugador de la lista— cuando todos están listos) y `start_game` (llama
+   jugadores; el botón "Iniciar" solo aparece para el host —primer jugador de la lista—
+   cuando **todos ≥ 2 jugadores** están listos; como todos se marcan auto-listos al
+   unirse, basta con que haya 2+) y `start_game` (llama
    `beginOnlineGame(payload.players, payload.board, payload.setupRemaining, payload.attackUnlocked, payload.firstRoundTurnsLeft)`).
-3. El checkbox "Estoy listo" llama `setReady(checked)`; el botón "Iniciar" (solo host)
-   crea un `Game` temporal para generar el reparto de continentes y llama
-   `startGame({ players, board, setupRemaining, attackUnlocked, firstRoundTurnsLeft })` — el estado inicial viaja dentro del mensaje
-   para que todos los clientes (incluido el host) arranquen de forma idéntica.
+3. No hay checkbox de "listo"; cada jugador queda auto-listo al unirse (`ready: true` en
+   el DO). El botón "Iniciar" (solo host) crea un `Game` temporal para generar el
+   reparto de continentes y llama
+   `startGame({ players, board, setupRemaining, attackUnlocked, firstRoundTurnsLeft })` —
+   el estado inicial viaja dentro del mensaje para que todos arranquen de forma idéntica.
 4. `beginOnlineGame(players, initialBoard, initialSetup, initialAttackUnlocked, initialFirstRoundTurnsLeft)` crea el `Game` + `UI` (con
    `myIndex` = posición del jugador local) y, si recibe `initialBoard`, pisa
    inmediatamente el board aleatorio local con el del host — eliminando la divergencia

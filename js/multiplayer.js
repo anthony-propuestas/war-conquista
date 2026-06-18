@@ -1,7 +1,7 @@
 let ws = null;
 let _onMessage = null;
 
-export function joinRoom(roomId, playerId, onMessage, playerName = 'Jugador', onJoinFailed) {
+export function joinRoom(roomId, playerId, onMessage, playerName = 'Jugador', onJoinFailed, onClose) {
   if (ws) ws.close();
   _onMessage = onMessage;
   let opened = false;
@@ -26,6 +26,7 @@ export function joinRoom(roomId, playerId, onMessage, playerName = 'Jugador', on
   ws.addEventListener('close', () => {
     console.log('[WAR] Conexión cerrada');
     if (!opened) onJoinFailed?.();
+    else onClose?.();
   });
 
   ws.addEventListener('error', (e) => {

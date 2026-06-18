@@ -13,6 +13,7 @@ let roomId = null;
 let lobby = null; // { roomId, playerId, playerName }
 let lobbyPlayers = [];
 let myIndex = null; // indice del jugador local en la partida online actual
+let inLobby = false;
 
 // ---------- wallet ----------
 async function handleConnectWallet() {
@@ -99,6 +100,7 @@ function startLocalGame() {
 
 // ---------- crear / unirse a sala (entra al lobby) ----------
 function enterLobby(code, playerName) {
+  inLobby = true;
   roomId = code;
   const playerId = walletAddress || ('anon-' + Math.random().toString(36).slice(2, 8));
   lobby = { roomId, playerId, playerName: playerName || defaultPlayerName() };
@@ -106,12 +108,19 @@ function enterLobby(code, playerName) {
 
   $("#lobby-room-code").textContent = roomId;
   $("#lobby-players-list").innerHTML = "";
-  $("#lobby-ready-checkbox").checked = false;
   $("#btn-lobby-start").classList.add("hidden");
 
   joinRoom(roomId, playerId, onLobbyMessage, lobby.playerName, () => {
-    alert("No se pudo unir a la sala. Puede que ya haya iniciado o no exista.");
+    inLobby = false;
     lobby = null;
+    alert("No se pudo unir a la sala. Puede que ya haya iniciado o no exista.");
+    showScreen("#screen-start");
+  }, () => {
+    if (!inLobby) return;
+    inLobby = false;
+    lobby = null;
+    lobbyPlayers = [];
+    alert("Te desconectaste de la sala.");
     showScreen("#screen-start");
   });
   showScreen("#screen-lobby");
@@ -137,12 +146,13 @@ function renderLobby() {
   });
 
   const isHost = lobbyPlayers.length > 0 && lobbyPlayers[0].id === lobby.playerId;
-  const allReady = lobbyPlayers.length > 0 && lobbyPlayers.every((p) => p.ready);
+  const allReady = lobbyPlayers.length >= 2 && lobbyPlayers.every((p) => p.ready);
   $("#btn-lobby-start").classList.toggle("hidden", !(isHost && allReady));
 }
 
 // ---------- pasar del lobby a la partida sincronizada ----------
 function beginOnlineGame(players, initialBoard, initialSetup, initialAttackUnlocked, initialFirstRoundTurnsLeft) {
+  inLobby = false;
   const configs = players.map((p, i) => ({ name: p.name, color: PLAYER_COLORS[i] }));
   const game = new Game(configs);
   myIndex = players.findIndex((p) => p.id === lobby.playerId);
@@ -281,10 +291,6 @@ $("#btn-join-room")?.addEventListener("click", () => {
   }
   const name = $("#join-name").value.trim();
   enterLobby(code, name);
-});
-
-$("#lobby-ready-checkbox")?.addEventListener("change", (e) => {
-  setReady(e.target.checked);
 });
 
 function shuffle(arr) {

@@ -100,6 +100,14 @@ test("onJoinFailed NO se llama si el socket abrió antes de cerrar", () => {
   assert.equal(failed, 0);
 });
 
+test("onClose se llama si el socket cierra después de haber abierto", () => {
+  let closed = 0;
+  joinRoom("s", "p", () => {}, "Jugador", () => {}, () => { closed++; });
+  instances[0].emit("open", {});
+  instances[0].emit("close", {});
+  assert.equal(closed, 1);
+});
+
 test("el handler de message parsea JSON y llama onMessage", () => {
   let received = null;
   joinRoom("s", "p", (data) => { received = data; });

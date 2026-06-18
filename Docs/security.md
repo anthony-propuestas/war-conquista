@@ -383,6 +383,15 @@ Para cada cambio que toque la superficie de ataque:
   `currentIndex`, etc. ya aceptados; (3) "`Object.assign` sin schema" aplica al estado
   inicial además del estado en-juego. Misma disposición: aceptados para MVP. Sin cambios
   en endpoints HTTP, queries D1, esquema, cookies, cabeceras ni secrets.
+- **2026-06-18** — Mejoras de lobby: `worker/index.js` (cap de 6 jugadores → 403, jugadores
+  auto-listos `ready: true` al unirse), `js/multiplayer.js` (callback `onClose` para
+  desconexiones post-apertura), `js/main.js` (flag `inLobby` evita callback doble,
+  limpieza de estado al desconectarse), `game/index.html` (checkbox "Estoy listo"
+  eliminado), `js/map-data.js` (+3 colores de jugador). **Hallazgo: ninguno nuevo.**
+  El cap de 6 jugadores es una mejora de seguridad menor (evita crecimiento ilimitado
+  del `Map` `players`). `onClose` es solo gestión de estado cliente; no abre nueva
+  superficie. Los colores son constantes UI. Sin cambios en endpoints HTTP, queries D1,
+  esquema, cookies, cabeceras ni secrets.
 - **2026-06-17** — Rediseño del combate (elegir unidades de ataque; ocupación
   automática al conquistar): `js/game.js` (`attack(from,to,attackUnits)` nuevo 3.º
   parámetro, `maxAttackUnits()`, se eliminan `pendingConquest`/`moveAfterConquest`;
