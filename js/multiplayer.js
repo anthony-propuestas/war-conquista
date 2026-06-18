@@ -1,13 +1,21 @@
 let ws = null;
 let _onMessage = null;
 
-export function joinRoom(roomId, playerId, onMessage, playerName = 'Jugador', onJoinFailed, onClose) {
+// Pide al emparejador la sala publica actual del modo online.
+export async function requestMatch() {
+  const res = await fetch('/api/game-room?match=1', { method: 'POST' });
+  if (!res.ok) throw new Error('No se pudo emparejar');
+  return res.json(); // { roomId, openUntil }
+}
+
+export function joinRoom(roomId, playerId, onMessage, playerName = 'Jugador', onJoinFailed, onClose, opts = {}) {
   if (ws) ws.close();
   _onMessage = onMessage;
   let opened = false;
 
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  const url = `${proto}://${location.host}/api/game-room?roomId=${encodeURIComponent(roomId)}&playerId=${encodeURIComponent(playerId)}&playerName=${encodeURIComponent(playerName)}`;
+  let url = `${proto}://${location.host}/api/game-room?roomId=${encodeURIComponent(roomId)}&playerId=${encodeURIComponent(playerId)}&playerName=${encodeURIComponent(playerName)}`;
+  if (opts.public) url += `&public=1&openUntil=${encodeURIComponent(opts.openUntil)}`;
 
   ws = new WebSocket(url);
 

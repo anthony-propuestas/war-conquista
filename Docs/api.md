@@ -155,6 +155,19 @@ Endpoint **WebSocket**. El routing lo hace la Pages Function
 definida en `worker/index.js`, desplegado como Worker separado
 `war-game-room`) por `roomId`.
 
+## `GET /api/game-room?match=1` — matchmaking público
+
+No requiere `roomId`. Devuelve la sala pública activa y el tiempo restante para el auto-inicio.
+
+**200 OK**
+```json
+{ "roomId": "pub-<uuid>", "secondsLeft": 42 }
+```
+
+Lo implementa `handleMatch` en `functions/api/game-room.js`: almacena en el Durable Object el `roomId` actual y la hora de creación; rota la sala (genera un nuevo `roomId`) cuando se cumplen 60 s o cuando hay 6 jugadores conectados. Lo consume `requestMatch()` en `js/multiplayer.js` antes de llamar `joinRoom`.
+
+---
+
 ## `GET /api/game-room?roomId=<id>&playerId=<id>&playerName=<nombre>` (upgrade WebSocket)
 
 | Caso | Status | Resultado |

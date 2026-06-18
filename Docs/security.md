@@ -287,6 +287,13 @@ Para cada cambio que toque la superficie de ataque:
 - [ ] (Si toca wallet) El mensaje firmado incluye nonce/expiración y el dominio de la app.
 - [ ] (Si toca wallet) Vincular una wallet no depende únicamente de un campo de la cookie sin verificar.
 
+## WebSocket y wallet — mecanismos actualizados
+
+La tabla de la sección anterior refleja el estado al momento del despliegue. Actualizaciones relevantes de esta sesión:
+
+- `worker/index.js` — `started` ahora persiste en DO storage (`state.storage.put('started', true)`), no en memoria. Cierra el bypass por hibernación documentado abajo.
+- `worker/index.js` — estado de jugadores migrado de `this.players` Map (in-memory, no sobrevivía hibernación) a WebSocket attachments (`serializeAttachment` / `deserializeAttachment`). El DO ya puede hibernar sin perder el roster.
+
 ## Historial de revisiones
 
 - **2026-06-14** — Línea base inicial. Cambio revisado: `database_id` real en
@@ -410,6 +417,38 @@ Para cada cambio que toque la superficie de ataque:
   sincronizado (ya aceptada para MVP) ahora abarca también el board resultante del
   ataque; misma raíz y disposición que el spoofing de `phase`/`currentIndex` ya
   registrado.
+- **2026-06-18** — Matchmaking público + DO hibernation-safe + dev script unificado:
+  `functions/api/game-room.js` (`?match=1` ruta al DO `__matchmaker__`), `worker/index.js`
+  (`handleMatch`, alarma pública, WebSocket attachments, `started` en storage persistente),
+  `js/main.js` (`loadProfile`, `enterOnline`, countdown modal, `renderOnlinePlayers`),
+  `js/multiplayer.js` (`requestMatch`), `scripts/dev.mjs` (nuevo, solo devtools).
+  **Mecanismos positivos:** (1) `started` ahora persiste en DO storage — **cierra el bypass
+  de hibernación**: antes, si el DO se hibernaba tras arrancar la partida, `this.started`
+  se reiniciaba y una conexión nueva podía colarse a una sala ya iniciada; ahora `storage.get('started')`
+  persiste a través de ciclos de vida del DO. (2) Roster derivado de `state.getWebSockets()` +
+  attachments — más robusto que el `Map` in-memory anterior. (3) `renderOnlinePlayers()` usa
+  `document.createElement` + `textContent` para nombres — sin riesgo XSS. (4) `loadProfile()`
+  en `main.js` usa `data.username` (restringido a `[a-zA-Z0-9_]` en DB) como `playerName` en
+  el WS URL — sin chars peligrosos inyectables. (5) No hay nuevas queries D1, cambios en
+  cookies, `_headers` ni secrets.
+  **Hallazgo — inflado de contador de sala vía `?match=1` sin autenticación:**
+  `handleMatch()` incrementa `mm.count` en cada llamada, sin auth ni rate-limit. Un script
+  puede llamarlo repetidamente y forzar la rotación de la sala pública (hacer que `mm.count`
+  llegue a 6) sin que ningún jugador real se conecte; los jugadores que luego llamen
+  `?match=1` recibirán una sala nueva vacía. Misma clase de riesgo que los gaps de
+  rate-limiting ya aceptados en el resto de endpoints. Aceptado para MVP.
+  **Hallazgo — bypass de hibernación cerrado (registrar como corrección):** el riesgo ya
+  aceptado de "sala iniciada con `started` in-memory se perdía al hibernar" queda mitigado
+  por persistir `started` en storage. La ventana de bypass era estrecha (un jugador nuevo
+  debía conectarse justo tras la hibernación y antes del primer mensaje) pero real.
+  **Hallazgo — `you_start` extiende el riesgo de `start_game` no restringido al host:**
+  la alarma pública envía `{type:'you_start', players}` al primer socket (`roster()[0]`),
+  quien entonces llama `hostStart` y emite `start_game`. Si el primer socket pertenece a
+  un jugador malintencionado, puede ignorar `you_start` o emitir un `start_game` con un
+  `payload.players` arbitrario antes de que la alarma dispare — mismo vector ya aceptado
+  para MVP. Sin disposición nueva.
+  Sin cambios en checklist pre-producción.
+
 - **2026-06-16** — Lobby de sala (ready/start) y registro de victorias:
   `functions/api/win.js` (nuevo), `worker/index.js` (mapa `players`, flag `started`,
   mensajes `set_ready`/`start_game`/`lobby_update`, `resetRoom()`), `js/multiplayer.js`

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   joinRoom,
+  requestMatch,
   setMessageHandler,
   sendAction,
   sendGameState,
@@ -56,6 +57,7 @@ afterEach(() => {
   disconnect();
   delete globalThis.WebSocket;
   delete globalThis.location;
+  delete globalThis.fetch;
 });
 
 test("isConnected() es false sin conexión", () => {
@@ -74,6 +76,34 @@ test("joinRoom construye URL wss en https y registra onMessage", () => {
 test("joinRoom incluye el playerName explícito url-encoded", () => {
   joinRoom("sala1", "p1", () => {}, "Ana López");
   assert.ok(instances[0].url.includes("playerName=Ana%20L%C3%B3pez"));
+});
+
+test("joinRoom con opts.public añade public=1 y openUntil a la URL", () => {
+  joinRoom("s", "p", () => {}, "Jugador", undefined, undefined, { public: true, openUntil: 1700000000000 });
+  assert.ok(instances[0].url.includes("&public=1&openUntil=1700000000000"));
+});
+
+test("joinRoom sin opts.public no incluye public ni openUntil", () => {
+  joinRoom("s", "p", () => {});
+  assert.ok(!instances[0].url.includes("public="));
+  assert.ok(!instances[0].url.includes("openUntil="));
+});
+
+test("requestMatch hace POST a /api/game-room?match=1 y devuelve el JSON", async () => {
+  let captured = null;
+  globalThis.fetch = async (url, opts) => {
+    captured = { url, opts };
+    return { ok: true, json: async () => ({ roomId: "online-abc", openUntil: 123 }) };
+  };
+  const result = await requestMatch();
+  assert.equal(captured.url, "/api/game-room?match=1");
+  assert.equal(captured.opts.method, "POST");
+  assert.deepEqual(result, { roomId: "online-abc", openUntil: 123 });
+});
+
+test("requestMatch lanza si la respuesta no es ok", async () => {
+  globalThis.fetch = async () => ({ ok: false });
+  await assert.rejects(() => requestMatch(), /No se pudo emparejar/);
 });
 
 test("joinRoom usa ws cuando el protocolo no es https", () => {

@@ -30,6 +30,7 @@
 
         <div class="mode-tabs" id="mode-tabs">
           <button type="button" class="mode-tab active" data-mode="local">Local</button>
+          <button type="button" class="mode-tab" data-mode="online">Online</button>
           <button type="button" class="mode-tab" data-mode="create">Crear sala</button>
           <button type="button" class="mode-tab" data-mode="join">Unirse a sala</button>
         </div>
@@ -48,6 +49,12 @@
           <div id="player-fields" class="player-fields"></div>
 
           <button id="btn-start-local" class="btn btn-primary btn-big">Iniciar partida</button>
+        </div>
+
+        <!-- ---- modo online (emparejamiento automatico) ---- -->
+        <div id="mode-online" class="mode-panel hidden">
+          <p class="online-desc">Te emparejamos automáticamente con otros jugadores. La sala pública espera 60 s y arranca con 2 a 6 jugadores.</p>
+          <button id="btn-online-play" class="btn btn-primary btn-big">Buscar partida</button>
         </div>
 
         <!-- ---- modo crear sala online ---- -->

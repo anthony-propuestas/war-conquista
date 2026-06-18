@@ -143,7 +143,7 @@ export class UI {
   // ---------- temporizador de 30s por fase (solo online, solo en mi turno) ----------
   syncTimer() {
     const g = this.game;
-    if (!this.onlineMode || !this.isMyTurn() || g.phase === "gameover") {
+    if (!this.isMyTurn() || g.phase === "gameover") {
       this.stopTimer();
       return;
     }
@@ -265,7 +265,7 @@ export class UI {
           <span class="turn-label">Turno de</span>
           <span class="turn-name">${escapeHtml(p.name)}</span>
         </div>
-        ${this.onlineMode && this.isMyTurn() ? `<span id="turn-timer" class="turn-timer"></span>` : ""}
+        ${this.isMyTurn() ? `<span id="turn-timer" class="turn-timer"></span>` : ""}
       </div>
       <div class="phase-steps"><span class="step current">${phaseLabel}</span>${attackStatus}</div>`;
   }

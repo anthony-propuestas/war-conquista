@@ -2,7 +2,7 @@ import { PLAYER_COLORS } from "./map-data.js";
 import { Game } from "./game.js";
 import { UI } from "./ui.js";
 import { connectWallet, getAddress } from "./wallet.js";
-import { joinRoom, sendGameState, setMessageHandler, setReady, startGame as sendStartGame, disconnect, isConnected } from "./multiplayer.js";
+import { joinRoom, requestMatch, sendGameState, setMessageHandler, setReady, startGame as sendStartGame, disconnect, isConnected } from "./multiplayer.js";
 
 const $ = (s) => document.querySelector(s);
 let ui = null;
@@ -14,6 +14,25 @@ let lobby = null; // { roomId, playerId, playerName }
 let lobbyPlayers = [];
 let myIndex = null; // indice del jugador local en la partida online actual
 let inLobby = false;
+
+// ---------- perfil (nombre real desde la BD) ----------
+let myUsername = null;
+let mySub = null;
+async function loadProfile() {
+  try {
+    const res = await fetch('/api/profile');
+    if (!res.ok) return;
+    const data = await res.json();
+    myUsername = data.username || null;
+    mySub = data.sub || null;
+  } catch (_) {}
+}
+
+// ---------- modo online (emparejamiento automatico) ----------
+let onlineActive = false;
+let countdownHandle = null;
+let onlinePlayers = [];
+let onlineOpenUntil = 0;
 
 // ---------- wallet ----------
 async function handleConnectWallet() {
@@ -148,6 +167,145 @@ function renderLobby() {
   const isHost = lobbyPlayers.length > 0 && lobbyPlayers[0].id === lobby.playerId;
   const allReady = lobbyPlayers.length >= 2 && lobbyPlayers.every((p) => p.ready);
   $("#btn-lobby-start").classList.toggle("hidden", !(isHost && allReady));
+}
+
+// ---------- modo online: emparejamiento automatico ----------
+const ONLINE_WINDOW_MS = 60000;
+
+async function enterOnline() {
+  const btn = $("#btn-online-play");
+  if (btn) btn.disabled = true;
+  try {
+    const name = myUsername || defaultPlayerName();
+    const playerId = mySub || walletAddress || ('anon-' + Math.random().toString(36).slice(2, 8));
+    const { roomId: rid, openUntil } = await requestMatch();
+    roomId = rid;
+    myIndex = null;
+    onlineActive = true;
+    onlinePlayers = [];
+    lobby = { roomId: rid, playerId, playerName: name };
+    joinRoom(rid, playerId, onOnlineMessage, name, onOnlineFailed, onOnlineClose, { public: true, openUntil });
+    openCountdownModal(openUntil);
+  } catch (_) {
+    alert("No se pudo conectar al modo online. Intenta de nuevo.");
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function onOnlineMessage(msg) {
+  if (msg.type === 'lobby_update') {
+    onlinePlayers = msg.players;
+    if (msg.openUntil) onlineOpenUntil = msg.openUntil;
+    renderOnlinePlayers();
+  } else if (msg.type === 'you_start') {
+    hostStart(msg.players);
+  } else if (msg.type === 'start_game') {
+    onlineActive = false;
+    stopCountdown();
+    closeWaitModal();
+    beginOnlineGame(msg.payload.players, msg.payload.board, msg.payload.setupRemaining, msg.payload.attackUnlocked, msg.payload.firstRoundTurnsLeft);
+  } else if (msg.type === 'match_failed') {
+    endOnline("No se encontraron suficientes jugadores. Intenta de nuevo.");
+  }
+}
+
+function onOnlineFailed() {
+  endOnline("No se pudo entrar a la sala online. Intenta de nuevo.");
+}
+
+function onOnlineClose() {
+  if (!onlineActive) return;
+  endOnline("Te desconectaste del modo online.");
+}
+
+function leaveOnline() {
+  onlineActive = false;
+  stopCountdown();
+  closeWaitModal();
+  disconnect();
+  showScreen("#screen-start");
+}
+
+function endOnline(message) {
+  onlineActive = false;
+  stopCountdown();
+  closeWaitModal();
+  disconnect();
+  showScreen("#screen-start");
+  if (message) alert(message);
+}
+
+function openCountdownModal(openUntil) {
+  onlineOpenUntil = openUntil;
+  const r = 54;
+  const circumference = 2 * Math.PI * r;
+  $("#modal-card").innerHTML = `
+    <div class="online-wait">
+      <h2 class="online-title">Buscando partida…</h2>
+      <div class="countdown">
+        <svg viewBox="0 0 120 120" class="countdown-ring" aria-hidden="true">
+          <circle class="ring-bg" cx="60" cy="60" r="${r}" />
+          <circle class="ring-fg" cx="60" cy="60" r="${r}"
+                  stroke-dasharray="${circumference.toFixed(1)}" stroke-dashoffset="0"
+                  transform="rotate(-90 60 60)" />
+        </svg>
+        <div class="countdown-num" id="cd-num">60</div>
+      </div>
+      <p class="online-hint">La partida inicia automáticamente. Mínimo 2 jugadores.</p>
+      <div class="online-players-head">Jugadores <span id="cd-count">0/6</span></div>
+      <ul class="online-players" id="cd-players"></ul>
+      <button class="btn btn-ghost" id="cd-leave">Salir de la cola</button>
+    </div>`;
+  $("#modal").classList.remove("hidden");
+  $("#cd-leave").addEventListener("click", leaveOnline);
+  startCountdown(circumference);
+  renderOnlinePlayers();
+}
+
+function startCountdown(circumference) {
+  stopCountdown();
+  const tick = () => {
+    const ring = $(".ring-fg");
+    const numEl = $("#cd-num");
+    const msLeft = onlineOpenUntil - Date.now();
+    const remaining = Math.max(0, Math.ceil(msLeft / 1000));
+    if (numEl) numEl.textContent = remaining > 0 ? remaining : "…";
+    if (ring) {
+      const frac = Math.max(0, Math.min(1, msLeft / ONLINE_WINDOW_MS));
+      ring.style.strokeDashoffset = (circumference * (1 - frac)).toFixed(1);
+    }
+  };
+  tick();
+  countdownHandle = setInterval(tick, 250);
+}
+
+function stopCountdown() {
+  if (countdownHandle) clearInterval(countdownHandle);
+  countdownHandle = null;
+}
+
+function renderOnlinePlayers() {
+  const list = $("#cd-players");
+  if (!list) return;
+  list.innerHTML = "";
+  onlinePlayers.forEach((p, i) => {
+    const li = document.createElement("li");
+    li.className = "online-player";
+    const sw = document.createElement("span");
+    sw.className = "swatch";
+    sw.style.background = PLAYER_COLORS[i] || "#888";
+    const nm = document.createElement("span");
+    nm.textContent = `${p.name}${p.id === lobby?.playerId ? " (tú)" : ""}`;
+    li.append(sw, nm);
+    list.appendChild(li);
+  });
+  const cnt = $("#cd-count");
+  if (cnt) cnt.textContent = `${onlinePlayers.length}/6`;
+}
+
+function closeWaitModal() {
+  $("#modal").classList.add("hidden");
 }
 
 // ---------- pasar del lobby a la partida sincronizada ----------
@@ -293,6 +451,8 @@ $("#btn-join-room")?.addEventListener("click", () => {
   enterLobby(code, name);
 });
 
+$("#btn-online-play")?.addEventListener("click", enterOnline);
+
 function shuffle(arr) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -302,12 +462,15 @@ function shuffle(arr) {
   return a;
 }
 
-$("#btn-lobby-start")?.addEventListener("click", () => {
-  const players = shuffle(lobbyPlayers);
+// El host genera el estado inicial autoritativo y lo difunde a todos.
+function hostStart(playerList) {
+  const players = shuffle(playerList);
   const configs = players.map((p, i) => ({ name: p.name, color: PLAYER_COLORS[i] }));
   const seedGame = new Game(configs);
   sendStartGame({ players, board: seedGame.board, setupRemaining: seedGame.setupRemaining, attackUnlocked: seedGame.attackUnlocked, firstRoundTurnsLeft: seedGame.firstRoundTurnsLeft });
-});
+}
+
+$("#btn-lobby-start")?.addEventListener("click", () => hostStart(lobbyPlayers));
 
 $("#btn-lobby-leave")?.addEventListener("click", () => {
   disconnect();
@@ -320,3 +483,4 @@ $("#btn-lobby-leave")?.addEventListener("click", () => {
 walletAddress = sessionStorage.getItem('walletAddress');
 renderWalletUI();
 renderPlayerFields();
+loadProfile();

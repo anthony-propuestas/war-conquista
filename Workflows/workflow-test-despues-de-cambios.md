@@ -2,29 +2,25 @@
 
 **Propósito:** mantener los tests sincronizados con el código tras cada sesión de cambios.
 
-> ⚠️ **El proyecto no tiene tests ni runner configurado.** No hay `package.json > scripts.test`, ni carpeta de tests, ni dependencia de testing. **El Paso 0 configura lo mínimo antes de poder mapear o ejecutar nada.**
+> ℹ️ **El runner ya está configurado.** El repo usa **`node --test`** (integrado, cero dependencias) con una suite en `tests/`. El detalle de suites y casos vive en `Docs/testing.md`. No hace falta instalar nada: el Paso 0 solo recuerda el setup vigente.
 
-## Paso 0 — Configuración mínima (solo la primera vez)
+## Paso 0 — Prerequisitos (ya configurados)
 
-El código es ES Modules (`"type": "module"`) sin build. `js/game.js` y `js/map-data.js` son **lógica pura** (sin DOM) → directamente testeables; `js/ui.js` y `js/main.js` usan `document`/`fetch` y requieren un entorno con DOM simulado.
+El código es ES Modules (`"type": "module"`) sin build.
 
-Runner sugerido: **Vitest** (ESM nativo, trae `jsdom` para los módulos con DOM). Alternativa cero-dependencias: el runner integrado `node --test` para los módulos puros.
-
-1. Instalar: `npm i -D vitest` (y `jsdom` si se van a testear `ui.js`/`main.js`).
-2. Añadir a `package.json`:
-   ```json
-   "scripts": { "test": "vitest run", "test:watch": "vitest" }
-   ```
-3. Crear la carpeta `tests/` en la raíz (fuera de `js/`, para que Pages no la sirva ni la despliegue) con un primer test de humo sobre `js/game.js`.
-4. Añadir `tests/` a `.gitignore`? **No** — los tests sí se versionan; solo asegurarse de que el deploy no los publique (viven fuera de la raíz servida o se excluyen vía configuración de Pages).
+- **Runner:** `node --test` integrado, **Node ≥21** (probado en Node 24). Sin Vitest ni jsdom.
+- **Scripts** (`package.json`): `npm test` → `node --test "tests/**/*.test.js"`; `npm run test:watch`.
+- `tests/` está versionado y **excluido del deploy** vía `.assetsignore`.
+- **Lógica pura testeable sin DOM:** `js/game.js`, `js/map-data.js`, `js/map-shapes.js`, los `functions/api/**` y el DO `worker/index.js` (con fakes de `state`/WebSocket).
+- **Diferidos** por depender de DOM/Web3/canvas: `js/ui.js`, `js/main.js`, `js/wallet.js`, `js/pixi-overlay.js`.
 
 ## Paso 1 — Identificar archivos cambiados
 
-`git diff --name-only HEAD~1` (y `git status` si hay cambios sin commitear). Filtrar solo código fuente: **`js/` y `functions/`**. Ignorar `css/`, `index.html`, `*.md`, `schema.sql`, `wrangler.toml`, `_headers`.
+`git diff --name-only HEAD~1` (y `git status` si hay cambios sin commitear). Filtrar solo código fuente: **`js/`, `functions/` y `worker/`**. Ignorar `css/`, `index.html`, `*.md`, `schema.sql`, `wrangler.toml`, `_headers` y `scripts/` (tooling de dev).
 
 ## Paso 2 — Mapear cada archivo a su test
 
-Convención: `js/<archivo>.js` → `tests/<archivo>.test.js`; `functions/api/<archivo>.js` → `tests/api/<archivo>.test.js`.
+Convención: `js/<archivo>.js` → `tests/<archivo>.test.js`; `functions/api/<archivo>.js` → `tests/api/<archivo>.test.js`. Caso especial: `worker/index.js` (clase `GameRoom`) → `tests/api/game-room.test.js`, que **también** cubre el router `functions/api/game-room.js`.
 
 | Situación | Acción |
 |-----------|--------|
@@ -33,15 +29,15 @@ Convención: `js/<archivo>.js` → `tests/<archivo>.test.js`; `functions/api/<ar
 | Archivo eliminado | Eliminar su test |
 | Archivo modificado sin test | Evaluar si amerita test; documentar la decisión |
 
-Prioridad de cobertura: `game.js` (combate por dados, refuerzos, condición de victoria) y `functions/api/scores.js` (validación de `name`, ramas de error, degradación sin `DB`) por ser la lógica de mayor riesgo. `ui.js`/`main.js` solo si el cambio es testeable de forma estable con `jsdom`.
+Prioridad de cobertura (lógica de mayor riesgo): `js/game.js` (combate por dados, refuerzos, condición de victoria), `functions/api/register.js` y `functions/api/win.js` (validación, ramas de error, degradación sin `DB`), y `worker/index.js` (emparejador, alarma de 60s, estado que sobrevive a la hibernación). `ui.js`/`main.js` solo si el cambio es testeable de forma estable bajo DOM simulado.
 
 ## Paso 3 — Ejecutar los tests una sola vez (modo CI, sin watch)
 
-`npm run test`  (equivale a `vitest run`). Para los módulos puros sin Vitest: `node --test tests/`.
+`npm test`  (equivale a `node --test "tests/**/*.test.js"`).
 
 ## Paso 4 — Actualizar el doc de tests
 
-Actualizar `Docs/testing.md` (si no existe, crearlo con una tabla de suites). Agregar/editar/eliminar filas y el total:
+Actualizar `Docs/testing.md` (tabla de suites). Agregar/editar/eliminar filas y el total:
 
 | Suite | Archivo bajo prueba | Casos | Estado |
 |---|---|---|---|

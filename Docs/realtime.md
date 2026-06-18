@@ -19,6 +19,7 @@ API (un único socket por pestaña, guardado en módulo):
 
 | Función | Qué hace |
 |---|---|
+| `requestMatch()` | `GET /api/game-room?match=1` → devuelve `{ roomId, secondsLeft }`. Usado por el flujo "Online" para obtener la sala pública activa antes de llamar `joinRoom`. |
 | `joinRoom(roomId, playerId, onMessage, playerName = 'Jugador', onJoinFailed, onClose)` | Cierra cualquier socket previo y abre `ws(s)://<host>/api/game-room?roomId=…&playerId=…&playerName=…`. El protocolo es `wss` en HTTPS y `ws` en HTTP. `onMessage(data)` recibe cada mensaje ya parseado de JSON (JSON inválido se ignora sin lanzar). Si el socket se cierra **antes** de abrirse (p. ej. la sala respondió `409` porque ya inició), llama `onJoinFailed?.()`. Si el socket se cierra **después** de haber abierto (desconexión durante el lobby o partida), llama `onClose?.()`. |
 | `setMessageHandler(onMessage)` | Reemplaza el handler de mensajes del socket activo (lo usa `beginOnlineGame` al salir del lobby y entrar a la partida). |
 | `sendAction(type, payload = {})` | Envía `{ type, payload }`. **No-op** si el socket no está `OPEN`. |
@@ -34,9 +35,7 @@ La Pages Function `functions/api/game-room.js` resuelve el DO por nombre de sala
 (`env.GAME_ROOM.idFromName(roomId)`) y delega la request en él. La clase mantiene un
 mapa `players` (`playerId` → `{ name, ready }`) y una bandera `started`:
 
-- **`fetch(request)`** — exige el header `Upgrade: websocket` (si no, responde `426`).
-  Si `started` es `true`, responde `409` (sala ya en partida).
-  Si `players.size >= 6`, responde `403` (sala llena; límite de 6 jugadores).
+- **`fetch(request)`** — exige el header `Upgrade: websocket` (si no, responde `426`). Si `started` es `true`, responde `409` (sala ya en partida). Si `players.size >= 6`, responde `403` (sala llena; límite de 6 jugadores).
   Si no, crea un `WebSocketPair`, toma `playerId` y `playerName` del query (o un
   `crypto.randomUUID()` para el id) y lo acepta con `state.acceptWebSocket(server,
   [playerId])` — el `playerId` queda como **tag** del socket. Agrega el jugador a
@@ -58,6 +57,7 @@ mapa `players` (`playerId` → `{ name, ready }`) y una bandera `started`:
 - **`webSocketClose(ws)`** — borra al jugador de `players`, difunde
   `{ type: 'player_left', playerId }` y `lobby_update`; si `players` queda vacío llama
   `resetRoom()`.
+- **`alarm()`** — se dispara 60 s después de que el primer jugador entra a una sala pública. Si hay ≥ 2 jugadores conectados, arranca la partida automáticamente (equivale a que el host pulse "Iniciar"); si hay < 2, cancela y llama `resetRoom()`. Evita que las salas públicas queden bloqueadas esperando al host.
 - **`resetRoom()`** — `state.storage.deleteAll()`, vacía `players` y pone
   `started = false`. Se llama al vaciarse la sala o al llegar a `gameover`, para que el
   mismo `roomId` se pueda reusar en una partida nueva.
