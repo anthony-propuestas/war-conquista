@@ -106,3 +106,34 @@ fueron migradas a este sistema.
 El lienzo del mapa SVG del juego (`.map-wrap`, `.terr`, colores de continente
 y de jugador, `--sea`/`--sea-2`, los dados) se mantiene intacto a propósito —
 es la única parte de la interfaz que no sigue esta paleta.
+
+## Clases de interacción del mapa
+
+Estas clases viven en `css/style.css` y se aplican dinámicamente por `js/ui.js`
+sobre los nodos `.terr` del SVG. Usan los tokens del sistema pero son específicas
+del tablero (no parte del chrome de UI).
+
+| Clase | Elemento | Efecto visual |
+|---|---|---|
+| `.terr.attack-target path.region` | Zona enemiga atacable | Oscurece el relleno (`brightness(0.75)`) |
+| `.terr.fortify-target path.region` | Zona aliada de fortify | Borde verde punteado (`--ok`) |
+| `.terr.enemy-selected path.region` | Zona enemiga pre-seleccionada (`pendingTarget`) | Borde rojo (`--danger`) |
+| `.terr.source-hint path.region` | Zona propia que puede atacar al `pendingTarget` | Pulso verde animado (`--ok`) |
+| `.attack-arrow` | Flechas SVG en `arrowsLayer` | Animación blink rojo (`--danger`) |
+| `.attack-notice` | Div inferior-izquierdo | Aviso de ataque bloqueado (🔒); usa `--danger` |
+| `.round-tag` | `<span>` en el panel de fase | Píldora compacta con la ronda actual; usa `--panel-2` / `--ink-dim` |
+
+## Pantalla de fin de partida
+
+Componente modal que `js/main.js` inyecta en `#modal` al terminar la partida.
+No sigue exactamente el sistema de tarjetas estándar — usa su propio centrado
+y jerarquía para el momento de victoria/derrota.
+
+| Clase | Rol |
+|---|---|
+| `.end-screen` | Contenedor centrado con `--panel` + `--shadow` |
+| `.end-emoji` | Emoji grande (🏆 ganador / 💀 derrotado), `font-size: 4rem` |
+| `.end-title` | Título "¡Ganaste!" / "Derrota" en `--font-display` |
+| `.end-standings` | Tabla de clasificación final (`<ol>`) |
+| `.end-standings li` | Fila de jugador: posición, nombre con color, territorios |
+| `.end-badge` | Píldora de posición (1.º dorado `--accent`, 2.º plata, resto gris) |

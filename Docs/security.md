@@ -553,3 +553,16 @@ La tabla de la sección anterior refleja el estado al momento del despliegue. Ac
   no-actores). `game.js` es lógica pura sin DOM/red. Sin cambios en queries D1, esquema,
   cookies, `_headers`, secrets ni en el checklist pre-producción (los vectores son extensiones
   de ítems ya cubiertos).
+- **2026-06-19** — Flujo de ataque de dos clics y flechas SVG: `js/ui.js` (`pendingTarget`
+  para pre-seleccionar zona enemiga, `arrowsLayer` con flechas SVG animadas, refactor de
+  `handlePlayClick` al flujo de dos pasos, clases `.attack-target`/`.fortify-target`,
+  botón Rendirse con diálogo de confirmación). `css/style.css` (clases de interacción del mapa:
+  `.enemy-selected`, `.source-hint`, `.attack-arrow`, `.attack-notice`, `.round-tag`, end screen).
+  **Hallazgo: ninguno nuevo.** `pendingTarget` es estado DOM puro sin sink de datos de usuario.
+  `arrowsLayer` inyecta coordenadas numéricas de `TERRITORY_CENTERS` (constante de build, no input
+  de usuario) — sin `innerHTML` con datos de usuario. El flujo de dos clics delega en
+  `game.attack()`/`game.fortify()` por el mismo camino WebSocket ya auditado; el botón Rendirse
+  llama `game.surrender()` (validado por `canSurrender()` client-side) y luego emite `game_state`
+  — extensión de los riesgos ya aceptados de `game_state` sin validación server-side y `surrender`
+  como método sincronizado, sin raíz nueva. Sin cambios en queries D1, endpoints HTTP, esquema,
+  cookies, `_headers` ni secrets.

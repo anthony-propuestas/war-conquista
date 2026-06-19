@@ -341,6 +341,7 @@ function beginOnlineGame(players, initialBoard, initialSetup, initialAttackUnloc
       if (msg.payload.attackUnlocked != null) game.attackUnlocked = msg.payload.attackUnlocked;
       if (msg.payload.firstRoundTurnsLeft != null) game.firstRoundTurnsLeft = msg.payload.firstRoundTurnsLeft;
       if (msg.payload.round != null) game.round = msg.payload.round;
+      if (msg.payload.reinforcements != null) game.reinforcements = msg.payload.reinforcements;
       if (Array.isArray(msg.payload.alive)) game.players.forEach((p, i) => { p.alive = msg.payload.alive[i]; });
       if (msg.payload.winner != null) game.winner = game.players[msg.payload.winner] ?? null;
       ui.refresh();
@@ -356,6 +357,7 @@ function beginOnlineGame(players, initialBoard, initialSetup, initialAttackUnloc
       attackUnlocked: game.attackUnlocked,
       firstRoundTurnsLeft: game.firstRoundTurnsLeft,
       round: game.round,
+      reinforcements: game.reinforcements,
       winner: game.winner ? game.winner.id : null,
       alive: game.players.map((p) => p.alive),
     });

@@ -230,7 +230,25 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 0;
   font-weight: 700;
 }
 .terr.selected path.region { stroke: #fff !important; stroke-width: 3.5px !important; filter: brightness(1.2) drop-shadow(0 0 6px #fff); }
-.terr.target path.region { stroke: var(--danger) !important; stroke-width: 2.5px !important; stroke-dasharray: 4 2; filter: drop-shadow(0 0 5px var(--danger)); }
+.terr.attack-target path.region { filter: brightness(0.75); }
+.terr.fortify-target path.region { stroke: var(--ok) !important; stroke-width: 2.5px !important; stroke-dasharray: 4 2; filter: drop-shadow(0 0 5px var(--ok)); }
+.terr.enemy-selected path.region { stroke: var(--danger) !important; stroke-width: 3px !important; filter: drop-shadow(0 0 8px var(--danger)); }
+.terr.source-hint path.region { stroke: var(--ok) !important; stroke-width: 3px !important; stroke-dasharray: 5 3; animation: pulse-source 1.2s ease-in-out infinite; }
+@keyframes pulse-source { 0%, 100% { filter: drop-shadow(0 0 4px var(--ok)); } 50% { filter: drop-shadow(0 0 12px var(--ok)); } }
+.attack-arrow { animation: blink-arrow 0.55s steps(1) infinite; }
+@keyframes blink-arrow { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+.attack-notice {
+  position: fixed; bottom: 16px; left: 16px;
+  background: rgba(10,22,38,.9);
+  border: 1px solid rgba(229, 62, 62, .4);
+  color: var(--danger);
+  border-radius: 10px; padding: 6px 16px;
+  font-size: .82rem;
+  pointer-events: none; z-index: 90;
+  animation: fadeIn .4s ease;
+}
+.attack-notice.hidden { display: none; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .terr.dim { opacity: .3; }
 .continent-label {
   fill: rgba(255,255,255,.82); font-size: 11px; font-weight: 700; letter-spacing: 2px;

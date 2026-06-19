@@ -48,6 +48,7 @@ se quieren tipos o resolución local, aunque el navegador los resuelve desde CDN
 | devDependency | Para qué |
 |---|---|
 | `wrangler ^4` | CLI de Cloudflare: dev local, deploy y gestión de D1. |
+| `pixi.js` | Tipos/resolución local del canvas de animaciones; el navegador lo resuelve desde esm.sh CDN (ver "Dependencias de runtime"). |
 | `d3-geo`, `d3-geo-projection` | Proyección `geoNaturalEarth1` y recorte por antimeridiano al generar el mapa. |
 | `topojson-client` | Disuelve fronteras internas (`merge`) y decodifica TopoJSON al generar el mapa. |
 | `world-atlas` | Datos Natural Earth (dominio público) que alimentan el generador. |
@@ -61,6 +62,8 @@ abajo); no llegan al cliente ni al deploy.
 |---|---|
 | `npm run build:map` | `node scripts/build-map-shapes.mjs` — regenera `js/map-shapes.js` desde Natural Earth. Dev-only; correr solo si cambia el reparto de territorios. |
 | `npm run dev` | `node scripts/dev.mjs` — arranca en paralelo el DO Worker (`wrangler dev --port 8787` sobre `worker/wrangler.toml`) y Pages (`wrangler pages dev . --do GAME_ROOM=GameRoom@war-game-room --port 8788`). Ambos procesos comparten `--use-system-ca` para TLS local. Matar uno mata al otro. |
+| `npm run dev:do` | `wrangler dev --port 8787 --use-system-ca --config worker/wrangler.toml` — arranca solo el Worker del Durable Object. Útil para depurar el DO sin levantar Pages. |
+| `npm run dev:pages` | `wrangler pages dev . --do GAME_ROOM=GameRoom@war-game-room --port 8788 --use-system-ca` — arranca solo Pages (asume DO ya levantado o remoto). |
 | `npm run deploy` | `wrangler pages deploy .` — publica a Pages. |
 | `npm run deploy:worker` | `wrangler deploy --config worker/wrangler.toml` — publica el Worker del Durable Object `war-game-room` (línea de deploy separada de Pages). Ver [deployment.md](deployment.md). |
 | `npm test` | `node --test` sobre `tests/**/*.test.js` (runner integrado, sin deps). |

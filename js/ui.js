@@ -38,6 +38,7 @@ export class UI {
     this.nodes = {};            // id -> { g, circle, count }
     this.gameOverHandled = false;
     this.placingMode = false;   // modo colocacion de tropas (activado por boton)
+    this.pendingTarget = null;  // zona enemiga pre-seleccionada al hacer clic sin seleccion previa
 
     // restriccion de turno (solo partidas online en sala)
     this.myIndex = opts.myIndex ?? null;
@@ -72,6 +73,12 @@ export class UI {
       dx: 0, dy: 5, stdDeviation: 7, "flood-color": "#03101c", "flood-opacity": "0.45",
     }));
     defs.appendChild(shadow);
+    const arrowMarker = svg("marker", {
+      id: "atk-arrow", markerWidth: "8", markerHeight: "6",
+      refX: "7", refY: "3", orient: "auto"
+    });
+    arrowMarker.appendChild(svg("polygon", { points: "0 0, 8 3, 0 6", fill: "#e53e3e" }));
+    defs.appendChild(arrowMarker);
     for (const [id, r] of Object.entries(TERRITORY_CLIPS)) {
       const cp = svg("clipPath", { id: `clip-${id}` });
       cp.appendChild(svg("rect", { x: r[0], y: r[1], width: r[2] - r[0], height: r[3] - r[1] }));
@@ -126,6 +133,8 @@ export class UI {
       contLabels.appendChild(label);
     }
     map.appendChild(contLabels);
+    this.arrowsLayer = svg("g", { id: "attack-arrows", "pointer-events": "none" });
+    map.appendChild(this.arrowsLayer);
   }
 
   // ---------- refresco completo ----------
@@ -210,7 +219,8 @@ export class UI {
       } else {
         node.marker.setAttribute("display", "none");
       }
-      node.g.classList.remove("selectable", "selected", "target", "dim");
+      node.g.classList.remove("selectable", "selected", "attack-target", "fortify-target",
+                               "dim", "enemy-selected", "source-hint");
     }
 
     // resaltar segun fase (solo si es mi turno)
@@ -220,16 +230,45 @@ export class UI {
     } else if (g.phase === "play") {
       if (this.placingMode) {
         this.forEachOwn((id) => this.nodes[id].g.classList.add("selectable"));
-      } else if (!sel) {
+      } else if (sel) {
+        this.nodes[sel].g.classList.add("selected");
+        for (const nb of ADJACENCY[sel]) {
+          if (g.owner(nb) !== g.current.id) this.nodes[nb].g.classList.add("attack-target");
+          else if (nb !== sel) this.nodes[nb].g.classList.add("fortify-target");
+        }
+      } else if (this.pendingTarget) {
+        this.nodes[this.pendingTarget].g.classList.add("enemy-selected");
+        this.forEachOwn(oid => {
+          if (this.game.canAttack(oid, this.pendingTarget))
+            this.nodes[oid].g.classList.add("source-hint");
+        });
+      } else {
         this.forEachOwn((id) => {
           if (g.armies(id) >= 2 && (this.hasEnemyNeighbor(id) || this.hasOwnNeighbor(id)))
             this.nodes[id].g.classList.add("selectable");
         });
-      } else {
-        this.nodes[sel].g.classList.add("selected");
+      }
+    }
+
+    if (this.arrowsLayer) {
+      this.arrowsLayer.innerHTML = "";
+      if (sel) {
+        const sc = TERRITORY_CENTERS[sel];
         for (const nb of ADJACENCY[sel]) {
-          if (g.owner(nb) !== g.current.id) this.nodes[nb].g.classList.add("target");
-          else if (nb !== sel) this.nodes[nb].g.classList.add("target");
+          if (g.owner(nb) === g.current.id) continue;
+          const tc = TERRITORY_CENTERS[nb];
+          if (!sc || !tc) continue;
+          const dx = tc[0] - sc[0], dy = tc[1] - sc[1];
+          const len = Math.sqrt(dx * dx + dy * dy);
+          const ux = dx / len, uy = dy / len;
+          const line = svg("line", {
+            class: "attack-arrow",
+            x1: sc[0] + ux * 22, y1: sc[1] + uy * 22,
+            x2: tc[0] - ux * 22, y2: tc[1] - uy * 22,
+            stroke: "#e53e3e", "stroke-width": "2.5",
+            "marker-end": "url(#atk-arrow)"
+          });
+          this.arrowsLayer.appendChild(line);
         }
       }
     }
@@ -268,6 +307,11 @@ export class UI {
         ${this.isMyTurn() ? `<span id="turn-timer" class="turn-timer"></span>` : ""}
       </div>
       <div class="phase-steps"><span class="step current">${phaseLabel}</span>${attackStatus}</div>`;
+    const notice = document.getElementById('attack-locked-notice');
+    if (notice) {
+      const show = !g.attackUnlocked && g.phase === 'play' && this.isMyTurn();
+      notice.classList.toggle('hidden', !show);
+    }
   }
 
   updateSidebar() {
@@ -406,9 +450,34 @@ export class UI {
 
   handlePlayClick(id) {
     const g = this.game;
+
+    // Clic en zona enemiga sin seleccion previa — muestra desde donde atacar
+    if (!this.selected && g.owner(id) !== g.current.id) {
+      const hasSource = Object.keys(this.nodes).some(oid => g.canAttack(oid, id));
+      if (hasSource) {
+        this.pendingTarget = (this.pendingTarget === id) ? null : id;
+        this.updateMap();
+      }
+      return;
+    }
+
+    // Con pendingTarget activo, clic en zona propia → atacar o seleccionar
+    if (this.pendingTarget && !this.selected && g.owner(id) === g.current.id) {
+      const target = this.pendingTarget;
+      this.pendingTarget = null;
+      if (g.canAttack(id, target)) {
+        this.openAttackModal(id, target);
+      } else if (g.armies(id) >= 2 && (this.hasEnemyNeighbor(id) || this.hasOwnNeighbor(id))) {
+        this.selected = id;
+        this.updateMap();
+      }
+      return;
+    }
+
     if (!this.selected) {
       if (g.owner(id) === g.current.id && g.armies(id) >= 2 &&
           (this.hasEnemyNeighbor(id) || this.hasOwnNeighbor(id))) {
+        this.pendingTarget = null;
         this.selected = id; this.updateMap();
       }
       return;
@@ -451,10 +520,11 @@ export class UI {
     const g = this.game;
     const res = g.attack(from, to, units);
     if (!res) return;
+    this.selected = null;
+    this.pendingTarget = null;
+    this.refresh();
     this.showDice(res);
     playBattleAnimation($("#map"), from, to, !!res.conquered);
-    this.selected = null;
-    this.refresh(); // repinta dueño y contadores de inmediato
   }
 
   handleFortifyClick(id) {
@@ -509,7 +579,7 @@ export class UI {
       document.addEventListener("click", () => this.hideDice(), { once: true });
     }, 0);
   }
-  hideDice() { $("#dice-tray").classList.add("hidden"); }
+  hideDice() { $("#dice-tray").classList.add("hidden"); this.refresh(); }
 
   // ---------- modales ----------
   openModal(html) {
