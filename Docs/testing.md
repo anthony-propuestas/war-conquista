@@ -20,15 +20,15 @@ Los tests viven en `tests/` (versionados, excluidos del deploy vía `.assetsigno
 | tests/map-shapes.test.js | js/map-shapes.js | 4 | ✅ |
 | tests/api/auth/google.test.js | functions/api/auth/google.js | 2 | ✅ |
 | tests/api/auth/callback.test.js | functions/api/auth/callback.js | 5 | ✅ |
-| tests/multiplayer.test.js | js/multiplayer.js | 21 | ✅ |
-| tests/api/game-room.test.js | worker/index.js + functions/api/game-room.js | 24 | ✅ |
+| tests/multiplayer.test.js | js/multiplayer.js | 27 | ✅ |
+| tests/api/game-room.test.js | worker/index.js + functions/api/game-room.js | 28 | ✅ |
 | tests/api/gamers.test.js | functions/api/gamers.js | 1 | ✅ |
 | tests/api/profile.test.js | functions/api/profile.js | 4 | ✅ |
 | tests/api/register.test.js | functions/api/register.js | 10 | ✅ |
 | tests/api/auth/wallet.test.js | functions/api/auth/wallet.js | 5 | ✅ |
 | tests/api/wallet/link.test.js | functions/api/wallet/link.js | 6 | ✅ |
 | tests/api/win.test.js | functions/api/win.js | 3 | ✅ |
-| **Total** | | **111** | ✅ |
+| **Total** | | **121** | ✅ |
 
 ## Pendiente (diferido)
 
@@ -38,8 +38,10 @@ lo amerite y sea estable bajo DOM simulado. El flujo de modo online nuevo en
 `js/main.js` (emparejamiento, modal de espera, contador con `setInterval`) y el
 temporizador de turno de `js/ui.js` siguen diferidos por esa razón: dependen de
 DOM y timers no estables bajo `node --test`. La lógica pura del modo online sí se
-cubre en `js/multiplayer.js` (`requestMatch`, params `public`/`openUntil`) y en el
-router de Pages (`functions/api/game-room.js`).
+cubre en `js/multiplayer.js` (`requestMatch`, params `public`/`openUntil`, y la
+reconexión automática con backoff + heartbeat ping/pong usando `mock.timers`) y en el
+router de Pages (`functions/api/game-room.js`). El banner de reconexión y el manejo de
+`state_sync` en `js/main.js` siguen diferidos (DOM).
 
 `scripts/dev.mjs` (lanzador de desarrollo que hace `spawn` de los procesos de
 wrangler) no tiene test: es tooling con efectos de proceso, sin lógica pura.

@@ -50,6 +50,11 @@ desplegados en producción).
 - Expone solo `username` y `wins`; ningún campo interno (`sub`, `email`, `age`).
 - **XSS desde username:** la validación en `/api/register` restringe `username` a `[a-zA-Z0-9_]` → ningún carácter HTML especial (`<`, `>`, `"`, `&`) puede estar almacenado en DB → dato seguro al renderizarse en el DOM incluso sin `escapeHtml` adicional. Esta es una **defensa en la entrada** que protege todos los sinks futuros del campo.
 
+### `GET /gamers/<username>` (`functions/gamers/[username].js`)
+- Ruta de página pública (HTML), sin auth, solo lectura: `SELECT username, wins … WHERE username = ? COLLATE NOCASE` (parametrizada).
+- **XSS:** interpola `user.username` y `user.wins` en el HTML de respuesta por template literal **sin `escapeHtml`**, pero ambos son seguros por la **defensa en la entrada** ya descrita: `username` está restringido a `[a-zA-Z0-9_]` en `/api/register` y `wins` es `INTEGER`. No explotable hoy; si en el futuro se relaja el charset de `username`, este sink se vuelve XSS reflejado y habría que escaparlo.
+- Expone solo `username` y `wins` (mismos campos que el ranking público); ninguna columna interna.
+
 ### `GET /api/profile`
 - Requiere cookie `war_session` válida; sin ella devuelve 401.
 - `getSession()` envuelve `JSON.parse(atob(...))` en `try/catch` → cookies malformadas o manipuladas devuelven 401, sin excepción.
@@ -170,6 +175,17 @@ No son vulnerabilidades confirmadas, pero se registran:
   conectarse declarando el `playerId` de otro jugador y enviar acciones como si fuera él.
   Aceptado para MVP (partidas efímeras de bajo valor). Mitigación futura: leer `war_session`
   en el DO y rechazar si `sub` no coincide con `playerId`.
+- **Reconexión a sala iniciada autorizada solo por `playerId` adivinable (`worker/index.js`,
+  desde 2026-06-19) — extensión del spoofing anterior:** una sala con `started` acepta el
+  reingreso de cualquier socket cuyo `playerId` esté en `playerIds`, le envía el estado completo
+  vía `state_sync` y difunde `player_rejoined`. Como el `playerId` no se valida contra
+  `war_session` y suele ser la **dirección de wallet (pública)** o un id anónimo, quien lo conozca
+  puede **reingresar a una partida en curso ocupando el asiento de la víctima** y **leer el board
+  completo** (divulgación de estado), además de inyectar `game_state` como ese jugador. Impacto
+  bajo (el board es visible para todos los jugadores de la sala de todos modos; partidas efímeras),
+  pero amplía la superficie del spoofing de `playerId`. Aceptado para MVP. Misma mitigación: validar
+  `playerId` contra `war_session` en el DO, o emitir un **token de partida por jugador** al
+  iniciar y exigirlo en el reingreso.
 - **Persistencia de payload sin validar (`worker/index.js`, `webSocketMessage`):**
   `data.payload` se escribe en DO storage directamente. Un cliente malicioso puede
   corromper el estado compartido de la sala, **e incluso forzar `resetRoom()`** enviando
@@ -281,6 +297,7 @@ Para cada cambio que toque la superficie de ataque:
 - [ ] (Si toca auth) Los redirects de error usan `encodeURIComponent` para el valor de `error`.
 - [ ] (Si toca auth) Todo campo de `userInfo` renderizado en el DOM pasa por `escapeHtml`.
 - [ ] (Si toca WebSocket) `playerId` se valida contra la cookie `war_session` en el DO.
+- [ ] (Si toca WebSocket) La reconexión a una sala iniciada autoriza por algo más que un `playerId` adivinable (token de partida / `war_session`), y `state_sync` no expone estado a quien no es jugador legítimo.
 - [ ] (Si toca WebSocket) El payload del mensaje se valida contra schema antes de persistir.
 - [ ] (Si toca WebSocket) `start_game`/`set_ready` (o cualquier acción de control de sala) están restringidos al host en el servidor, no solo en la UI.
 - [ ] (Si toca estado de juego en red) Los datos asignados al board tienen schema y tipo verificado.
@@ -293,6 +310,19 @@ La tabla de la sección anterior refleja el estado al momento del despliegue. Ac
 
 - `worker/index.js` — `started` ahora persiste en DO storage (`state.storage.put('started', true)`), no en memoria. Cierra el bypass por hibernación documentado abajo.
 - `worker/index.js` — estado de jugadores migrado de `this.players` Map (in-memory, no sobrevivía hibernación) a WebSocket attachments (`serializeAttachment` / `deserializeAttachment`). El DO ya puede hibernar sin perder el roster.
+- `worker/index.js` (reconexión, 2026-06-19) — el `409` de "sala iniciada" ya **no es
+  incondicional**: ahora `fetch` acepta el **reingreso** de un socket cuyo `playerId` esté en la
+  lista persistida `playerIds` (devuelve `101` + `state_sync` con el estado guardado, difunde
+  `player_rejoined`); solo un `playerId` desconocido recibe `409`. La autorización del reingreso
+  depende **solo del `playerId` del query**, sin verificarlo contra `war_session` → ver el hallazgo
+  de reconexión en *Riesgos aceptados*.
+- `worker/index.js` (hardening, 2026-06-19) — `webSocketMessage`, `webSocketClose` y `alarm` corren
+  en `try/catch` y se agrega `webSocketError`: un mensaje mal formado o un error en un handler ya
+  **no propaga ni tumba el DO** (antes podía desconectar a toda la sala). Mitigación parcial de DoS.
+- `worker/index.js` (auto-pong, 2026-06-19) — el constructor registra
+  `setWebSocketAutoResponse('ping' → 'pong')`: el runtime contesta el heartbeat **sin despertar al
+  DO**, reduciendo invocaciones (leve positivo de costo/DoS). El heartbeat del cliente
+  (`js/multiplayer.js`) es un string fijo sin datos de usuario → sin inyección.
 
 ## Historial de revisiones
 
@@ -466,3 +496,19 @@ La tabla de la sección anterior refleja el estado al momento del despliegue. Ac
   cerrado el hallazgo de self-XSS de `winner.name` en el modal de victoria — el código ya
   lo escapa (`escapeHtml`), confirmado que el lobby online no lo reabre. Sin cambios en
   `_headers` ni secrets.
+- **2026-06-19** — Reconexión automática al modo online: `worker/index.js` (reingreso a sala
+  iniciada por `playerId ∈ playerIds`, `state_sync`, `player_rejoined`, alarma de gracia de 45 s,
+  auto-pong, `try/catch` en todos los handlers + `webSocketError`), `js/multiplayer.js` (heartbeat
+  ping/pong + reconexión con backoff) y `js/main.js` (banner de reconexión, `state_sync` tratado
+  como `game_state`). **Hallazgo — extensión del spoofing de `playerId`:** el reingreso a una
+  partida en curso se autoriza solo con el `playerId` del query (a menudo la wallet pública), sin
+  verificar `war_session`; permite **tomar el asiento de otro jugador y recibir el board completo
+  vía `state_sync`**. Impacto bajo (board ya visible para los jugadores, partidas efímeras),
+  aceptado para MVP; registrado en *Riesgos aceptados* con la mitigación de token de partida.
+  **Mecanismos positivos:** (1) `try/catch` en `webSocketMessage`/`webSocketClose`/`alarm` +
+  `webSocketError` → un mensaje/handler con error ya no tumba el DO ni desconecta a la sala
+  (resistencia parcial a DoS); (2) auto-pong responde el heartbeat sin despertar el DO; (3) el
+  banner de reconexión usa `createElement` + `textContent` con texto fijo → **sin XSS**. El
+  `state_sync` aplicado con `Object.assign` extiende los riesgos ya aceptados ("`Object.assign` sin
+  schema", "`game_state` sin validación server-side") al camino de reconexión, sin raíz nueva. Sin
+  cambios en endpoints HTTP, queries D1, esquema, cookies, `_headers` ni secrets.

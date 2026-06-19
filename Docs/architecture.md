@@ -30,6 +30,7 @@ WAR/
 ├── functions/api/gamers.js # Pages Function: /api/gamers — ranking top 100 (D1)
 ├── functions/api/profile.js # Pages Function: /api/profile — perfil autenticado (D1)
 ├── functions/api/register.js # Pages Function: /api/register — registro de usuario (D1)
+├── functions/gamers/[username].js # Pages Function: /gamers/<username> — perfil HTML público (D1)
 ├── functions/api/game-room.js # Pages Function: routing de /api/game-room (WS) al Durable Object
 ├── worker/index.js          # Durable Object GameRoom (Worker separado, script_name "war-game-room")
 ├── functions/api/auth/
@@ -59,14 +60,15 @@ WAR/
 | `js/ui.js` | Vista (clase `UI`) | Construye el mapa SVG una vez a partir de las formas de `map-shapes.js` (paths reales con proyección geográfica, `clipPath` para los países partidos); cada nodo lleva el nombre del territorio (`<text class="label">`) sobre el contador de ejércitos (`<text class="count">`). Refresca nodos/sidebar/banner según el estado, traduce clics a llamadas del motor, muestra dados y modales (conquista/movimiento de tropas). **No decide reglas ni genera geometría**: solo refleja el estado y delega en `Game`. El banner de turno se renderiza como tarjeta de jugador + etiqueta de fase ("Despliegue" o "Turno libre"), escapando el nombre con `escapeHtml`. En fase `play`, el modo "Colocar tropas" (`placingMode`) se activa con un botón toggle; sin él, los clics unifican ataque y movimiento de tropas en un solo flujo. En partidas online (`opts.myIndex` presente) bloquea clics/acciones fuera de tu turno (`isMyTurn()`) y corre un temporizador de 90s por turno que auto-resuelve el turno si se agota (`handleTimeout`). Si `attackUnlocked === false`, muestra un indicador 🔒; el botón "Terminar turno" cierra el turno en cualquier momento. |
 | `js/main.js` | Arranque | Pantalla de inicio con pestañas Local / Online / Crear sala / Unirse. `startLocalGame()` arranca una partida hotseat sin red. En el flujo "Online", llama `requestMatch()` para obtener la sala pública activa (`GET /api/game-room?match=1`) y muestra un modal de cuenta regresiva (60 s); al unirse usa `enterLobby()` igual que en "Crear sala" / "Unirse". `enterLobby()` une al jugador a la sala (lobby con lista de jugadores y "listo"), y al recibir `start_game` llama `beginOnlineGame(players, initialBoard, initialSetup, initialAttackUnlocked, initialFirstRoundTurnsLeft)`, que crea `Game` + `UI`, aplica el estado inicial del host (incluyendo `attackUnlocked` y `firstRoundTurnsLeft`) y parchea los métodos mutadores para sincronizar por WebSocket (el payload de `sendGameState` incluye `attackUnlocked` y `firstRoundTurnsLeft`). Al terminar una partida online, si el jugador local ganó, hace `POST /api/win`. |
 | `js/pixi-overlay.js` | Vista (overlay) | Canvas Pixi.js superpuesto al mapa SVG; dibuja partículas/línea/etiqueta de cada batalla. Lo inicia y dispara `ui.js`. Ver [stack.md](stack.md). |
-| `js/multiplayer.js` | Cliente de red | Cliente WebSocket de la sala (`joinRoom`/`sendGameState`/…). Detalle en [realtime.md](realtime.md). |
+| `js/multiplayer.js` | Cliente de red | Cliente WebSocket de la sala (`joinRoom`/`sendGameState`/…), con heartbeat ping/pong y reconexión automática con backoff. Detalle en [realtime.md](realtime.md). |
 | `js/wallet.js` | Web3 | Conexión a MetaMask vía ethers; identidad de jugador, login/vinculación por firma (`signMessage`) y mint/claim experimental. Detalle en [onchain.md](onchain.md). |
 | `functions/api/win.js` | Backend | `POST /api/win`: incrementa `wins` del usuario autenticado (`war_session`). Ver [api.md](api.md). |
 | `functions/api/gamers.js` | Backend | `GET /api/gamers`: devuelve top 100 jugadores por wins desde `users`. Sin auth. |
 | `functions/api/profile.js` | Backend | `GET /api/profile`: devuelve `{username, wins}` del usuario autenticado. Requiere `war_session`. |
 | `functions/api/register.js` | Backend | `POST /api/register`: valida y persiste el registro de un nuevo usuario en `users`. Requiere `war_session`. |
+| `functions/gamers/[username].js` | Backend (página) | `GET /gamers/<username>`: renderiza una página HTML de perfil público (`username` + `wins`) desde `users`; 404 HTML si no existe. Sin auth. La enlaza el ranking. Ver [api.md](api.md). |
 | `functions/api/game-room.js` | Backend | Routing de `/api/game-room`: resuelve el Durable Object `GameRoom` por `roomId` y delega la request. |
-| `worker/index.js` | Backend (Durable Object) | Sala multijugador `GameRoom`: lobby (jugadores/listos), WebSocket, broadcast y persistencia del estado. Ver [realtime.md](realtime.md). |
+| `worker/index.js` | Backend (Durable Object) | Sala multijugador `GameRoom`: lobby (jugadores/listos), WebSocket, broadcast, persistencia del estado y reconexión con ventana de gracia (auto-pong + reingreso por `playerId`). Ver [realtime.md](realtime.md). |
 | `functions/api/auth/google.js` | Backend | Inicia el flujo OAuth 2.0: redirige a Google con los parámetros del cliente. |
 | `functions/api/auth/callback.js` | Backend | Completa OAuth: canjea el code, obtiene el perfil del usuario, guarda cookie `war_session` y redirige a `/lobby` (registrado) o `/register` (nuevo). |
 | `functions/api/auth/wallet.js` | Backend | `POST /api/auth/wallet`: verifica firma (`ethers.verifyMessage`) y, si la wallet ya está vinculada a una cuenta, emite la misma cookie `war_session` que el login con Google. |
@@ -138,7 +140,10 @@ main.js  ──crea──>  Game (estado/reglas)
   Durable Object `GameRoom` hace `broadcast` → los demás reciben `game_state`, lo
   aplican al `Game` local y hacen `ui.refresh()`. En modo online, `ui.js` además
   bloquea la interacción fuera de tu turno y corre un temporizador de 90s por turno
-  que lo auto-resuelve si se agota. Detalle en [realtime.md](realtime.md).
+  que lo auto-resuelve si se agota. La conexión se **recupera sola**: el cliente manda
+  un heartbeat y reconecta con backoff, y el DO conserva la partida durante una ventana
+  de gracia para que el jugador que se cayó reciba el estado (`state_sync`) al volver.
+  Detalle en [realtime.md](realtime.md).
 - **Wallet (opcional):** la dirección de MetaMask sirve como identidad de jugador
   (`playerId` en la sala) y se muestra en la topbar. Ver [onchain.md](onchain.md).
 - **Animación:** en cada ataque, `ui.js` llama `playBattleAnimation` del overlay Pixi

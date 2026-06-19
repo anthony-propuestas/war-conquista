@@ -62,6 +62,7 @@ abajo); no llegan al cliente ni al deploy.
 | `npm run build:map` | `node scripts/build-map-shapes.mjs` — regenera `js/map-shapes.js` desde Natural Earth. Dev-only; correr solo si cambia el reparto de territorios. |
 | `npm run dev` | `node scripts/dev.mjs` — arranca en paralelo el DO Worker (`wrangler dev --port 8787` sobre `worker/wrangler.toml`) y Pages (`wrangler pages dev . --do GAME_ROOM=GameRoom@war-game-room --port 8788`). Ambos procesos comparten `--use-system-ca` para TLS local. Matar uno mata al otro. |
 | `npm run deploy` | `wrangler pages deploy .` — publica a Pages. |
+| `npm run deploy:worker` | `wrangler deploy --config worker/wrangler.toml` — publica el Worker del Durable Object `war-game-room` (línea de deploy separada de Pages). Ver [deployment.md](deployment.md). |
 | `npm test` | `node --test` sobre `tests/**/*.test.js` (runner integrado, sin deps). |
 | `npm run test:watch` | Igual en modo watch. |
 | `npm run db:create` | Crea la D1 `war-scores` (ver [database.md](database.md)). Las migraciones se aplican manualmente con `wrangler d1 execute war-scores --local/--remote --file migrations/0001_users.sql` — no son scripts de `package.json`. |

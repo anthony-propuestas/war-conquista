@@ -228,3 +228,91 @@ test("disconnect cierra el socket y deja isConnected() en false", () => {
   assert.equal(instances[0].closed, true);
   assert.equal(isConnected(), false);
 });
+
+// ---------- heartbeat + reconexión ----------
+
+test("un mensaje 'pong' no llega a onMessage", () => {
+  let calls = 0;
+  joinRoom("s", "p", () => { calls++; });
+  instances[0].emit("open", {});
+  instances[0].emit("message", { data: "pong" });
+  assert.equal(calls, 0);
+});
+
+test("caída con reconnect:true agenda reconexión y reconecta al abrir el nuevo socket", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  let reconnecting = null;
+  let reconnected = 0;
+  let closed = 0;
+  joinRoom("s", "p", () => {}, "Jugador", () => {}, () => { closed++; }, {
+    reconnect: true,
+    onReconnecting: (n) => { reconnecting = n; },
+    onReconnect: () => { reconnected++; },
+  });
+  instances[0].emit("open", {});
+  instances[0].emit("close", {});
+
+  assert.equal(reconnecting, 1);     // primer intento anunciado
+  assert.equal(closed, 0);           // no se reporta cierre definitivo
+  assert.equal(instances.length, 1); // aún no reconectó
+
+  t.mock.timers.tick(1000);          // primer backoff
+  assert.equal(instances.length, 2); // socket nuevo creado
+  instances[1].emit("open", {});
+  assert.equal(reconnected, 1);
+});
+
+test("reconexión agotada (todos los backoffs fallan) reporta onClose", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  let closed = 0;
+  joinRoom("s", "p", () => {}, "Jugador", () => {}, () => { closed++; }, {
+    reconnect: true,
+    onReconnecting: () => {},
+  });
+  instances[0].emit("open", {});
+  instances[0].emit("close", {}); // agenda el primer reintento (delay 1000)
+
+  // Cada reintento abre un socket que cierra sin haber abierto → reagenda.
+  const backoffs = [1000, 2000, 4000, 8000, 15000, 15000];
+  for (const d of backoffs) {
+    t.mock.timers.tick(d);
+    instances[instances.length - 1].emit("close", {});
+  }
+
+  assert.equal(closed, 1); // tras agotar los backoffs
+});
+
+test("heartbeat envía 'ping' cuando el socket está OPEN", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  joinRoom("s", "p", () => {});
+  instances[0].emit("open", {});
+  instances[0].readyState = OPEN;
+  t.mock.timers.tick(25000);
+  assert.ok(instances[0].sent.includes("ping"));
+});
+
+test("sin pong dentro del timeout, el heartbeat cierra el socket", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval", "Date"] });
+  joinRoom("s", "p", () => {});
+  instances[0].emit("open", {});
+  instances[0].readyState = OPEN;
+  t.mock.timers.tick(75000); // supera PONG_TIMEOUT_MS (60000)
+  assert.equal(instances[0].closed, true);
+});
+
+test("disconnect durante la espera cancela el reintento de reconexión", (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  let closed = 0;
+  joinRoom("s", "p", () => {}, "Jugador", () => {}, () => { closed++; }, {
+    reconnect: true,
+    onReconnecting: () => {},
+  });
+  instances[0].emit("open", {});
+  instances[0].emit("close", {}); // agenda reconexión
+
+  disconnect();
+  t.mock.timers.tick(15000);
+
+  assert.equal(instances.length, 1); // no se creó socket nuevo
+  assert.equal(closed, 0);           // disconnect no dispara onClose
+});

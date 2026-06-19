@@ -38,7 +38,9 @@ function getScreenPos(mapElement, territoryId) {
 
 // Animacion de particulas de batalla entre dos territorios
 export function playBattleAnimation(mapElement, fromId, toId, conquered) {
-  if (!app) return;
+  // app.init() es async: si la animación se dispara antes de terminar, ticker/stage
+  // aún no existen. Saltar evita el TypeError que rompía resolveAttack.
+  if (!app || !app.ticker || !app.stage) return;
 
   const from = getScreenPos(mapElement, fromId);
   const to = getScreenPos(mapElement, toId);

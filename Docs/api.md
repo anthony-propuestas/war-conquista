@@ -111,6 +111,24 @@ Requiere cookie `war_session`. Body JSON `{ username, age, email, how_heard }`.
 
 Valores válidos de `how_heard`: `"YouTube"`, `"Twitter / X"`, `"Un amigo me lo recomendó"`, `"Reddit"`, `"Discord"`, `"Encontré el link por casualidad"`.
 
+## `GET /gamers/<username>` — página pública de perfil
+
+Ruta de **página** (no `/api`), servida por la Pages Function de ruta dinámica
+`functions/gamers/[username].js`. Sin autenticación. A diferencia del resto, **devuelve HTML**
+(no JSON): una tarjeta con el `username` y sus `wins`. La enlaza cada fila del ranking
+(`gamers/index.html` → `/gamers/${encodeURIComponent(username)}`).
+
+Query: `SELECT username, wins FROM users WHERE username = ? COLLATE NOCASE` (búsqueda
+insensible a mayúsculas).
+
+| Caso | Status | Body |
+|---|---|---|
+| Username existe | `200` | Página HTML de perfil (`Content-Type: text/html`). |
+| Username no existe | `404` | Página HTML "Jugador no encontrado" con enlace a `/gamers`. |
+
+`username` y `wins` se interpolan en el HTML, pero `username` está restringido a `[a-zA-Z0-9_]`
+en el registro y `wins` es `INTEGER` → sin XSS (ver [security.md](security.md)).
+
 ---
 
 # API — Wallet (`/api/auth/wallet`, `/api/wallet/link`)
@@ -174,11 +192,14 @@ Lo implementa `handleMatch` en `functions/api/game-room.js`: almacena en el Dura
 |---|---|---|
 | Header `Upgrade: websocket` presente y la sala no inició | `101` | Conexión WebSocket aceptada en la sala `roomId`. |
 | Sin ese header | `426` | `Expected WebSocket`. |
-| La sala ya inició (`start_game` ya se envió) | `409` | `Room already started`. |
+| Sala iniciada y `playerId` **pertenece** a la partida (en `playerIds`) | `101` | **Reconexión**: se acepta el socket y se recibe `state_sync` con el último estado. |
+| Sala iniciada y `playerId` **desconocido** | `409` | `Room already started`. |
 
 Mensajes (JSON `{ type, payload }`): el cliente envía `game_state` (se persiste y
 retransmite), `set_ready` (marca al jugador listo en el lobby) o `start_game`
 (el host arranca la partida). El servidor reenvía a los demás con
-`from: <playerId>`, emite `lobby_update` con la lista de jugadores y
-`player_left` al cerrar. Protocolo y semántica completos en
+`from: <playerId>`, emite `lobby_update` con la lista de jugadores, `player_left`
+al cerrar, y `player_rejoined` + `state_sync` cuando un jugador reconecta a media
+partida. Fuera de banda JSON, el cliente envía `ping` cada 25 s y el Durable Object
+responde `pong` automáticamente (heartbeat). Protocolo y semántica completos en
 [realtime.md](realtime.md).

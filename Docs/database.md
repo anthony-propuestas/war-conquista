@@ -74,6 +74,14 @@ SELECT username, wins FROM users ORDER BY wins DESC LIMIT 100
 SELECT username, wins, wallet_address FROM users WHERE sub = ?
 ```
 
+### `functions/gamers/[username].js` — página pública de perfil
+
+```sql
+SELECT username, wins FROM users WHERE username = ? COLLATE NOCASE
+```
+Ruta `GET /gamers/<username>` (HTML, sin auth). `COLLATE NOCASE` hace la búsqueda insensible a
+mayúsculas. Si no hay fila, responde un HTML 404.
+
 ### `functions/api/wallet/link.js` — vincular wallet a la cuenta de la sesión
 
 ```sql

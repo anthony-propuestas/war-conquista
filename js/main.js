@@ -85,6 +85,7 @@ function renderPlayerFields() {
 }
 
 function showScreen(id) {
+  hideConnBanner();
   document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
   $(id).classList.add("active");
 }
@@ -135,13 +136,14 @@ function enterLobby(code, playerName) {
     alert("No se pudo unir a la sala. Puede que ya haya iniciado o no exista.");
     showScreen("#screen-start");
   }, () => {
+    hideConnBanner();
     if (!inLobby) return;
     inLobby = false;
     lobby = null;
     lobbyPlayers = [];
-    alert("Te desconectaste de la sala.");
+    alert("Se perdió la conexión con la sala.");
     showScreen("#screen-start");
-  });
+  }, { reconnect: true, onReconnecting: (n) => showConnBanner(`Reconectando… (intento ${n})`), onReconnect: hideConnBanner });
   showScreen("#screen-lobby");
 }
 
@@ -184,7 +186,7 @@ async function enterOnline() {
     onlineActive = true;
     onlinePlayers = [];
     lobby = { roomId: rid, playerId, playerName: name };
-    joinRoom(rid, playerId, onOnlineMessage, name, onOnlineFailed, onOnlineClose, { public: true, openUntil });
+    joinRoom(rid, playerId, onOnlineMessage, name, onOnlineFailed, onOnlineClose, { public: true, openUntil, reconnect: true, onReconnecting: (n) => showConnBanner(`Reconectando… (intento ${n})`), onReconnect: hideConnBanner });
     openCountdownModal(openUntil);
   } catch (_) {
     alert("No se pudo conectar al modo online. Intenta de nuevo.");
@@ -326,7 +328,8 @@ function beginOnlineGame(players, initialBoard, initialSetup, initialAttackUnloc
   }
 
   setMessageHandler((msg) => {
-    if (msg.type === 'game_state' && ui) {
+    // state_sync llega tras reconectar a media partida: misma forma que game_state.
+    if ((msg.type === 'game_state' || msg.type === 'state_sync') && ui) {
       Object.assign(game.board, msg.payload.board ?? {});
       if (msg.payload.currentIndex != null) game.currentIndex = msg.payload.currentIndex;
       if (msg.payload.phase) game.phase = msg.payload.phase;
@@ -400,6 +403,22 @@ function onGameOver(winner) {
     ui.closeModal();
     showScreen("#screen-start");
   });
+}
+
+// ---------- banner de reconexión (no bloqueante) ----------
+let _connBanner = null;
+function showConnBanner(text) {
+  if (!_connBanner) {
+    _connBanner = document.createElement('div');
+    _connBanner.id = 'conn-banner';
+    _connBanner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#b91c1c;color:#fff;text-align:center;padding:6px 8px;font-size:14px;font-weight:600';
+    document.body.appendChild(_connBanner);
+  }
+  _connBanner.textContent = text;
+  _connBanner.style.display = 'block';
+}
+function hideConnBanner() {
+  if (_connBanner) _connBanner.style.display = 'none';
 }
 
 function escapeHtml(s) {

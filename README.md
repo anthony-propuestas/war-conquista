@@ -4,7 +4,8 @@
 
 Juego de estrategia por turnos inspirado en el clásico juego de mesa **WAR** (estilo *Risk*).
 Conquista territorios, domina continentes y elimina a tus rivales. **Multijugador local**
-(hotseat) directamente en el navegador, sin instalar nada.
+(hotseat) y **online en tiempo real** (salas WebSocket) directamente en el navegador, sin
+instalar nada.
 
 > Hecho con HTML, CSS y JavaScript puro (sin frameworks) y desplegado en **Cloudflare Pages**
 > con un salón de la fama persistido en **Cloudflare D1**.
@@ -19,7 +20,7 @@ Conquista territorios, domina continentes y elimina a tus rivales. **Multijugado
   atacantes supervivientes ocupan la zona automáticamente.
 - ♻️ **Turno libre**: en tu turno puedes reforzar, atacar y mover tropas en cualquier orden antes de pasar.
 - 👥 **1 a 3 jugadores** en la misma máquina (hotseat), cada uno con su color.
-- 🌐 **Multijugador online** en tiempo real: crea o únete a una sala (auto-listo al unirse) y el anfitrión arranca la partida cuando hay 2+ jugadores (WebSocket + Durable Object `GameRoom`).
+- 🌐 **Multijugador online** en tiempo real: crea o únete a una sala (auto-listo al unirse) y el anfitrión arranca la partida cuando hay 2+ jugadores (WebSocket + Durable Object `GameRoom`). Si se cae la conexión, **reconecta sola** (heartbeat + reintentos con backoff) y recupera el estado de la partida en curso.
 - 🏆 **Salón de la fama** global persistido en Cloudflare D1.
 - 🔐 **Login con Google o wallet MetaMask** para vincular tus victorias a tu cuenta.
 - 📱 Interfaz responsive, sin librerías JS ni frameworks. Dependencias externas en
@@ -131,6 +132,7 @@ WAR/
 ├── functions/api/gamers.js # Pages Function: /api/gamers (ranking)
 ├── functions/api/profile.js # Pages Function: /api/profile
 ├── functions/api/register.js # Pages Function: /api/register
+├── functions/gamers/[username].js # Pages Function: /gamers/<username> (perfil HTML público)
 ├── functions/api/auth/
 │   ├── google.js           # inicia OAuth con Google
 │   ├── callback.js         # completa OAuth, guarda cookie de sesión

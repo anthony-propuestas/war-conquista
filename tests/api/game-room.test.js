@@ -113,11 +113,10 @@ test("webSocketClose difunde player_left y lobby_update al resto", async () => {
   assert.equal(state.log.deletes, 0); // queda p2: no se resetea la sala
 });
 
-test("webSocketClose resetea la sala si no quedan jugadores", async () => {
+test("webSocketClose libera la sala si no quedan jugadores y NO había partida", async () => {
   const leaving = makeWs("p1", { name: "Ana", ready: false });
   const state = makeState([leaving]);
   const room = newRoom(state);
-  state.store.set("started", true);
 
   // Sin otros sockets: el unico restante es el que cierra.
   state.getWebSockets = () => [];
@@ -125,6 +124,19 @@ test("webSocketClose resetea la sala si no quedan jugadores", async () => {
 
   assert.equal(state.log.deletes, 1);
   assert.equal(state.store.size, 0);
+});
+
+test("webSocketClose con partida en curso conserva el estado y agenda gracia", async () => {
+  const leaving = makeWs("p1", { name: "Ana", ready: false });
+  const state = makeState([leaving]);
+  const room = newRoom(state);
+  state.store.set("started", true);
+
+  state.getWebSockets = () => [];
+  await room.webSocketClose(leaving);
+
+  assert.equal(state.log.deletes, 0); // no se borra: el jugador puede reconectar
+  assert.equal(state.log.alarms.length, 1); // alarma de gracia agendada
 });
 
 test("fetch sin Upgrade: websocket responde 426", async () => {
@@ -193,6 +205,65 @@ test("webSocketMessage con start_game marca started y difunde a todos sin exclui
     type: "start_game",
     payload: { players: [] },
   });
+});
+
+test("start_game persiste playerIds para autorizar reconexiones", async () => {
+  const sender = makeWs("p1");
+  const state = makeState([sender]);
+  const room = newRoom(state);
+
+  await room.webSocketMessage(sender, JSON.stringify({
+    type: "start_game",
+    payload: { players: [{ id: "p1" }, { id: "p2" }] },
+  }));
+
+  assert.deepEqual(state.store.get("playerIds"), ["p1", "p2"]);
+  assert.equal(state.store.get("started"), true);
+});
+
+test("alarm con partida iniciada y sala vacía libera el estado (gracia agotada)", async () => {
+  const state = makeState([]);
+  const room = newRoom(state);
+  state.store.set("started", true);
+  state.getWebSockets = () => [];
+
+  await room.alarm();
+
+  assert.equal(state.log.deletes, 1);
+});
+
+test("fetch con sala iniciada permite reconexión de jugador conocido y envía state_sync", async () => {
+  const state = makeState();
+  state.store.set("started", true);
+  state.store.set("playerIds", ["p1"]);
+  state.store.set("gameState", { phase: "attack", turn: 2 });
+  const room = newRoom(state);
+
+  const origWSP = globalThis.WebSocketPair;
+  const origResp = globalThis.Response;
+  let serverSocket;
+  globalThis.WebSocketPair = function () {
+    const mk = () => ({ sent: [], send(m) { this.sent.push(m); }, serializeAttachment() {}, deserializeAttachment() { return {}; } });
+    const client = mk();
+    serverSocket = mk();
+    return { 0: client, 1: serverSocket };
+  };
+  globalThis.Response = function (body, init) { return { body, status: init?.status, webSocket: init?.webSocket }; };
+  try {
+    const res = await room.fetch(new Request(
+      "http://localhost/api/game-room?roomId=r&playerId=p1",
+      { headers: { Upgrade: "websocket" } }
+    ));
+    assert.equal(res.status, 101);
+    assert.equal(serverSocket.sent.length, 1);
+    assert.deepEqual(JSON.parse(serverSocket.sent[0]), {
+      type: "state_sync",
+      payload: { phase: "attack", turn: 2 },
+    });
+  } finally {
+    globalThis.WebSocketPair = origWSP;
+    globalThis.Response = origResp;
+  }
 });
 
 test("webSocketMessage con game_state en fase gameover resetea la sala", async () => {
