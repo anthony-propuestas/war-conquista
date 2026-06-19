@@ -564,5 +564,8 @@ La tabla de la sección anterior refleja el estado al momento del despliegue. Ac
   `game.attack()`/`game.fortify()` por el mismo camino WebSocket ya auditado; el botón Rendirse
   llama `game.surrender()` (validado por `canSurrender()` client-side) y luego emite `game_state`
   — extensión de los riesgos ya aceptados de `game_state` sin validación server-side y `surrender`
-  como método sincronizado, sin raíz nueva. Sin cambios en queries D1, endpoints HTTP, esquema,
-  cookies, `_headers` ni secrets.
+  como método sincronizado, sin raíz nueva. `js/main.js` añade `reinforcements` al payload de
+  `sendGameState` y al handler de `game_state`/`state_sync`, extendiendo el riesgo ya aceptado
+  de "`Object.assign` sin schema" y "`game_state` sin validación server-side" al nuevo campo;
+  sin raíz nueva, misma disposición: aceptado para MVP. Sin cambios en queries D1, endpoints
+  HTTP, esquema, cookies, `_headers` ni secrets.

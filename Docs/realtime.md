@@ -145,13 +145,13 @@ Al crear o unirse a una sala, `enterLobby(code, playerName)`:
    handler con `setMessageHandler` y **parchea los métodos mutadores de `Game`**
    (`placeSetupArmy`, `placeReinforcement`, `attack`, `endTurn`, `fortify`,
    `autoPlaceSetup`, `surrender`): cada uno, tras
-   ejecutar el original, llama `sendGameState({ board, currentIndex, phase, setupRemaining, attackUnlocked, firstRoundTurnsLeft, round, winner, alive })`.
+   ejecutar el original, llama `sendGameState({ board, currentIndex, phase, setupRemaining, attackUnlocked, firstRoundTurnsLeft, round, reinforcements, winner, alive })`.
    `winner` viaja como índice del jugador (o `null`) y `alive` como array de booleanos por
    jugador, de modo que la rendición y el resultado final se propagan a todos los clientes.
 5. En el handler de partida, al recibir `game_state` —o `state_sync`, que llega tras
    reconectar a media partida y tiene la **misma forma**— aplica el estado remoto sobre el
    `Game` local (`Object.assign(game.board, …)`, `currentIndex`, `phase`, `setupRemaining`,
-   `attackUnlocked`, `firstRoundTurnsLeft`, `round`, `alive[]` por jugador y `winner`
+   `attackUnlocked`, `firstRoundTurnsLeft`, `round`, `reinforcements`, `alive[]` por jugador y `winner`
    reconstruido desde su índice) y hace `ui.refresh()`. Así un jugador que se cayó recupera
    el tablero exacto al volver, y todos ven la misma pantalla de fin ganó/perdió.
 

@@ -77,8 +77,17 @@ export class UI {
       id: "atk-arrow", markerWidth: "8", markerHeight: "6",
       refX: "7", refY: "3", orient: "auto"
     });
-    arrowMarker.appendChild(svg("polygon", { points: "0 0, 8 3, 0 6", fill: "#e53e3e" }));
+    arrowMarker.appendChild(svg("polygon", { points: "0 0, 8 3, 0 6", fill: "white", stroke: "black", "stroke-width": "0.8" }));
     defs.appendChild(arrowMarker);
+    const outlineFilter = svg("filter", { id: "atk-outline" });
+    const _morph = svg("feMorphology", { in: "SourceAlpha", operator: "dilate", radius: "1.2", result: "expanded" });
+    const _flood = svg("feFlood", { "flood-color": "black", result: "black" });
+    const _comp = svg("feComposite", { in: "black", in2: "expanded", operator: "in", result: "outline" });
+    const _merge = svg("feMerge");
+    _merge.appendChild(svg("feMergeNode", { in: "outline" }));
+    _merge.appendChild(svg("feMergeNode", { in: "SourceGraphic" }));
+    outlineFilter.append(_morph, _flood, _comp, _merge);
+    defs.appendChild(outlineFilter);
     for (const [id, r] of Object.entries(TERRITORY_CLIPS)) {
       const cp = svg("clipPath", { id: `clip-${id}` });
       cp.appendChild(svg("rect", { x: r[0], y: r[1], width: r[2] - r[0], height: r[3] - r[1] }));
@@ -265,7 +274,7 @@ export class UI {
             class: "attack-arrow",
             x1: sc[0] + ux * 22, y1: sc[1] + uy * 22,
             x2: tc[0] - ux * 22, y2: tc[1] - uy * 22,
-            stroke: "#e53e3e", "stroke-width": "2.5",
+            stroke: "white", "stroke-width": "2.5", filter: "url(#atk-outline)",
             "marker-end": "url(#atk-arrow)"
           });
           this.arrowsLayer.appendChild(line);
