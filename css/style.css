@@ -235,7 +235,7 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 0;
 .terr.enemy-selected path.region { stroke: var(--danger) !important; stroke-width: 3px !important; filter: drop-shadow(0 0 8px var(--danger)); }
 .terr.source-hint path.region { stroke: var(--ok) !important; stroke-width: 3px !important; stroke-dasharray: 5 3; animation: pulse-source 1.2s ease-in-out infinite; }
 @keyframes pulse-source { 0%, 100% { filter: drop-shadow(0 0 4px var(--ok)); } 50% { filter: drop-shadow(0 0 12px var(--ok)); } }
-.attack-arrow { animation: blink-arrow 0.55s steps(1) infinite; }
+.attack-arrow { animation: blink-arrow 0.55s steps(1) infinite; filter: drop-shadow(1px 0 0 black) drop-shadow(-1px 0 0 black) drop-shadow(0 1px 0 black) drop-shadow(0 -1px 0 black); }
 @keyframes blink-arrow { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
 .attack-notice {
   position: fixed; bottom: 16px; left: 16px;
