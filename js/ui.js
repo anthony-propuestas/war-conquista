@@ -296,8 +296,9 @@ export class UI {
         ? "Activa 'Colocar tropas' para reforzar. Tambien puedes atacar o mover tropas."
         : "Ataca o mueve tropas libremente. Cuando termines, pulsa 'Terminar turno'.";
     }
+    const roundTag = g.phase === "play" ? `<span class="round-tag">Ronda ${g.round}</span>` : "";
     box.innerHTML = `
-      <div class="phase-name">${labels[g.phase] ?? g.phase}</div>
+      <div class="phase-name">${labels[g.phase] ?? g.phase}${roundTag}</div>
       ${extra}
       <div class="phase-hint">${hint}</div>`;
   }
@@ -339,6 +340,14 @@ export class UI {
         g.endTurn();
         this.refresh();
       });
+      const canSurr = g.canSurrender();
+      addBtn(canSurr ? "Rendirse" : "Rendirse (ronda 7+)", "btn-danger", () => {
+        if (!confirm("¿Seguro que quieres rendirte? Perderás la partida.")) return;
+        g.surrender(g.current.id);
+        this.selected = null;
+        this.hideDice();
+        this.refresh();
+      }, !canSurr);
     }
   }
 

@@ -8,6 +8,7 @@ const $ = (s) => document.querySelector(s);
 let ui = null;
 let walletAddress = null;
 let roomId = null;
+let rankedOnline = false; // solo el emparejamiento online suma victorias a la BD
 
 // ---------- lobby (sala de espera) ----------
 let lobby = null; // { roomId, playerId, playerName }
@@ -112,6 +113,7 @@ function startLocalGame() {
 
   roomId = null;
   myIndex = null;
+  rankedOnline = false;
   const game = new Game(configs);
   ui = new UI(game, onGameOver);
   showScreen("#screen-game");
@@ -121,6 +123,7 @@ function startLocalGame() {
 // ---------- crear / unirse a sala (entra al lobby) ----------
 function enterLobby(code, playerName) {
   inLobby = true;
+  rankedOnline = false;
   roomId = code;
   const playerId = walletAddress || ('anon-' + Math.random().toString(36).slice(2, 8));
   lobby = { roomId, playerId, playerName: playerName || defaultPlayerName() };
@@ -177,6 +180,7 @@ const ONLINE_WINDOW_MS = 60000;
 async function enterOnline() {
   const btn = $("#btn-online-play");
   if (btn) btn.disabled = true;
+  rankedOnline = true;
   try {
     const name = myUsername || defaultPlayerName();
     const playerId = mySub || walletAddress || ('anon-' + Math.random().toString(36).slice(2, 8));
@@ -336,6 +340,9 @@ function beginOnlineGame(players, initialBoard, initialSetup, initialAttackUnloc
       if (msg.payload.setupRemaining) game.setupRemaining = msg.payload.setupRemaining;
       if (msg.payload.attackUnlocked != null) game.attackUnlocked = msg.payload.attackUnlocked;
       if (msg.payload.firstRoundTurnsLeft != null) game.firstRoundTurnsLeft = msg.payload.firstRoundTurnsLeft;
+      if (msg.payload.round != null) game.round = msg.payload.round;
+      if (Array.isArray(msg.payload.alive)) game.players.forEach((p, i) => { p.alive = msg.payload.alive[i]; });
+      if (msg.payload.winner != null) game.winner = game.players[msg.payload.winner] ?? null;
       ui.refresh();
     }
   });
@@ -348,9 +355,12 @@ function beginOnlineGame(players, initialBoard, initialSetup, initialAttackUnloc
       setupRemaining: game.setupRemaining,
       attackUnlocked: game.attackUnlocked,
       firstRoundTurnsLeft: game.firstRoundTurnsLeft,
+      round: game.round,
+      winner: game.winner ? game.winner.id : null,
+      alive: game.players.map((p) => p.alive),
     });
   };
-  ['placeSetupArmy','placeReinforcement','attack','endTurn','fortify','autoPlaceSetup']
+  ['placeSetupArmy','placeReinforcement','attack','endTurn','fortify','autoPlaceSetup','surrender']
     .forEach(method => {
       const orig = game[method].bind(game);
       game[method] = (...args) => {
@@ -386,17 +396,41 @@ function updateMultiplayerBadge(room) {
 
 // ---------- fin de partida ----------
 function onGameOver(winner) {
-  if (myIndex != null && winner.id === myIndex) {
+  if (rankedOnline && myIndex != null && winner.id === myIndex) {
     fetch('/api/win', { method: 'POST' }).catch(() => {});
   }
   disconnect();
+
+  const game = ui.game;
+  // En local (hotseat) siempre se muestra la pantalla de victoria del ganador.
+  const didIWin = myIndex == null || winner.id === myIndex;
+
+  const standings = [...game.players]
+    .map((p) => ({ p, terr: game.territoriesOf(p.id).length }))
+    .sort((a, b) => b.terr - a.terr)
+    .map(({ p, terr }) => {
+      const tag = p.id === winner.id ? "👑" : (!p.alive ? "☠" : "");
+      return `<li class="end-row${p.id === winner.id ? ' is-winner' : ''}${!p.alive ? ' is-dead' : ''}">
+          <span class="swatch" style="background:${p.color}"></span>
+          <span class="end-name">${escapeHtml(p.name)}</span>
+          <span class="end-terr">${terr} 🗺</span>
+          <span class="end-tag">${tag}</span>
+        </li>`;
+    }).join("");
+
+  const head = didIWin
+    ? `<div class="end-emoji">🏆</div><div class="end-title">¡Victoria!</div>
+       <div class="end-sub" style="color:${winner.color}">${escapeHtml(winner.name)} conquistó el mundo</div>`
+    : `<div class="end-emoji">🏳️</div><div class="end-title">Derrota</div>
+       <div class="end-sub">Ganó <b style="color:${winner.color}">${escapeHtml(winner.name)}</b></div>`;
+
   ui.openModal(`
-    <div style="text-align:center">
-      <div style="font-size:3rem">🏆</div>
-      <div class="win-title" style="color:${winner.color}">${escapeHtml(winner.name)}</div>
-      <p>ha conquistado el mundo!</p>
+    <div class="end-screen ${didIWin ? 'win' : 'lose'}">
+      ${head}
+      <ul class="end-standings">${standings}</ul>
+      <p class="end-round">Partida terminada en la ronda ${game.round}</p>
       <div class="modal-actions">
-        <button class="btn btn-primary" id="go-menu">Volver al menu</button>
+        <button class="btn btn-primary" id="go-menu">Volver al menú</button>
       </div>
     </div>`);
   $("#go-menu").addEventListener("click", () => {

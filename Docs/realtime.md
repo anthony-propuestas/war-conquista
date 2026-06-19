@@ -144,16 +144,21 @@ Al crear o unirse a una sala, `enterLobby(code, playerName)`:
    `initialAttackUnlocked` e `initialFirstRoundTurnsLeft` del host. Luego reemplaza el
    handler con `setMessageHandler` y **parchea los métodos mutadores de `Game`**
    (`placeSetupArmy`, `placeReinforcement`, `attack`, `endTurn`, `fortify`,
-   `autoPlaceSetup`): cada uno, tras
-   ejecutar el original, llama `sendGameState({ board, currentIndex, phase, setupRemaining, attackUnlocked, firstRoundTurnsLeft })`.
+   `autoPlaceSetup`, `surrender`): cada uno, tras
+   ejecutar el original, llama `sendGameState({ board, currentIndex, phase, setupRemaining, attackUnlocked, firstRoundTurnsLeft, round, winner, alive })`.
+   `winner` viaja como índice del jugador (o `null`) y `alive` como array de booleanos por
+   jugador, de modo que la rendición y el resultado final se propagan a todos los clientes.
 5. En el handler de partida, al recibir `game_state` —o `state_sync`, que llega tras
    reconectar a media partida y tiene la **misma forma**— aplica el estado remoto sobre el
    `Game` local (`Object.assign(game.board, …)`, `currentIndex`, `phase`, `setupRemaining`,
-   `attackUnlocked`, `firstRoundTurnsLeft`) y hace `ui.refresh()`. Así un jugador que se cayó
-   recupera el tablero exacto al volver.
+   `attackUnlocked`, `firstRoundTurnsLeft`, `round`, `alive[]` por jugador y `winner`
+   reconstruido desde su índice) y hace `ui.refresh()`. Así un jugador que se cayó recupera
+   el tablero exacto al volver, y todos ven la misma pantalla de fin ganó/perdió.
 
-Al terminar la partida (gana el jugador local) hace `POST /api/win` (ver
-[api.md](api.md)); al terminar o salir, `main.js` llama `disconnect()`.
+Al terminar la partida, `main.js` muestra la pantalla ganó/perdió y solo en el **modo online
+de emparejamiento** (`rankedOnline`), si gana el jugador local, hace `POST /api/win` (ver
+[api.md](api.md)) — las salas creadas/unidas manualmente no reportan victorias; al terminar
+o salir, `main.js` llama `disconnect()`.
 
 En partidas online, `ui.js` bloquea clics y acciones cuando no es tu turno
 (`isMyTurn()`) y corre un temporizador de 90s por turno (`syncTimer`/`startTimer`); si

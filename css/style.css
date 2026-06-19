@@ -307,6 +307,34 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 0;
 .modal-actions .btn { flex: 1; }
 .win-title { font-size: 1.8rem; font-weight: 800; }
 
+/* indicador de ronda en el panel de fase */
+.round-tag {
+  margin-left: 8px; font-size: .72rem; font-weight: 700; vertical-align: middle;
+  background: var(--panel-2); color: var(--ink-dim);
+  border-radius: 999px; padding: 2px 9px;
+}
+
+/* ---------- Pantalla de fin de partida ---------- */
+.end-screen { text-align: center; }
+.end-emoji { font-size: 3.4rem; line-height: 1; margin-bottom: 6px;
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,.45)); }
+.end-title { font-family: var(--font-display); font-size: 2rem; font-weight: 800; }
+.end-screen.win .end-title { color: var(--accent); }
+.end-screen.lose .end-title { color: var(--danger); }
+.end-sub { color: var(--ink-dim); margin: 4px 0 14px; font-size: 1.05rem; }
+.end-standings { list-style: none; margin: 0 0 12px; padding: 0;
+  display: flex; flex-direction: column; gap: 4px; }
+.end-row { display: flex; align-items: center; gap: 10px;
+  padding: 7px 10px; border-radius: 10px; background: var(--panel-2);
+  font-size: .95rem; }
+.end-row .swatch { width: 18px; height: 18px; }
+.end-name { flex: 1; text-align: left; font-weight: 600; }
+.end-terr { color: var(--ink-dim); font-size: .85rem; }
+.end-tag { width: 1.4ch; text-align: center; }
+.end-row.is-winner { box-shadow: inset 0 0 0 1px var(--accent); font-weight: 700; }
+.end-row.is-dead { opacity: .55; }
+.end-round { color: var(--ink-dim); font-size: .85rem; margin: 0 0 4px; }
+
 /* ---------- Scrollbars ---------- */
 .sidebar::-webkit-scrollbar, #log-list::-webkit-scrollbar { width: 8px; }
 .sidebar::-webkit-scrollbar-thumb, #log-list::-webkit-scrollbar-thumb {

@@ -223,6 +223,70 @@ test("_checkWin declara ganador al poseer los 44 territorios", () => {
   assert.equal(g.winner, g.players[0]);
 });
 
+test("_checkWin: el ganador es el ultimo vivo, no el jugador actual", () => {
+  const g = newGame();
+  g.phase = "play";
+  g.currentIndex = 0;
+  g.players[0].alive = false; // el actual ya no esta vivo (se rindio)
+  g._checkWin();
+  assert.equal(g.phase, "gameover");
+  assert.equal(g.winner, g.players[1]); // gana el otro, no el current
+});
+
+// ---------- rondas ----------
+test("round arranca en 1 y avanza un punto por ciclo completo de turnos", () => {
+  const g = newGame(); // 2 jugadores
+  g.autoPlaceSetup();
+  g.autoPlaceSetup(); // fase play, currentIndex=0
+  assert.equal(g.round, 1);
+  g.endTurn();        // 1 turno jugado
+  assert.equal(g.round, 1);
+  g.endTurn();        // 2 turnos -> ronda 2
+  assert.equal(g.round, 2);
+});
+
+// ---------- rendicion ----------
+test("canSurrender: false antes de la ronda 7, true desde la 7", () => {
+  const g = newGame();
+  g.phase = "play";
+  g.round = 6;
+  assert.equal(g.canSurrender(), false);
+  g.round = 7;
+  assert.equal(g.canSurrender(), true);
+});
+
+test("surrender marca al jugador como vencido y mantiene sus territorios en el mapa", () => {
+  const g = newGame();
+  ownOnly(g, 0, byCont("america_norte", 9)); // p0 con territorios, resto p1
+  g.phase = "play";
+  g.round = 7;
+  g.currentIndex = 0;
+  const mine = g.territoriesOf(0).slice();
+  assert.equal(g.surrender(0), true);
+  assert.equal(g.players[0].alive, false);
+  // los territorios siguen siendo suyos en el board
+  for (const id of mine) assert.equal(g.board[id].owner, 0);
+  assert.ok(g.log.some((e) => e.msg.includes("se ha rendido")));
+});
+
+test("surrender del jugador actual en 2 jugadores da la victoria al otro", () => {
+  const g = newGame();
+  g.phase = "play";
+  g.round = 7;
+  g.currentIndex = 0;
+  assert.equal(g.surrender(0), true);
+  assert.equal(g.phase, "gameover");
+  assert.equal(g.winner, g.players[1]);
+});
+
+test("surrender no funciona fuera de fase play", () => {
+  const g = newGame();
+  g.phase = "setup";
+  g.round = 7;
+  assert.equal(g.surrender(0), false);
+  assert.equal(g.players[0].alive, true);
+});
+
 // ---------- setup 5-por-jugador ----------
 test("setup: setupRemaining es 5 por jugador tras construir", () => {
   const g = newGame();

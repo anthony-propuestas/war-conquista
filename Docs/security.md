@@ -37,6 +37,11 @@ desplegados en producción).
   a **cuentas reales** que se muestran en `/api/gamers`. **Aceptado para MVP**
   (juego casual); mitigación futura: token de partida firmado server-side al
   iniciar la sala, verificado al reportar la victoria.
+  - **Nota (2026-06-19):** desde esta sesión el cliente solo llama `POST /api/win` en
+    el **modo online de emparejamiento** (`rankedOnline` en `js/main.js`; local y salas
+    manuales ya no reportan). Es una decisión de **producto/UX, no un control de
+    seguridad**: el endpoint no cambió y sigue confiando en el caller, por lo que el
+    inflado por curl/devtools es idéntico.
 - **Hallazgo — otro endpoint de escritura gateado solo por la cookie sin HMAC:**
   se suma a `profile`/`register`/`wallet/link` en la lista de endpoints cuyo único
   control de acceso es el campo `sub` de `war_session`, que no está firmado (ver
@@ -124,6 +129,12 @@ desplegados en producción).
 - **Banner de turno (`ui.js`):** `updateBanner()` inyecta el nombre del jugador (input de
   la pantalla de inicio, `maxLength=16`) y su inicial con `innerHTML`; ambos pasan por una
   copia local de `escapeHtml`. Sink nuevo, **correctamente escapado**.
+- **Pantalla de fin ganó/perdió (`main.js`, `onGameOver`, 2026-06-19):** además del nombre
+  del ganador, renderiza con `innerHTML` una **clasificación con todos los nombres de
+  jugadores** (que en online llegan por WebSocket). Todos pasan por `escapeHtml`
+  (`escapeHtml(winner.name)`, `escapeHtml(p.name)`); el color sale de `PLAYER_COLORS`
+  (constante) y la ronda es numérica → **sin XSS**. Amplía la lista de sinks del nombre
+  remoto, todos cubiertos por el escape de salida.
 - **Duplicación de `escapeHtml`:** existe la misma función en `main.js` y en `ui.js`. No es
   una vulnerabilidad, pero el riesgo es divergencia futura; si crece la lógica de escape,
   unificarla en un módulo compartido.
@@ -218,6 +229,19 @@ No son vulnerabilidades confirmadas, pero se registran:
   acepta cualquier objeto del WebSocket. Permite sobrescribir campos internos del board
   desde la red. Aceptado para MVP. Mitigación futura: validar claves y tipos del payload
   antes de asignar, o reconstruir el objeto en vez de mutar el existente.
+- **Win forzado a otro jugador vía `game_state` sincronizado (`main.js`, desde 2026-06-19)
+  — extensión del `game_state` sin validación:** desde esta sesión el estado sincronizado
+  incluye `winner` (índice del ganador) y `alive[]`. `onGameOver` se dispara cuando
+  `phase === 'gameover'` (campo ya sincronizado) y hace `POST /api/win` si
+  `rankedOnline && winner.id === myIndex`. Un peer malicioso en una partida online puede
+  difundir `{type:'game_state', payload:{phase:'gameover', winner:<índice de la víctima>}}`
+  y forzar que **el cliente de la víctima reporte una victoria** (inflado dirigido a la
+  cuenta de otro), además del `resetRoom()` que ese mismo `gameover` ya provocaba. Misma
+  raíz y disposición que "`game_state` sin validación server-side" y
+  "`payload.phase:'gameover'` dispara `resetRoom()`" — aceptado para MVP; misma mitigación
+  (validar el payload contra schema y/o que el DO derive el resultado de su propio estado).
+  El sync de `winner` además **corrige un fallo latente**: antes un `gameover` real en un
+  cliente no-actor llamaba `onGameOver(null)` (winner no viajaba) y podía romper el render.
 - **Sin `Content-Security-Policy`:** los scripts inline existentes en los HTML y la carga
   de esm.sh no están explícitamente allowlisteados. Sin CSP cualquier script inyectado
   en el DOM (requiere otro vector previo) se ejecutaría sin restricción. Aceptado por
@@ -512,3 +536,20 @@ La tabla de la sección anterior refleja el estado al momento del despliegue. Ac
   `state_sync` aplicado con `Object.assign` extiende los riesgos ya aceptados ("`Object.assign` sin
   schema", "`game_state` sin validación server-side") al camino de reconexión, sin raíz nueva. Sin
   cambios en endpoints HTTP, queries D1, esquema, cookies, `_headers` ni secrets.
+- **2026-06-19** — Refuerzo de la lógica de victorias: `js/game.js` (contador `round`,
+  `canSurrender()`/`surrender()` desde la ronda 7, `_checkWin()` declara ganador al último
+  vivo), `js/main.js` (flag `rankedOnline` que gatea `POST /api/win`; sync de `round`/`winner`/`alive`;
+  `surrender` parcheado; pantalla de fin ganó/perdió), `js/ui.js` (botón Rendirse, indicador de
+  ronda), `css/style.css` (estilos de la pantalla de fin). **Hallazgos:** (1) **win forzado a
+  otro jugador** — al sincronizar `winner`, un peer puede difundir `game_state` con
+  `phase:'gameover'` + `winner:<índice víctima>` y forzar el `POST /api/win` de la víctima;
+  extensión del riesgo ya aceptado de `game_state` sin validación server-side, registrado en
+  *Riesgos aceptados*. (2) **gating `rankedOnline` no es control de seguridad** — limitar el
+  reporte de victorias al modo de emparejamiento es UX/producto; `functions/api/win.js` no
+  cambió y el inflado por curl/devtools es idéntico. **Mecanismos positivos:** (a) la pantalla
+  de fin escapa con `escapeHtml` el nombre del ganador y todos los nombres de la clasificación
+  (sinks de nombres remotos cubiertos), color de `PLAYER_COLORS` y ronda numérica → sin XSS;
+  (b) el sync de `winner` corrige un fallo latente (antes `onGameOver(null)` en clientes
+  no-actores). `game.js` es lógica pura sin DOM/red. Sin cambios en queries D1, esquema,
+  cookies, `_headers`, secrets ni en el checklist pre-producción (los vectores son extensiones
+  de ítems ya cubiertos).

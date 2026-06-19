@@ -21,10 +21,11 @@ fallara se propagaría como excepción no controlada (no hay try/catch).
 
 ## Consumidores
 
-`js/main.js` → `onGameOver(winner)`: si `myIndex` (índice del jugador local en
-la partida online) coincide con el ganador, hace `POST /api/win` (sin esperar
-ni manejar la respuesta; envuelto en `.catch(() => {})`). Solo se llama en
-partidas online — el modo local (`startLocalGame`) no reporta victorias.
+`js/main.js` → `onGameOver(winner)`: hace `POST /api/win` (sin esperar ni manejar
+la respuesta; envuelto en `.catch(() => {})`) **solo** cuando se cumplen `rankedOnline &&
+myIndex === winner.id` — es decir, únicamente en el **modo online de emparejamiento** y
+cuando el ganador es el jugador local. El modo **local** (`startLocalGame`) y el de **sala**
+(crear/unirse, `enterLobby`) **no** reportan victorias, aunque la sala también tenga `myIndex`.
 
 Ver también: [database.md](database.md) (queries y esquema), [architecture.md](architecture.md).
 

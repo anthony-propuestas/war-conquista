@@ -37,6 +37,8 @@ export class Game {
     this.phase = "setup";          // setup | play | gameover
     this.reinforcements = 0;       // ejercitos por colocar
     this.winner = null;
+    this.round = 1;                // ronda actual (todos juegan una vez = 1 ronda)
+    this._turnsPlayed = 0;
     this.log = [];
 
     this._distributeTerritories();
@@ -246,6 +248,8 @@ export class Game {
         this._log("Primera ronda completa. Los ataques ahora estan habilitados.");
       }
     }
+    this._turnsPlayed++;
+    this.round = Math.floor(this._turnsPlayed / this.players.length) + 1;
     // siguiente jugador vivo
     do {
       this.currentIndex = (this.currentIndex + 1) % this.players.length;
@@ -264,11 +268,36 @@ export class Game {
 
   _checkWin() {
     const alive = this.players.filter((p) => p.alive);
-    const allOwned = this.territoriesOf(this.current.id).length === ALL_IDS.length;
-    if (alive.length === 1 || allOwned) {
+    // ultimo jugador en pie (solo aplica en partidas multijugador)
+    if (alive.length === 1 && this.players.length > 1) {
+      this.phase = "gameover";
+      this.winner = alive[0];
+      this._log(`VICTORIA de ${this.winner.name}! Es el ultimo en pie.`);
+      return;
+    }
+    // dominacion total del mapa por el jugador actual
+    if (this.current.alive &&
+        this.territoriesOf(this.current.id).length === ALL_IDS.length) {
       this.phase = "gameover";
       this.winner = this.current;
-      this._log(`VICTORIA de ${this.current.name}! Domina el mundo.`);
+      this._log(`VICTORIA de ${this.winner.name}! Domina el mundo.`);
     }
+  }
+
+  // ---------- rendicion ----------
+  canSurrender() {
+    return this.phase === "play" && this.round >= 7;
+  }
+
+  // El jugador abandona: sale del orden de turnos pero sus territorios
+  // permanecen en el mapa (conquistables por los demas).
+  surrender(playerId) {
+    const p = this.players[playerId];
+    if (!p || !p.alive || this.phase !== "play") return false;
+    p.alive = false;
+    this._log(`${p.name} se ha rendido.`);
+    this._checkWin();
+    if (this.phase !== "gameover" && playerId === this.currentIndex) this.endTurn();
+    return true;
   }
 }

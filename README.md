@@ -37,7 +37,7 @@ instalar nada.
    cuántas unidades atacar. Se comparan los dados más altos por pares; el empate
    favorece al defensor. Si vacías el territorio, tus supervivientes lo ocupan.
 4. **Fortificación:** mueve tropas entre dos territorios propios conectados.
-5. **Victoria:** gana quien conquiste **todos** los territorios o quede como **único jugador con territorios** (todos los rivales eliminados).
+5. **Victoria:** gana quien conquiste **todos** los territorios o quede como **último jugador en pie** (rivales eliminados o rendidos). Desde la **ronda 7** puedes **rendirte** para abandonar la partida.
 
 ---
 
