@@ -67,14 +67,32 @@ Para listar los secrets configurados: `wrangler pages secret list --project-name
 
 Ver flujo completo en [auth.md](auth.md).
 
+### Admin (`ADMIN_EMAILS`)
+
+Lista de emails separados por comas con acceso al panel `/admin` y a los endpoints
+`/api/admin/*`. `functions/api/admin/cards.js` y `functions/api/admin/battle-pass.js`
+leen `env.ADMIN_EMAILS` y responden `403` si el email de la sesión no está en la lista.
+
+**En local** (`.dev.vars`): añadir `ADMIN_EMAILS=tu@email.com`
+
+**En producción**:
+```bash
+wrangler pages secret put ADMIN_EMAILS --project-name war-conquista
+```
+Wrangler pide el valor de forma interactiva. Para múltiples admins, introducir
+`email1@dominio.com,email2@dominio.com` (coma sin espacios).
+
 ## El binding `DB`
 
-`functions/api/win.js`, `functions/api/gamers.js`, `functions/api/profile.js` y
-`functions/api/register.js` leen `env.DB` (ver [api.md](api.md)).
+Todos los endpoints que acceden a D1 (`win.js`, `gamers.js`, `profile.js`, `register.js`,
+`gamers/[username].js`, `cards/*`, `battle-pass/*`, `admin/*`) leen `env.DB` (ver [api.md](api.md)).
 
 **En local** (`npm run dev`): wrangler crea una D1 local automáticamente a partir del
-binding del `wrangler.toml`. Aplica el esquema actual ejecutando la migración manualmente:
-`wrangler d1 execute war-scores --local --file migrations/0001_users.sql`.
+binding del `wrangler.toml`. Aplica el esquema actual ejecutando las migraciones manualmente:
+```bash
+wrangler d1 execute war-scores --local --file migrations/0001_users.sql
+wrangler d1 execute war-scores --local --file migrations/0002_items.sql
+```
 
 **En Pages (panel):** si despliegas vía Git en vez de CLI, añade el binding manualmente
 en **Settings → Functions → D1 database bindings**: nombre de variable `DB` → base

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — WAR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Oswald:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/style.css" />
+  <style>
+    body { padding: 2rem; max-width: 900px; margin: 0 auto; }
+    h1 { font-family: "Cinzel", serif; color: var(--accent); margin-bottom: 2rem; }
+    h2 { font-family: "Oswald", sans-serif; font-size: 1.1rem; letter-spacing: 2px;
+         text-transform: uppercase; color: var(--ink-dim); margin: 2rem 0 1rem; }
+    .panel { background: var(--panel); border: 1px solid var(--line);
+             border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.5rem; }
+    .field { display: flex; flex-direction: column; gap: .4rem; margin-bottom: 1rem; }
+    .field label { font-size: .8rem; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 1px; }
+    .field input, .field select, .field textarea {
+      background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+      color: var(--ink); padding: .5rem .75rem; font-size: .95rem; font-family: inherit;
+    }
+    .field textarea { resize: vertical; min-height: 60px; }
+    .row { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .row .field { flex: 1; min-width: 140px; }
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
+    .card-item { background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+                 padding: 1rem; position: relative; }
+    .card-item.inactive { opacity: .5; }
+    .card-item .card-name { font-family: "Cinzel", serif; font-size: 1rem; color: var(--accent); margin-bottom: .25rem; }
+    .card-item .card-desc { font-size: .85rem; color: var(--ink-dim); margin-bottom: .5rem; }
+    .card-item .card-meta { font-size: .8rem; color: var(--ink-dim); }
+    .card-actions { display: flex; gap: .5rem; margin-top: .75rem; }
+    .btn-sm { padding: .3rem .7rem; font-size: .8rem; }
+    .bp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: .4rem; }
+    .bp-day { background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+              padding: .5rem; text-align: center; cursor: pointer; transition: border-color .2s; }
+    .bp-day:hover { border-color: var(--accent); }
+    .bp-day.has-reward { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--bg)); }
+    .bp-day .day-num { font-family: "Cinzel", serif; font-size: 1rem; color: var(--ink); }
+    .bp-day .day-card { font-size: .65rem; color: var(--accent); margin-top: .2rem; white-space: nowrap;
+                        overflow: hidden; text-overflow: ellipsis; }
+    .month-nav { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+    .month-nav span { font-family: "Cinzel", serif; font-size: 1.1rem; }
+    #error-banner { background: #7f1d1d; color: #fca5a5; padding: .75rem 1rem;
+                    border-radius: 6px; margin-bottom: 1rem; display: none; }
+    #success-banner { background: #14532d; color: #86efac; padding: .75rem 1rem;
+                      border-radius: 6px; margin-bottom: 1rem; display: none; }
+    .effect-badge { display: inline-block; background: var(--accent); color: var(--bg);
+                    border-radius: 4px; padding: .15rem .5rem; font-size: .75rem; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div id="error-banner"></div>
+  <div id="success-banner"></div>
+
+  <h1>Panel de Administración</h1>
+
+  <!-- ===== CARDS SECTION ===== -->
+  <h2>Cartas de Items de Mejora</h2>
+
+  <div class="panel">
+    <h3 style="font-family:Oswald,sans-serif;font-size:1rem;margin:0 0 1rem;color:var(--ink)">Nueva carta</h3>
+    <div class="row">
+      <div class="field"><label>Nombre</label><input id="card-name" placeholder="Ej: Refuerzo Masivo" /></div>
+      <div class="field"><label>Tipo de efecto</label>
+        <select id="card-effect-type">
+          <option value="EXTRA_UNITS">Unidades extra</option>
+          <option value="DOUBLE_ATTACK">Doble ataque</option>
+          <option value="SHIELD">Escudo</option>
+        </select>
+      </div>
+      <div class="field"><label>Valor</label><input id="card-effect-value" type="number" value="20" min="1" /></div>
+    </div>
+    <div class="field"><label>Descripción</label><textarea id="card-desc" placeholder="Descripción visible al jugador"></textarea></div>
+    <button class="btn btn-primary" id="btn-add-card">Crear carta</button>
+  </div>
+
+  <div class="cards-grid" id="cards-grid">
+    <p style="color:var(--ink-dim);grid-column:1/-1">Cargando cartas…</p>
+  </div>
+
+  <!-- ===== BATTLE PASS SECTION ===== -->
+  <h2>Battle Pass — Calendario</h2>
+
+  <div class="panel">
+    <div class="month-nav">
+      <button class="btn btn-ghost btn-sm" id="bp-prev">◀</button>
+      <span id="bp-month-label"></span>
+      <button class="btn btn-ghost btn-sm" id="bp-next">▶</button>
+    </div>
+    <div class="bp-grid" id="bp-grid"></div>
+  </div>
+
+  <!-- Modal asignar recompensa -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-card" id="modal-card" style="max-width:400px"></div>
+  </div>
+
+  <script type="module">
+    const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                    'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    let cards = [];
+    let bpRewards = {};
+    let bpMonth = new Date().getMonth() + 1;
+    let bpYear = new Date().getFullYear();
+
+    function flash(msg, ok = true) {
+      const el = document.getElementById(ok ? 'success-banner' : 'error-banner');
+      el.textContent = msg;
+      el.style.display = 'block';
+      setTimeout(() => { el.style.display = 'none'; }, 3000);
+    }
+
+    // ---- Cards ----
+    async function loadCards() {
+      const res = await fetch('/api/admin/cards');
+      if (res.status === 403) { document.body.innerHTML = '<h2 style="color:#f87171;padding:2rem">Acceso denegado</h2>'; return; }
+      cards = await res.json();
+      renderCards();
+    }
+
+    function effectLabel(type, value) {
+      if (type === 'EXTRA_UNITS') return `+${value} unidades`;
+      if (type === 'DOUBLE_ATTACK') return 'Doble ataque';
+      if (type === 'SHIELD') return 'Escudo';
+      return type;
+    }
+
+    function renderCards() {
+      const grid = document.getElementById('cards-grid');
+      if (!cards.length) { grid.innerHTML = '<p style="color:var(--ink-dim);grid-column:1/-1">No hay cartas creadas aún.</p>'; return; }
+      grid.innerHTML = cards.map(c => `
+        <div class="card-item${c.is_active ? '' : ' inactive'}" data-id="${c.id}">
+          <div class="card-name">${esc(c.name)}</div>
+          <div class="card-desc">${esc(c.description)}</div>
+          <div class="card-meta">
+            <span class="effect-badge">${effectLabel(c.effect_type, c.effect_value)}</span>
+            ${c.is_active ? '<span style="color:#86efac;font-size:.75rem;margin-left:.5rem">● Activa</span>' : '<span style="color:#f87171;font-size:.75rem;margin-left:.5rem">● Inactiva</span>'}
+          </div>
+          <div class="card-actions">
+            <button class="btn btn-ghost btn-sm" onclick="toggleCard(${c.id},${c.is_active ? 0 : 1})">${c.is_active ? 'Desactivar' : 'Activar'}</button>
+            <button class="btn btn-ghost btn-sm" style="color:#f87171" onclick="deleteCard(${c.id})">Eliminar</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    window.toggleCard = async (id, newState) => {
+      const card = cards.find(c => c.id === id);
+      if (!card) return;
+      await fetch('/api/admin/cards', { method: 'PUT', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ ...card, is_active: newState }) });
+      await loadCards();
+    };
+
+    window.deleteCard = async (id) => {
+      if (!confirm('¿Eliminar esta carta permanentemente?')) return;
+      const res = await fetch(`/api/admin/cards?id=${id}`, { method: 'DELETE' });
+      if (res.ok) { flash('Carta eliminada'); await loadCards(); await loadBp(); }
+      else flash('Error al eliminar', false);
+    };
+
+    document.getElementById('btn-add-card').addEventListener('click', async () => {
+      const name = document.getElementById('card-name').value.trim();
+      const desc = document.getElementById('card-desc').value.trim();
+      const effect_type = document.getElementById('card-effect-type').value;
+      const effect_value = parseInt(document.getElementById('card-effect-value').value, 10) || 0;
+      if (!name || !desc) { flash('Completa nombre y descripción', false); return; }
+      const res = await fetch('/api/admin/cards', { method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ name, description: desc, effect_type, effect_value }) });
+      if (res.ok) {
+        flash('Carta creada');
+        document.getElementById('card-name').value = '';
+        document.getElementById('card-desc').value = '';
+        await loadCards();
+      } else flash('Error al crear', false);
+    });
+
+    // ---- Battle Pass ----
+    async function loadBp() {
+      const res = await fetch(`/api/admin/battle-pass?month=${bpMonth}`);
+      const data = await res.json();
+      bpRewards = {};
+      data.forEach(r => { bpRewards[r.day] = r; });
+      renderBp();
+    }
+
+    function renderBp() {
+      const daysInMonth = new Date(bpYear, bpMonth, 0).getDate();
+      document.getElementById('bp-month-label').textContent = `${MONTHS[bpMonth - 1]} ${bpYear}`;
+      const grid = document.getElementById('bp-grid');
+      grid.innerHTML = '';
+      for (let d = 1; d <= daysInMonth; d++) {
+        const r = bpRewards[d];
+        const el = document.createElement('div');
+        el.className = 'bp-day' + (r ? ' has-reward' : '');
+        el.innerHTML = `<div class="day-num">${d}</div><div class="day-card">${r ? esc(r.card_name) : '—'}</div>`;
+        el.addEventListener('click', () => openDayModal(d, r));
+        grid.appendChild(el);
+      }
+    }
+
+    function openDayModal(day, existing) {
+      const modal = document.getElementById('modal');
+      const card = document.getElementById('modal-card');
+      const opts = cards.filter(c => c.is_active).map(c =>
+        `<option value="${c.id}" ${existing?.card_def_id === c.id ? 'selected' : ''}>${esc(c.name)}</option>`
+      ).join('');
+      card.innerHTML = `
+        <h3 style="font-family:Cinzel,serif;margin:0 0 1rem">Día ${day} — ${MONTHS[bpMonth-1]}</h3>
+        ${existing ? `<p style="color:var(--ink-dim);font-size:.9rem">Recompensa actual: <b>${esc(existing.card_name)}</b> x${existing.quantity}</p>` : ''}
+        <div class="field"><label>Carta</label>
+          <select id="modal-card-sel">${opts.length ? opts : '<option value="">— sin cartas activas —</option>'}</select>
+        </div>
+        <div class="field"><label>Cantidad</label>
+          <input id="modal-qty" type="number" min="1" value="${existing?.quantity || 1}" />
+        </div>
+        <div style="display:flex;gap:.75rem;margin-top:1rem">
+          <button class="btn btn-primary" id="modal-save">Guardar</button>
+          ${existing ? '<button class="btn btn-ghost" id="modal-del" style="color:#f87171">Quitar recompensa</button>' : ''}
+          <button class="btn btn-ghost" id="modal-cancel">Cancelar</button>
+        </div>`;
+      modal.classList.remove('hidden');
+      document.getElementById('modal-cancel').onclick = () => modal.classList.add('hidden');
+      document.getElementById('modal-save').onclick = async () => {
+        const cid = document.getElementById('modal-card-sel').value;
+        const qty = parseInt(document.getElementById('modal-qty').value, 10) || 1;
+        if (!cid) { flash('Selecciona una carta', false); return; }
+        await fetch('/api/admin/battle-pass', { method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ month: bpMonth, day, card_def_id: Number(cid), quantity: qty }) });
+        modal.classList.add('hidden');
+        flash('Recompensa guardada');
+        await loadBp();
+      };
+      if (existing) {
+        document.getElementById('modal-del').onclick = async () => {
+          await fetch(`/api/admin/battle-pass?month=${bpMonth}&day=${day}`, { method: 'DELETE' });
+          modal.classList.add('hidden');
+          flash('Recompensa eliminada');
+          await loadBp();
+        };
+      }
+    }
+
+    document.getElementById('bp-prev').onclick = () => {
+      bpMonth--; if (bpMonth < 1) { bpMonth = 12; bpYear--; }
+      loadBp();
+    };
+    document.getElementById('bp-next').onclick = () => {
+      bpMonth++; if (bpMonth > 12) { bpMonth = 1; bpYear++; }
+      loadBp();
+    };
+
+    function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+    loadCards();
+    loadBp();
+  </script>
+</body>
+</html>

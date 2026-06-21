@@ -171,11 +171,17 @@ export class Game {
     if (!this.canAttack(fromId, toId)) return null;
 
     const maxAtk = this.maxAttackUnits(fromId);
-    const atkCount = Math.max(1, Math.min(attackUnits | 0 || maxAtk, maxAtk));
+    let atkCount = Math.max(1, Math.min(attackUnits | 0 || maxAtk, maxAtk));
     const defCount = this.board[toId].armies; // defiende con todas
 
+    // Doble ataque: duplica dados del atacante esta vez
+    if (this._doubleAttack) { atkCount = Math.min(atkCount * 2, this.board[fromId].armies - 1 || 1); this._doubleAttack = false; }
+
     const atkDice = Array.from({ length: atkCount }, d6).sort((a, b) => b - a);
-    const defDice = Array.from({ length: defCount }, d6).sort((a, b) => b - a);
+    let defDice = Array.from({ length: defCount }, d6).sort((a, b) => b - a);
+
+    // Escudo: si el defensor lo tiene activo, sus dados son todos 6
+    if (this._shield === this.board[toId].owner) { defDice = defDice.map(() => 6); this._shield = null; }
 
     let atkLoss = 0, defLoss = 0;
     const pairs = Math.min(atkDice.length, defDice.length);
@@ -282,6 +288,29 @@ export class Game {
       this.winner = this.current;
       this._log(`VICTORIA de ${this.winner.name}! Domina el mundo.`);
     }
+  }
+
+  // ---------- items de mejora ----------
+  // effectType: 'EXTRA_UNITS' | 'DOUBLE_ATTACK' | 'SHIELD'
+  applyCardEffect(playerId, effectType, effectValue) {
+    if (this.phase !== 'play') return false;
+    if (this.current.id !== playerId) return false;
+    if (effectType === 'EXTRA_UNITS') {
+      this.reinforcements += Number(effectValue);
+      this._log(`${this.current.name} usa una carta: +${effectValue} refuerzos extra!`);
+      return true;
+    }
+    if (effectType === 'DOUBLE_ATTACK') {
+      this._doubleAttack = true;
+      this._log(`${this.current.name} activa Doble Ataque!`);
+      return true;
+    }
+    if (effectType === 'SHIELD') {
+      this._shield = playerId;
+      this._log(`${this.current.name} activa un Escudo!`);
+      return true;
+    }
+    return false;
   }
 
   // ---------- rendicion ----------

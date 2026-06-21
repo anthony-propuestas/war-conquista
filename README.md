@@ -64,14 +64,20 @@ estático; el salón de la fama simplemente no aparecerá sin el backend.
 npm run db:create                 # crea la DB "war-scores"
 # copia el database_id que imprime y pégalo en wrangler.toml
 wrangler d1 execute war-scores --remote --file migrations/0001_users.sql
+wrangler d1 execute war-scores --remote --file migrations/0002_items.sql
 ```
 
-### 2. Configurar secrets de Google OAuth
+### 2. Configurar secrets
 
 ```bash
 wrangler pages secret put GOOGLE_CLIENT_ID --project-name war-conquista
 wrangler pages secret put GOOGLE_CLIENT_SECRET --project-name war-conquista
+wrangler pages secret put SESSION_SECRET --project-name war-conquista
+wrangler pages secret put ADMIN_EMAILS --project-name war-conquista
 ```
+
+`SESSION_SECRET`: cadena aleatoria de ≥32 bytes; firma la cookie `war_session` (HMAC-SHA256).
+`ADMIN_EMAILS`: lista de emails separados por comas con acceso al panel `/admin`.
 
 Obtén las credenciales en **Google Cloud Console → Credenciales → OAuth 2.0**.
 URI de redirección autorizado: `https://war-conquista.pages.dev/api/auth/callback`
@@ -118,6 +124,8 @@ WAR/
 ├── register/index.html     # registro de usuario nuevo (/register)
 ├── gamers/index.html       # ranking de jugadores (/gamers)
 ├── my-profile/index.html   # perfil del jugador autenticado (/my-profile)
+├── admin/index.html        # panel de administración (/admin) — gestión de cartas y battle pass
+├── battle-pass/index.html  # battle pass del jugador (/battle-pass) — calendario y claim diario
 ├── css/style.css           # estilos
 ├── js/
 │   ├── map-data.js         # territorios, continentes, adyacencias
@@ -138,6 +146,11 @@ WAR/
 │   ├── callback.js         # completa OAuth, guarda cookie de sesión
 │   └── wallet.js           # login alterno con wallet
 ├── functions/api/wallet/link.js # vincula wallet a la cuenta de la sesión
+├── functions/_lib/
+│   └── session.js          # firma y verifica cookie war_session (HMAC-SHA256)
+├── functions/api/cards/    # inventory.js · use.js · delete.js
+├── functions/api/battle-pass/ # status.js · claim.js
+├── functions/api/admin/    # cards.js · battle-pass.js (requieren ADMIN_EMAILS)
 ├── functions/api/game-room.js # Pages Function: routing de /api/game-room al Durable Object
 ├── worker/                 # Worker separado "war-game-room" que aloja el Durable Object
 ├── migrations/             # migraciones D1 (estado actual del esquema)

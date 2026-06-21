@@ -105,6 +105,174 @@ Solo corre si la cookie `war_session` trae un `sub` válido (si no, el endpoint
 responde `{ok:false}` sin tocar la DB). No valida que `sub` exista en la tabla:
 si no hay fila, el `UPDATE` simplemente afecta 0 filas.
 
+---
+
+## Esquema 0002_items (migración 0002) — sistema de cartas y battle pass
+
+```sql
+-- Catálogo de tipos de carta (administrado desde /api/admin/cards)
+CREATE TABLE IF NOT EXISTS card_definitions (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  name         TEXT    NOT NULL,
+  description  TEXT    NOT NULL,
+  effect_type  TEXT    NOT NULL,  -- 'EXTRA_UNITS' | 'DOUBLE_ATTACK' | 'SHIELD'
+  effect_value INTEGER NOT NULL DEFAULT 0,
+  is_active    INTEGER NOT NULL DEFAULT 1,
+  created_at   INTEGER NOT NULL
+);
+
+-- Inventario de cartas por jugador (used_at NULL = disponible)
+CREATE TABLE IF NOT EXISTS user_cards (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id     INTEGER NOT NULL REFERENCES users(id),
+  card_def_id INTEGER NOT NULL REFERENCES card_definitions(id),
+  acquired_at INTEGER NOT NULL,
+  used_at     INTEGER            -- timestamp-ms; NULL = aún no usada
+);
+CREATE INDEX IF NOT EXISTS idx_user_cards_user ON user_cards(user_id);
+
+-- Calendario de recompensas del battle pass (por mes+día, configurable desde /api/admin/battle-pass)
+CREATE TABLE IF NOT EXISTS battle_pass_rewards (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  month       INTEGER NOT NULL,
+  day         INTEGER NOT NULL,
+  card_def_id INTEGER NOT NULL REFERENCES card_definitions(id),
+  quantity    INTEGER NOT NULL DEFAULT 1,
+  UNIQUE(month, day)
+);
+
+-- Progreso diario del battle pass por usuario (se resetea cada mes)
+CREATE TABLE IF NOT EXISTS battle_pass_progress (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id         INTEGER NOT NULL UNIQUE REFERENCES users(id),
+  current_month   INTEGER NOT NULL,
+  claimed_days    TEXT    NOT NULL DEFAULT '[]',  -- JSON array de días reclamados
+  last_claim_date TEXT                            -- 'YYYY-MM-DD' o NULL
+);
+```
+
+| Tabla | Rol |
+|---|---|
+| `card_definitions` | Catálogo de tipos de carta. Solo los admins la modifican. `is_active=0` oculta la carta sin borrarla. |
+| `user_cards` | Una fila por carta que posee un jugador. `used_at IS NULL` = disponible. Se inserta vía battle pass claim o futura compra. |
+| `battle_pass_rewards` | Qué carta (y cuántas) se entrega cada día del mes. `UNIQUE(month, day)` → `INSERT OR REPLACE` en el admin. |
+| `battle_pass_progress` | Estado de avance del jugador: días reclamados este mes, fecha del último claim. Se resetea automáticamente al cambiar de mes. |
+
+### Queries — `functions/api/cards/inventory.js`
+
+```sql
+SELECT id FROM users WHERE sub = ?
+
+SELECT uc.id, uc.used_at, cd.name, cd.description, cd.effect_type, cd.effect_value
+FROM user_cards uc
+JOIN card_definitions cd ON uc.card_def_id = cd.id
+WHERE uc.user_id = ? AND cd.is_active = 1
+ORDER BY uc.acquired_at
+```
+
+Sin sesión o sin usuario en DB → devuelve `[]` (no 401).
+
+### Queries — `functions/api/cards/use.js`
+
+```sql
+SELECT id FROM users WHERE sub = ?
+
+-- Verifica que la carta existe, pertenece al usuario y no fue usada
+SELECT uc.id, cd.effect_type, cd.effect_value, cd.name
+FROM user_cards uc
+JOIN card_definitions cd ON uc.card_def_id = cd.id
+WHERE uc.id = ? AND uc.user_id = ? AND uc.used_at IS NULL AND cd.is_active = 1
+
+UPDATE user_cards SET used_at = ? WHERE id = ?
+```
+
+### Queries — `functions/api/cards/delete.js`
+
+```sql
+SELECT id FROM users WHERE sub = ?
+SELECT id FROM user_cards WHERE id = ? AND user_id = ?
+DELETE FROM user_cards WHERE id = ?
+```
+
+### Queries — `functions/api/battle-pass/status.js`
+
+```sql
+SELECT id FROM users WHERE sub = ?
+SELECT * FROM battle_pass_progress WHERE user_id = ?
+
+SELECT bp.day, bp.quantity, cd.name, cd.description, cd.effect_type, cd.effect_value
+FROM battle_pass_rewards bp
+JOIN card_definitions cd ON bp.card_def_id = cd.id
+WHERE bp.month = ?
+ORDER BY bp.day
+```
+
+### Queries — `functions/api/battle-pass/claim.js`
+
+```sql
+SELECT id FROM users WHERE sub = ?
+SELECT * FROM battle_pass_progress WHERE user_id = ?
+
+-- Primera vez: crea el registro de progreso
+INSERT INTO battle_pass_progress (user_id, current_month, claimed_days, last_claim_date)
+  VALUES (?, ?, '[]', NULL)
+
+-- Nuevo mes: resetea días reclamados
+UPDATE battle_pass_progress SET current_month=?, claimed_days='[]', last_claim_date=NULL
+  WHERE user_id=?
+
+-- Recompensa del día
+SELECT bp.quantity, cd.id AS card_def_id, cd.name, cd.description, cd.effect_type, cd.effect_value
+FROM battle_pass_rewards bp
+JOIN card_definitions cd ON bp.card_def_id = cd.id
+WHERE bp.month = ? AND bp.day = ? AND cd.is_active = 1
+
+-- Marca el día como reclamado
+UPDATE battle_pass_progress SET claimed_days=?, last_claim_date=? WHERE user_id=?
+
+-- Inserta N cartas en batch (una por quantity)
+INSERT INTO user_cards (user_id, card_def_id, acquired_at) VALUES (?, ?, ?)
+-- → env.DB.batch([stmt1, stmt2, ...])
+```
+
+### Queries — `functions/api/admin/cards.js`
+
+```sql
+-- GET
+SELECT * FROM card_definitions ORDER BY created_at DESC
+
+-- POST
+INSERT INTO card_definitions (name, description, effect_type, effect_value, is_active, created_at)
+  VALUES (?, ?, ?, ?, 1, ?)
+
+-- PUT
+UPDATE card_definitions SET name=?, description=?, effect_type=?, effect_value=?, is_active=? WHERE id=?
+
+-- DELETE
+DELETE FROM card_definitions WHERE id=?
+```
+
+### Queries — `functions/api/admin/battle-pass.js`
+
+```sql
+-- GET ?month=N
+SELECT bp.id, bp.month, bp.day, bp.quantity, bp.card_def_id,
+       cd.name AS card_name, cd.effect_type, cd.effect_value
+FROM battle_pass_rewards bp
+JOIN card_definitions cd ON bp.card_def_id = cd.id
+WHERE bp.month = ?
+ORDER BY bp.day
+
+-- POST (upsert por month+day gracias al UNIQUE constraint)
+INSERT OR REPLACE INTO battle_pass_rewards (month, day, card_def_id, quantity)
+  VALUES (?, ?, ?, ?)
+
+-- DELETE ?month=N&day=N
+DELETE FROM battle_pass_rewards WHERE month=? AND day=?
+```
+
+---
+
 ## Migraciones
 
 Las migraciones viven en `migrations/` y se aplican en orden ascendente.
@@ -112,6 +280,7 @@ Las migraciones viven en `migrations/` y se aplican en orden ascendente.
 | Migración | Archivo | Qué hace |
 |---|---|---|
 | 0001 | `migrations/0001_users.sql` | Borra `scores`; crea `users` (incluye `wallet_address`) con sus índices. |
+| 0002 | `migrations/0002_items.sql` | Crea `card_definitions`, `user_cards`, `battle_pass_rewards`, `battle_pass_progress`. |
 
 ### Comandos
 
@@ -121,8 +290,8 @@ Las migraciones viven en `migrations/` y se aplican en orden ascendente.
 
 Para aplicar una migración manualmente:
 ```bash
-wrangler d1 execute war-scores --local  --file migrations/0001_users.sql
-wrangler d1 execute war-scores --remote --file migrations/0001_users.sql
+wrangler d1 execute war-scores --local  --file migrations/0002_items.sql
+wrangler d1 execute war-scores --remote --file migrations/0002_items.sql
 ```
 
 Ver también: [environment.md](environment.md) (binding `DB`), [api.md](api.md) (consumidores de estas queries).

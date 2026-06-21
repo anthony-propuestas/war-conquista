@@ -14,6 +14,13 @@ WAR es un juego de estrategia multijugador. La superficie de red comprende:
 - `/api/auth/wallet` — login alterno firmando un mensaje con MetaMask
 - `/api/wallet/link` — vincula una wallet a la cuenta de la sesión actual (requiere `war_session`, escribe en DB)
 - `/api/game-room` — WebSocket a través de un Durable Object (`GameRoom`)
+- `/api/cards/inventory` — lista cartas no usadas del usuario autenticado (requiere `war_session`)
+- `/api/cards/use` — marca una carta como usada (requiere `war_session`, escribe en DB)
+- `/api/cards/delete` — elimina una carta del inventario (requiere `war_session`, escribe en DB)
+- `/api/battle-pass/status` — devuelve calendario del mes y días reclamados (requiere `war_session`)
+- `/api/battle-pass/claim` — reclama la recompensa del día actual (requiere `war_session`, escribe en DB)
+- `/api/admin/cards` — CRUD de definiciones de cartas (requiere `war_session` con email en `ADMIN_EMAILS`)
+- `/api/admin/battle-pass` — CRUD de recompensas del calendario (requiere `war_session` con email en `ADMIN_EMAILS`)
 
 La sesión se guarda en una cookie `war_session` (`HttpOnly; SameSite=Lax`).
 No hay uploads/archivos. La wallet Web3 (`wallet.js`) es experimental (sin contratos
@@ -119,6 +126,25 @@ desplegados en producción).
   `POST /api/auth/wallet` usando su wallet real, de forma persistente, como **puerta
   trasera** a la cuenta ajena. Sube la prioridad de firmar `war_session` con HMAC.
 
+## Backend — Cards, Battle Pass & Admin (`functions/api/cards/`, `functions/api/battle-pass/`, `functions/api/admin/`)
+
+### Mecanismos de seguridad confirmados
+
+- **Auth:** todos los endpoints requieren `war_session` HMAC válida (`getSession()` → 401 si falta o manipulada). Los endpoints admin además verifican que el email de la sesión esté en la variable de entorno `ADMIN_EMAILS` (403 si no).
+- **Ownership en use/delete de cartas:** las queries usan `WHERE id = ? AND user_id = ?`; si la carta no existe o pertenece a otro usuario, devuelven 404 sin exponer información de la otra cuenta.
+- **Mutaciones en métodos correctos:** `POST` para use/claim, `DELETE` para delete/remove, `PUT` para update admin, `GET` para lecturas. Sin mutaciones por GET.
+- **Queries parametrizadas:** todas usan `.prepare(...).bind(...)`. El `INSERT … ON CONFLICT` de claim y los `SELECT … WHERE user_id = ?` de inventario nunca interpolan valores del usuario.
+- **Datos devueltos al cliente:** cards API expone solo `id`, `name`, `description`, `effect_type`, `effect_value`. No se filtran columnas internas (`user_id`, `used_at`, `created_at`). Admin endpoints exponen `is_active` adicionalmente — solo accesible por admins.
+- **XSS:** todo dato de carta renderizado en el DOM pasa por `esc()` en `admin/index.html` y `battle-pass/index.html`, y por `escapeHtml()` en `js/ui.js:renderItemsPanel()`. Sin sinks de `innerHTML` con datos de DB sin escapar.
+- **Schema D1 (`migrations/0002_items.sql`):** índices en `user_id`; `UNIQUE(month, day)` en `battle_pass_rewards` evita asignaciones duplicadas de recompensa; `used_at` nullable como estado de carta (NULL = disponible, timestamp = usada).
+
+### Hallazgos
+
+- **[MEDIO] Race condition en `POST /api/battle-pass/claim`:** dos requests simultáneos pasan el check `last_claim_date !== todayStr` antes de que el primero actualice la DB, resultando en doble claim del mismo día y cartas duplicadas en el inventario. La query D1 no usa transacción ni constraint que provoque conflicto en el segundo request. Mitigación futura: `BEGIN IMMEDIATE` + query atómica, o `UNIQUE(user_id, last_claim_date)` en el schema. **Aceptado para MVP** (impacto bajo: cartas sin valor económico en juego casual).
+- **[BAJO] Admin card `PUT` sin validación de campos vacíos:** el endpoint `POST /api/admin/cards` valida `!name?.trim()` y `!description?.trim()` y devuelve 400, pero el `PUT` no replica esas validaciones. Un admin puede actualizar una carta dejando el nombre o la descripción vacíos. No es un vector de ataque externo; riesgo de inconsistencia de datos.
+- **[BAJO] Parámetro `month` sin rango en admin battle-pass:** `parseInt(searchParams.get('month'))` acepta cualquier entero (0, -1, 13, 9999). La query es parametrizada (sin inyección SQL), pero meses fuera de [1-12] devuelven resultados vacíos sin error claro al cliente. Riesgo de lógica, no de seguridad.
+- **[INFO] Fire-and-forget en uso de cartas (`js/ui.js:_useCard()`):** el efecto de la carta se aplica localmente antes de confirmar con el API; `.catch(() => {})` silencia errores de red. Si el API falla, la carta queda marcada como "usada" en UI pero sigue disponible en servidor (desincronización). No es un vector de ataque; se registra como riesgo de integridad de estado.
+
 ## Frontend — `js/main.js` y `js/ui.js`
 
 - **XSS (output encoding):** el `name` que vuelve de la DB pasa por `escapeHtml()` antes
@@ -180,6 +206,7 @@ No son vulnerabilidades confirmadas, pero se registran:
   leaderboard legacy. Mitigaciones posibles si llegara a importar: Cloudflare Turnstile,
   rate-limit en la Function, o un token de partida emitido al crear la sala y verificado
   al reportar la victoria.
+- **[MEDIO] Race condition en `POST /api/battle-pass/claim`:** dos requests simultáneos pueden reclamar la recompensa del mismo día dos veces porque el check `last_claim_date !== todayStr` no es atómico. Resulta en cartas duplicadas en el inventario. Mitigación futura: transacción D1 con `BEGIN IMMEDIATE` o `UNIQUE(user_id, last_claim_date)`. **Aceptado para MVP.**
 - **Sin rate-limiting** en los endpoints de escritura en general (abuso/spam de escrituras).
 - **Spoofing de identidad en WebSocket (`worker/index.js`):** `playerId` se toma del
   parámetro URL sin verificar contra la cookie `war_session`. Cualquier cliente puede
@@ -305,6 +332,7 @@ La tabla de la sección anterior refleja el estado al momento del despliegue. Ac
 
 ## Historial de revisiones
 
+- **2026-06-21** — Sistema de cartas, battle pass y panel admin: `functions/api/cards/`, `functions/api/battle-pass/`, `functions/api/admin/`, `migrations/0002_items.sql`, `admin/index.html`, `battle-pass/index.html`, `js/ui.js`, `js/game.js`. **Hallazgos:** (1) [MEDIO] race condition en `POST /api/battle-pass/claim` — doble claim simultáneo posible, aceptado MVP; (2) [BAJO] admin card PUT sin validación de campos vacíos; (3) [BAJO] `month` sin rango [1-12] en admin battle-pass. **Positivos:** todos los endpoints autenticados con HMAC; ownership verificado con `WHERE id = ? AND user_id = ?`; admin gateado por `ADMIN_EMAILS`; XSS cubierto con `esc()` / `escapeHtml()` en todos los sinks nuevos; queries D1 parametrizadas. Sin cambios en `_headers` ni `wrangler.toml`.
 - **2026-06-21** — **Endurecimiento de sesión y auth (correcciones, no solo registro).**
   Cambios revisados y aplicados:
   - **RESUELTO — Cookie `war_session` sin HMAC:** nuevo módulo `functions/_lib/session.js`

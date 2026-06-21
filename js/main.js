@@ -29,6 +29,15 @@ async function loadProfile() {
   } catch (_) {}
 }
 
+// ---------- items de mejora (cartas del jugador) ----------
+let playerCards = []; // [{ id, name, description, effect_type, effect_value, used_at }]
+async function loadCards() {
+  try {
+    const res = await fetch('/api/cards/inventory');
+    if (res.ok) playerCards = await res.json();
+  } catch (_) {}
+}
+
 // ---------- modo online (emparejamiento automatico) ----------
 let onlineActive = false;
 let countdownHandle = null;
@@ -115,7 +124,7 @@ function startLocalGame() {
   myIndex = null;
   rankedOnline = false;
   const game = new Game(configs);
-  ui = new UI(game, onGameOver);
+  ui = new UI(game, onGameOver, { playerCards: [...playerCards] });
   showScreen("#screen-game");
   showWalletBadgeInGame();
 }
@@ -362,7 +371,7 @@ function beginOnlineGame(players, initialBoard, initialSetup, initialAttackUnloc
       alive: game.players.map((p) => p.alive),
     });
   };
-  ['placeSetupArmy','placeReinforcement','attack','endTurn','fortify','autoPlaceSetup','surrender']
+  ['placeSetupArmy','placeReinforcement','attack','endTurn','fortify','autoPlaceSetup','surrender','applyCardEffect']
     .forEach(method => {
       const orig = game[method].bind(game);
       game[method] = (...args) => {
@@ -373,7 +382,7 @@ function beginOnlineGame(players, initialBoard, initialSetup, initialAttackUnloc
     });
 
   updateMultiplayerBadge(roomId);
-  ui = new UI(game, onGameOver, { myIndex });
+  ui = new UI(game, onGameOver, { myIndex, playerCards: [...playerCards] });
   showScreen("#screen-game");
   showWalletBadgeInGame();
 }
@@ -539,3 +548,4 @@ walletAddress = sessionStorage.getItem('walletAddress');
 renderWalletUI();
 renderPlayerFields();
 loadProfile();
+loadCards();

@@ -95,7 +95,8 @@ diseño):
 ## Páginas que siguen este sistema
 
 `home/index.html`, `login.html`, `register/index.html`, `lobby/index.html`,
-`my-profile/index.html`, `gamers/index.html` y `game/index.html`.
+`my-profile/index.html`, `gamers/index.html`, `game/index.html`,
+`battle-pass/index.html` y `admin/index.html`.
 
 `register/`, `lobby/`, `my-profile/` y `gamers/` antes usaban un tema
 monoespaciado (`Courier New`) negro/rojo sin relación con el resto del juego;
@@ -137,3 +138,22 @@ y jerarquía para el momento de victoria/derrota.
 | `.end-standings` | Tabla de clasificación final (`<ol>`) |
 | `.end-standings li` | Fila de jugador: posición, nombre con color, territorios |
 | `.end-badge` | Píldora de posición (1.º dorado `--accent`, 2.º plata, resto gris) |
+
+## Componente: Panel de cartas (items de mejora)
+
+Bloque `.items-panel` en el sidebar de `game/index.html`. Se muestra solo cuando el
+jugador tiene cartas en su inventario; permanece oculto (`class="hidden"`) en caso contrario.
+
+| Selector | Descripción |
+|---|---|
+| `.items-panel` | Contenedor del panel (`margin-bottom: 1rem`). |
+| `.items-panel h3` | Encabezado: Oswald 0.75rem, uppercase, `letter-spacing: 2px`, color `--ink-dim`. |
+| `#items-list` | `<ul>` en flexbox vertical, `gap: 0.4rem`, sin `list-style`. |
+| `.item-card` | Tarjeta de carta: `background: color-mix(--accent 6%, --panel)`, `border: 1px solid color-mix(--accent 30%, transparent)`, `border-radius: 8px`. |
+| `.item-card.item-used` | Carta ya usada en partida: `opacity: 0.4`, borde y fondo vuelven a `--line` / `--panel`. |
+| `.item-icon` | Span con emoji de efecto: `🪖` EXTRA_UNITS · `⚔` DOUBLE_ATTACK · `🛡` SHIELD · `🃏` desconocido. `font-size: 1.1rem`. |
+| `.item-name` | Nombre de la carta: Cinzel 0.78rem, color `--accent`, truncado con `text-overflow: ellipsis`. |
+| `.item-desc` | Descripción: 0.72rem, `--ink-dim`, truncada con ellipsis. |
+| `.item-status` | Texto de estado ("Usada" o "—") cuando no hay botón de acción. 0.72rem, `--ink-dim`. |
+| `.item-use-btn` | Botón "Usar": clases `.btn .btn-ok .btn-sm`; solo renderizado si `isMyTurn() && game.phase === 'play'` y carta no usada. |
+| `.btn-icon-del` | Botón descartar (✕): sin relleno ni borde, `color: --ink-dim`; en `:hover` cambia a `#f87171` (rojo suave). `font-size: 0.85rem`. |

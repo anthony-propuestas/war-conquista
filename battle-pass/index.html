@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Battle Pass — WAR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Oswald:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/style.css" />
+  <style>
+    body { padding: 2rem; max-width: 780px; margin: 0 auto; }
+    .page-header { text-align: center; margin-bottom: 2rem; }
+    .page-header h1 { font-family: "Cinzel", serif; font-size: 2.2rem; color: var(--accent); margin-bottom: .3rem; }
+    .page-header p { color: var(--ink-dim); font-family: "Oswald", sans-serif; letter-spacing: 1px; }
+    .month-label { font-family: "Cinzel", serif; font-size: 1.3rem; text-align: center; margin-bottom: 1.5rem; color: var(--ink); }
+    .bp-calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: .5rem; }
+    .bp-day {
+      border: 1px solid var(--line); border-radius: 8px; padding: .6rem .4rem;
+      text-align: center; min-height: 80px; display: flex; flex-direction: column;
+      align-items: center; justify-content: flex-start; gap: .25rem;
+      transition: border-color .2s, background .2s;
+    }
+    .bp-day.today { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--bg)); }
+    .bp-day.claimed { background: color-mix(in srgb, #16a34a 12%, var(--bg)); border-color: #16a34a; }
+    .bp-day.past { opacity: .45; }
+    .bp-day.future { opacity: .55; }
+    .bp-day .dn { font-family: "Cinzel", serif; font-size: .95rem; color: var(--ink); }
+    .bp-day.today .dn { color: var(--accent); font-weight: 800; }
+    .bp-day.claimed .dn { color: #86efac; }
+    .bp-day .reward-icon { font-size: 1.1rem; }
+    .bp-day .reward-name { font-size: .65rem; color: var(--ink-dim); max-width: 100%;
+                           overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bp-day .check { color: #86efac; font-size: .9rem; }
+    .claim-box { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+                 padding: 1.5rem; text-align: center; margin-bottom: 1.5rem; }
+    .claim-box h2 { font-family: "Cinzel", serif; color: var(--ink); margin: 0 0 .5rem; font-size: 1.1rem; }
+    .claim-box .reward-preview { font-family: "Oswald", sans-serif; font-size: 1.2rem;
+                                  color: var(--accent); margin: .5rem 0 1rem; }
+    #claim-result { margin-top: 1rem; font-family: "Oswald", sans-serif;
+                    font-size: 1rem; min-height: 1.4rem; }
+    .streak-label { text-align: center; font-family: "Oswald", sans-serif; font-size: .9rem;
+                    color: var(--ink-dim); margin-bottom: 1.5rem; letter-spacing: 1px; }
+    a.back-link { display: inline-block; margin-bottom: 1.5rem; color: var(--accent);
+                  font-family: "Oswald", sans-serif; font-size: .9rem; text-decoration: none; }
+    a.back-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <a class="back-link" href="/lobby">← Volver al Lobby</a>
+
+  <div class="page-header">
+    <h1>Battle Pass</h1>
+    <p>Inicia sesión cada día para recibir tus recompensas</p>
+  </div>
+
+  <div class="claim-box" id="claim-box">
+    <p style="color:var(--ink-dim)">Cargando…</p>
+  </div>
+
+  <div class="streak-label" id="streak-label"></div>
+  <div class="month-label" id="month-label"></div>
+  <div class="bp-calendar" id="bp-calendar"></div>
+
+  <script type="module">
+    const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                    'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const EFFECT_LABELS = { EXTRA_UNITS: '🪖 Unidades extra', DOUBLE_ATTACK: '⚔ Doble ataque', SHIELD: '🛡 Escudo' };
+
+    let statusData = null;
+
+    async function init() {
+      const res = await fetch('/api/battle-pass/status');
+      if (res.status === 401) { window.location.href = '/login.html'; return; }
+      statusData = await res.json();
+      render();
+    }
+
+    function effectDesc(type, value) {
+      if (type === 'EXTRA_UNITS') return `+${value} unidades este turno`;
+      if (type === 'DOUBLE_ATTACK') return 'Doble dados en un ataque';
+      if (type === 'SHIELD') return 'Absorbe un ataque sin pérdidas';
+      return type;
+    }
+
+    function render() {
+      const { month, current_day, days_in_month, claimed_days, can_claim_today, today_reward, rewards } = statusData;
+      const rewardMap = {};
+      rewards.forEach(r => { rewardMap[r.day] = r; });
+
+      // Claim box
+      const box = document.getElementById('claim-box');
+      if (can_claim_today) {
+        const rHTML = today_reward
+          ? `<div class="reward-preview">${EFFECT_LABELS[today_reward.effect_type] || today_reward.effect_type} x${today_reward.quantity}<br>
+             <small style="font-size:.85rem;color:var(--ink-dim)">${effectDesc(today_reward.effect_type, today_reward.effect_value)}</small></div>`
+          : `<div class="reward-preview" style="color:var(--ink-dim)">Sin recompensa hoy<br><small>Recuerda volver mañana</small></div>`;
+        box.innerHTML = `
+          <h2>¡Día ${current_day} disponible!</h2>
+          ${rHTML}
+          <button class="btn btn-primary" id="btn-claim">Reclamar entrada diaria</button>
+          <div id="claim-result"></div>`;
+        document.getElementById('btn-claim').addEventListener('click', claimToday);
+      } else {
+        box.innerHTML = `
+          <h2 style="color:#86efac">✓ Ya registraste tu entrada hoy</h2>
+          <p style="color:var(--ink-dim);font-size:.9rem">Vuelve mañana para el día ${current_day < days_in_month ? current_day + 1 : 1}</p>`;
+      }
+
+      // Streak
+      document.getElementById('streak-label').textContent = `${claimed_days.length} días reclamados este mes`;
+
+      // Month label
+      document.getElementById('month-label').textContent = MONTHS[month - 1];
+
+      // Calendar
+      const cal = document.getElementById('bp-calendar');
+      cal.innerHTML = '';
+      for (let d = 1; d <= days_in_month; d++) {
+        const isClaimed = claimed_days.includes(d);
+        const isToday = d === current_day;
+        const isPast = d < current_day;
+        const isFuture = d > current_day;
+        const reward = rewardMap[d];
+
+        const div = document.createElement('div');
+        div.className = 'bp-day' + (isClaimed ? ' claimed' : isToday ? ' today' : isPast ? ' past' : ' future');
+
+        const dn = document.createElement('div');
+        dn.className = 'dn';
+        dn.textContent = d;
+        div.appendChild(dn);
+
+        if (reward) {
+          const ico = document.createElement('div');
+          ico.className = 'reward-icon';
+          ico.textContent = reward.effect_type === 'EXTRA_UNITS' ? '🪖' : reward.effect_type === 'DOUBLE_ATTACK' ? '⚔' : '🛡';
+          const nm = document.createElement('div');
+          nm.className = 'reward-name';
+          nm.textContent = reward.name;
+          div.appendChild(ico);
+          div.appendChild(nm);
+        }
+
+        if (isClaimed) {
+          const ck = document.createElement('div');
+          ck.className = 'check';
+          ck.textContent = '✓';
+          div.appendChild(ck);
+        }
+
+        cal.appendChild(div);
+      }
+    }
+
+    async function claimToday() {
+      const btn = document.getElementById('btn-claim');
+      const result = document.getElementById('claim-result');
+      btn.disabled = true;
+      btn.textContent = 'Reclamando…';
+      try {
+        const res = await fetch('/api/battle-pass/claim', { method: 'POST' });
+        const data = await res.json();
+        if (data.already_claimed) {
+          result.textContent = 'Ya reclamaste hoy.';
+          result.style.color = 'var(--ink-dim)';
+        } else if (data.reward) {
+          result.innerHTML = `<span style="color:#86efac">¡Recibiste: ${esc(data.reward.name)} x${data.reward.quantity}!</span>`;
+        } else {
+          result.innerHTML = '<span style="color:#86efac">Entrada registrada.</span>';
+        }
+        // Reload status
+        const s = await fetch('/api/battle-pass/status');
+        statusData = await s.json();
+        render();
+      } catch (_) {
+        result.textContent = 'Error al reclamar.';
+        result.style.color = '#f87171';
+        btn.disabled = false;
+        btn.textContent = 'Reclamar entrada diaria';
+      }
+    }
+
+    function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+    init();
+  </script>
+</body>
+</html>

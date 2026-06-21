@@ -361,3 +361,37 @@ test("endTurn: attackUnlocked se activa tras la primera ronda completa", () => {
   assert.equal(g.attackUnlocked, true);
   assert.ok(g.log.some((e) => e.msg.includes("Primera ronda completa")));
 });
+
+// ---------- applyCardEffect ----------
+test("applyCardEffect EXTRA_UNITS suma refuerzos al jugador actual", () => {
+  const g = newGame();
+  g.autoPlaceSetup();
+  g.autoPlaceSetup(); // fase play, currentIndex=0
+  const antes = g.reinforcements;
+  assert.equal(g.applyCardEffect(0, "EXTRA_UNITS", 5), true);
+  assert.equal(g.reinforcements, antes + 5);
+});
+
+test("applyCardEffect DOUBLE_ATTACK activa el flag _doubleAttack", () => {
+  const g = newGame();
+  g.autoPlaceSetup();
+  g.autoPlaceSetup();
+  assert.equal(g.applyCardEffect(0, "DOUBLE_ATTACK", 0), true);
+  assert.equal(g._doubleAttack, true);
+});
+
+test("applyCardEffect SHIELD guarda el id del jugador en _shield", () => {
+  const g = newGame();
+  g.autoPlaceSetup();
+  g.autoPlaceSetup();
+  assert.equal(g.applyCardEffect(0, "SHIELD", 0), true);
+  assert.equal(g._shield, 0);
+});
+
+test("applyCardEffect devuelve false en setup o con jugador incorrecto", () => {
+  const g = newGame();
+  assert.equal(g.applyCardEffect(0, "EXTRA_UNITS", 3), false); // fase setup
+  g.autoPlaceSetup();
+  g.autoPlaceSetup(); // fase play, currentIndex=0
+  assert.equal(g.applyCardEffect(1, "EXTRA_UNITS", 3), false); // p1 no es el actual
+});

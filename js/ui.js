@@ -44,6 +44,10 @@ export class UI {
     this.myIndex = opts.myIndex ?? null;
     this.onlineMode = this.myIndex !== null;
 
+    // items de mejora: copia local para controlar usadas en esta sesion
+    this.playerCards = (opts.playerCards || []).map(c => ({ ...c }));
+    this.usedInSession = new Set(); // ids de cartas usadas en esta partida (sincronía optimista)
+
     // temporizador por fase (solo online y cuando es mi turno)
     this.timerKey = null;
     this.timerHandle = null;
@@ -319,6 +323,7 @@ export class UI {
     this.renderPhaseBox();
     this.renderActions();
     this.renderPlayers();
+    this.renderItemsPanel();
     this.renderLog();
   }
 
@@ -414,6 +419,65 @@ export class UI {
       li.append(sw, name, tc);
       ul.appendChild(li);
     }
+  }
+
+  renderItemsPanel() {
+    const panel = $("#items-panel");
+    if (!panel) return;
+    if (!this.playerCards.length) { panel.classList.add("hidden"); return; }
+    panel.classList.remove("hidden");
+    const ul = $("#items-list");
+    ul.innerHTML = "";
+    const EFFECT_ICON = { EXTRA_UNITS: "🪖", DOUBLE_ATTACK: "⚔", SHIELD: "🛡" };
+    for (const card of this.playerCards) {
+      const used = this.usedInSession.has(card.id) || card.used_at != null;
+      const li = document.createElement("li");
+      li.className = "item-card" + (used ? " item-used" : "");
+      const isMyTurn = this.isMyTurn() && this.game.phase === "play";
+      li.innerHTML = `
+        <span class="item-icon">${EFFECT_ICON[card.effect_type] || "🃏"}</span>
+        <span class="item-info">
+          <span class="item-name">${escapeHtml(card.name)}</span>
+          <span class="item-desc">${escapeHtml(card.description)}</span>
+        </span>
+        ${!used && isMyTurn
+          ? `<button class="btn btn-ok btn-sm item-use-btn" data-id="${card.id}">Usar</button>`
+          : `<span class="item-status">${used ? "Usada" : "—"}</span>`}
+        ${!used ? `<button class="btn-icon-del" data-id="${card.id}" title="Descartar">✕</button>` : ""}`;
+      ul.appendChild(li);
+    }
+
+    ul.querySelectorAll(".item-use-btn").forEach(btn => {
+      btn.addEventListener("click", () => this._useCard(Number(btn.dataset.id)));
+    });
+    ul.querySelectorAll(".btn-icon-del").forEach(btn => {
+      btn.addEventListener("click", () => this._discardCard(Number(btn.dataset.id)));
+    });
+  }
+
+  async _useCard(cardId) {
+    const card = this.playerCards.find(c => c.id === cardId);
+    if (!card || this.usedInSession.has(cardId)) return;
+    if (!confirm(`Usar "${card.name}"?`)) return;
+    // Apply effect immediately on local game
+    this.game.applyCardEffect(this.game.current.id, card.effect_type, card.effect_value);
+    this.usedInSession.add(cardId);
+    // Persist to API (fire and forget)
+    fetch('/api/cards/use', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ card_id: cardId }),
+    }).catch(() => {});
+    this.refresh();
+  }
+
+  async _discardCard(cardId) {
+    const card = this.playerCards.find(c => c.id === cardId);
+    if (!card) return;
+    if (!confirm(`Descartar "${card.name}"? Se eliminará de tu inventario.`)) return;
+    this.playerCards = this.playerCards.filter(c => c.id !== cardId);
+    fetch(`/api/cards/delete?id=${cardId}`, { method: 'DELETE' }).catch(() => {});
+    this.renderItemsPanel();
   }
 
   renderLog() {

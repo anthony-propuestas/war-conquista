@@ -170,6 +170,139 @@ firma del mensaje `Vincular esta wallet a mi cuenta WAR (${sub})`.
 
 ---
 
+# API — Cartas de jugador (`/api/cards/*`)
+
+Endpoints para gestionar el inventario de cartas del jugador autenticado. Las cartas
+se obtienen reclamando recompensas del battle pass. Cada carta tiene un `effect_type`
+(`EXTRA_UNITS`, `DOUBLE_ATTACK` o `SHIELD`) y se aplica en partida desde `js/ui.js`.
+
+## `GET /api/cards/inventory` — inventario del jugador
+
+Sin body. Devuelve todas las cartas del jugador (activas; sin importar si están usadas).
+Sin sesión o sin usuario en DB → devuelve `[]` en vez de 401 (degradación silenciosa).
+
+**200 OK** (con sesión válida):
+```json
+[
+  { "id": 5, "used_at": null, "name": "Refuerzo", "description": "...",
+    "effect_type": "EXTRA_UNITS", "effect_value": 3 },
+  { "id": 6, "used_at": 1718000000000, "name": "Escudo", "description": "...",
+    "effect_type": "SHIELD", "effect_value": 0 }
+]
+```
+
+`used_at` es epoch-ms si la carta ya fue usada, `null` si aún está disponible.
+
+## `POST /api/cards/use` — usar una carta en partida
+
+Requiere `war_session`. Body JSON `{ "card_id": <id> }`.
+Marca la carta como usada (`used_at = Date.now()`) y devuelve el efecto para aplicarlo.
+
+| Caso | Status | Body |
+|---|---|---|
+| Sin sesión | `401` | `{ "error": "No autenticado" }` |
+| Usuario no encontrado en DB | `404` | `{ "error": "Usuario no encontrado" }` |
+| `card_id` faltante | `400` | `{ "error": "Falta card_id" }` |
+| Carta no encontrada, ya usada, ajena o inactiva | `404` | `{ "error": "Carta no disponible" }` |
+| Éxito | `200` | `{ "effect_type": "EXTRA_UNITS", "effect_value": 3, "name": "Refuerzo" }` |
+
+Lo llama `js/ui.js → _useCard()` en background (fire and forget tras aplicar el efecto localmente).
+
+## `DELETE /api/cards/delete?id=<card_id>` — descartar una carta
+
+Requiere `war_session`. El `card_id` va en la URL como query param `?id=`.
+Elimina la fila de `user_cards` si pertenece al jugador.
+
+| Caso | Status | Body |
+|---|---|---|
+| Sin sesión | `401` | `{ "error": "No autenticado" }` |
+| Usuario no encontrado | `404` | `{ "error": "Usuario no encontrado" }` |
+| `id` faltante | `400` | `{ "error": "Falta id" }` |
+| Carta no encontrada o ajena | `404` | `{ "error": "Carta no encontrada" }` |
+| Éxito | `200` | `{ "ok": true }` |
+
+Lo llama `js/ui.js → _discardCard()` en background.
+
+---
+
+# API — Battle Pass (`/api/battle-pass/*`)
+
+Sistema de recompensa diaria por login. Cada mes tiene un calendario de días con cartas
+configurado por el admin. El jugador puede reclamar una vez por día; si ese día tiene
+recompensa en el calendario, recibe las cartas directamente en `user_cards`.
+
+## `GET /api/battle-pass/status` — estado del battle pass del jugador
+
+Requiere `war_session`.
+
+| Caso | Status | Body |
+|---|---|---|
+| Sin sesión | `401` | `{ "error": "No autenticado" }` |
+| Usuario no encontrado | `404` | `{ "error": "Usuario no encontrado" }` |
+| Éxito | `200` | (ver abajo) |
+
+**200 OK**:
+```json
+{
+  "month": 6,
+  "current_day": 21,
+  "days_in_month": 30,
+  "claimed_days": [1, 5, 10],
+  "can_claim_today": true,
+  "today_reward": { "day": 21, "quantity": 1, "name": "Refuerzo", "description": "...",
+                    "effect_type": "EXTRA_UNITS", "effect_value": 3 },
+  "rewards": [ ... ]
+}
+```
+
+`can_claim_today` es `true` si `last_claim_date` del progreso no coincide con la fecha de hoy (`YYYY-MM-DD`). `today_reward` es `null` si ese día no hay carta en el calendario. `rewards` es el calendario completo del mes.
+
+## `POST /api/battle-pass/claim` — reclamar recompensa del día
+
+Requiere `war_session`. Sin body.
+
+| Caso | Status | Body |
+|---|---|---|
+| Sin sesión | `401` | `{ "error": "No autenticado" }` |
+| Usuario no encontrado | `404` | `{ "error": "Usuario no encontrado" }` |
+| Ya reclamó hoy | `200` | `{ "already_claimed": true, "claimed_days": [...] }` |
+| Día sin recompensa | `200` | `{ "claimed": true, "reward": null, "claimed_days": [...] }` |
+| Éxito con carta | `200` | `{ "claimed": true, "reward": { "name": "...", "quantity": 2, ... }, "claimed_days": [...] }` |
+
+**Lógica de reset mensual:** si `progress.current_month !== mes_actual`, se resetean `claimed_days` y `last_claim_date` a `[]`/`null` antes de procesar el claim.
+**Batch insert:** si `quantity > 1`, se insertan N filas en `user_cards` usando `env.DB.batch([stmt1, stmt2, ...])`.
+
+---
+
+# API — Admin (`/api/admin/*`)
+
+Endpoints de gestión restringidos a administradores. **Auth:** la cookie `war_session`
+debe contener un `email` presente en el env var `ADMIN_EMAILS` (CSV, case-insensitive).
+Si no se cumple → `403 { "error": "No autorizado" }`.
+
+## `GET|POST|PUT|DELETE /api/admin/cards` — CRUD de definiciones de carta
+
+Gestiona el catálogo `card_definitions`.
+
+| Método | Qué hace |
+|---|---|
+| `GET` | Lista todas las definiciones ordenadas por `created_at DESC`. |
+| `POST` | Crea una nueva. Body: `{ name, description, effect_type, effect_value? }`. → `201 { "id": <new_id> }`. Campos `name`, `description` y `effect_type` son requeridos (400 si faltan o vacíos). |
+| `PUT` | Edita una existente. Body: `{ id, name, description, effect_type, effect_value, is_active }`. `is_active=0` la oculta. → `200 { "ok": true }`. |
+| `DELETE` | Elimina por `?id=<id>` (query param). → `200 { "ok": true }`. |
+
+## `GET|POST|DELETE /api/admin/battle-pass` — CRUD del calendario de recompensas
+
+Gestiona la tabla `battle_pass_rewards` (qué carta se entrega cada día del mes).
+
+| Método | Parámetros / Body | Qué hace |
+|---|---|---|
+| `GET` | `?month=N` (default: mes actual) | Lista las recompensas del mes con nombre de carta unido de `card_definitions`. |
+| `POST` | Body `{ month, day, card_def_id, quantity? }` | Inserta o reemplaza (`INSERT OR REPLACE`) la recompensa de ese día. → `200 { "ok": true }`. `month`, `day` y `card_def_id` son requeridos (400 si faltan). |
+| `DELETE` | `?month=N&day=N` | Elimina la recompensa de ese día del mes. → `200 { "ok": true }`. |
+
+---
+
 # API — Sala multijugador (`/api/game-room`)
 
 Endpoint **WebSocket**. El routing lo hace la Pages Function
