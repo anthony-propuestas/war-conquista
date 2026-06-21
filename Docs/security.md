@@ -247,67 +247,19 @@ No son vulnerabilidades confirmadas, pero se registran:
   en el DOM (requiere otro vector previo) se ejecutaría sin restricción. Aceptado por
   complejidad de configurar CSP con `unsafe-inline` y CDN externo. Mitigación futura:
   añadir CSP permisiva pero explícita a `_headers`.
-- **RESUELTO (2026-06-21) — Cookie `war_session` sin firma (HMAC):** ahora se firma con
-  HMAC-SHA256 vía `functions/_lib/session.js` (ver Historial). Las cookies forjadas se
-  rechazan; los riesgos derivados (escrituras en D1 con `sub` ajeno, lectura de perfiles,
-  backdoor de `wallet/link`) quedan cerrados. Texto histórico debajo:
-  ~~el valor es JSON base64 sin verificación criptográfica.~~ Con la adición de `/api/profile`, `/api/register` y,
-  desde esta sesión, **`/api/win`**, la cookie ya no es solo cosmética: ahora **controla
-  escrituras en D1**. Un atacante que
-  forje una cookie con un `sub` arbitrario puede (1) registrar cuentas con identidades
-  inventadas y (2) leer el perfil de cualquier `sub` conocido. Escenario: forja
-  `war_session = btoa(JSON.stringify({ sub: "<sub_real_de_víctima>" }))` y llama a
-  `GET /api/profile` o `POST /api/register`. En HTTPS requiere compromiso del cliente o
-  MitM (poco probable en Cloudflare Pages), pero el impacto ha crecido de cosmético a
-  escritura real en DB. Mitigación futura: HMAC del payload con un secret de Workers
-  (`crypto.subtle.sign`). **Aceptado para MVP, prioridad elevada respecto a sesiones anteriores.**
-- **RESUELTO (2026-06-21) — Validación de email débil en `/api/register`:** reemplazado
-  `email.includes("@")` por regex `^[^\s@]+@[^\s@]+\.[^\s@]+$` que rechaza `@`, `a@`,
-  `@@@` y similares. Texto histórico: ~~el email se almacenaba sin validación de formato
-  mínima — vector de datos basura sin riesgo de seguridad estricto~~.
+- **RESUELTO (2026-06-21) — Cookie `war_session` sin firma (HMAC):** firmada con HMAC-SHA256 en `functions/_lib/session.js`. Cookies forjadas devuelven `null`; los riesgos derivados (escrituras en D1 con `sub` ajeno, lectura de perfiles, backdoor de `wallet/link`) quedan cerrados. Ver Historial.
+- **RESUELTO (2026-06-21) — Validación de email débil en `/api/register`:** reemplazado `email.includes("@")` por regex `^[^\s@]+@[^\s@]+\.[^\s@]+$`.
 - **Sin rate-limiting en `/api/register`:** la constraint `UNIQUE(sub)` limita a una
   fila por `sub`, pero no limita el volumen de intentos. Mitigación futura: Cloudflare
   Rate Limiting o verificación Turnstile en el formulario.
-- **RESUELTO (2026-06-21) — Sin parámetro `state` en OAuth (Login CSRF):** `/api/auth/google`
-  genera un `state` aleatorio en cookie `oauth_state` y `/api/auth/callback` lo verifica
-  (rechaza con `invalid_state`). Texto histórico debajo:
-  ~~`/api/auth/google` no genera un `state` ni `/api/auth/callback` lo verifica.~~ Permite **Login CSRF**: un atacante
-  puede hacer que una víctima complete el flujo OAuth con la cuenta del atacante (la
-  víctima queda logueada como el atacante). Impacto bajo en WAR (leaderboard de vanidad,
-  sin datos personales expuestos). **Pendiente de corrección:** generar un `state`
-  aleatorio en `/api/auth/google` (guardarlo en cookie temporal), verificarlo en el
-  callback y rechazar si no coincide.
+- **RESUELTO (2026-06-21) — Sin parámetro `state` en OAuth (Login CSRF):** `auth/google.js` genera `state` aleatorio en cookie temporal; `auth/callback.js` lo verifica y rechaza con `invalid_state` si no coincide.
 - **`tokenData.error` sin `encodeURIComponent` en redirect:** en `callback.js`,
   `${url.origin}/login?error=${tokenData.error}` no escapa el valor de `error` de Google.
   Si contiene `&` o `=` podría contaminar el query string del redirect. No es XSS ni SQL
   (no se renderiza en DOM), pero es un defecto menor de encoding. Riesgo muy bajo.
-- **Resuelto — XSS por nombre de jugador en el modal de victoria (`main.js`,
-  `onGameOver`):** este riesgo se documentó como pendiente desde 2026-06-14 y se repitió
-  en varias entradas del historial. Verificado en esta sesión: el código actual ya usa
-  `${escapeHtml(winner.name)}` (`js/main.js:209`) — el fix ya está aplicado, el doc nunca
-  se actualizó. Relevante ahora porque el lobby online introduce nombres que llegan por
-  WebSocket (no input local); confirmado que ese sink también queda cubierto por el mismo
-  `escapeHtml`, así que **no hay XSS entre jugadores remotos** vía nombre de sala.
-  `winner.color` se interpola sin escapar en el `style` del modal, pero viene de
-  `PLAYER_COLORS` (array fijo del código, no input de usuario) — no explotable.
+- **Resuelto — XSS por nombre de jugador en el modal de victoria (`main.js`, `onGameOver`):** `escapeHtml` confirmado en `js/main.js:209`; todos los sinks de nombre remoto (lobby online, clasificación final) también escapados.
 
-- **Firma de wallet sin nonce/expiración:** los mensajes firmados para login
-  (`/api/auth/wallet`) y vinculación (`/api/wallet/link`) son texto estático sin
-  desafío del servidor. Una firma capturada una vez es válida para siempre — no hay
-  revocación ni expiración. Aceptado para MVP. Mitigación futura: nonce de un solo uso
-  emitido por el servidor + expiración corta, estilo SIWE.
-- **Firma de wallet sin binding de dominio:** el mensaje no incluye el origen de la
-  app, por lo que un sitio de phishing puede solicitar la misma firma y reproducirla
-  contra el backend real de WAR. Aceptado para MVP. Mitigación futura: incluir el
-  dominio en el mensaje firmado y verificarlo en el backend.
-- **Escalada del riesgo de cookie sin HMAC vía `/api/wallet/link`:** quien ya pueda
-  forjar `war_session` con un `sub` arbitrario (riesgo ya documentado arriba) puede
-  ahora vincular su propia wallet a la cuenta de la víctima firmando con su propia
-  clave, y desde ahí entrar de forma persistente con `/api/auth/wallet` sin necesidad
-  de seguir forjando cookies. Convierte un riesgo de lectura/escritura puntual en una
-  **puerta trasera persistente**. Sube la prioridad de firmar `war_session` con HMAC.
-
-- **2026-06-18** — Rediseño de fase de turno + dados + refuerzos: `js/game.js` (fases `reinforce`/`attack`/`fortify` unificadas en `play`; eliminados `endReinforce`/`endAttack`/`fortifyDone`; `reinforcementsFor` reemplazado por `floor(territorios/2)` sin bonus de continente), `js/ui.js` (`TURN_SECONDS` 30→90; `placingMode` toggle para colocar refuerzos; `handlePlayClick` unifica ataque y movimiento de tropas en un solo flujo; `showDice` rediseñado con pares verticales atk/def vía `innerHTML`; clave del timer simplificada a `currentIndex`; viewBox ampliado), `css/style.css` (`.dice-tray` de `absolute` a `fixed`; nueva barra `.action-guide`; ajuste de altura `.game-layout`), `game/index.html` (SVG viewBox 0 15 1000 460 → 0 0 1000 560; `#dice-tray` movido fuera de `.map-wrap`; nueva barra `#action-guide`). **Hallazgo: ninguno.** El nuevo `showDice` inyecta `atk[i]`/`def[i]` en `innerHTML` — son enteros 1-6 de `Math.random()` en `game.js`, nunca input de usuario ni dato de DB → sin XSS. La barra `#action-guide` es HTML estático sin datos de usuario. `placingMode` es estado UI interno, sin sinks nuevos. La unificación de fases es 100% client-side sin cambios en endpoints, queries D1, esquema, cookies, cabeceras ni secrets.
+- **2026-06-18** — Rediseño de fase de turno + dados + refuerzos: `js/game.js`, `js/ui.js`, `css/style.css`, `game/index.html`. **Hallazgo: ninguno** (`showDice` inyecta solo enteros de `Math.random()`, lógica 100% client-side).
 
 ## Checklist pre-producción
 
@@ -388,219 +340,22 @@ La tabla de la sección anterior refleja el estado al momento del despliegue. Ac
 - **2026-06-14** — Línea base inicial. Cambio revisado: `database_id` real en
   `wrangler.toml` + enlace a la demo en `README.md`. **Hallazgo: ninguno** (no introduce
   superficie nueva; se confirma que `database_id` no es secreto).
-- **2026-06-14** — Rediseño visual del mapa y del banner (`ui.js`, `css`, fuentes). Nuevo
-  sink de DOM en `updateBanner()` para el nombre de jugador: **escapado** con `escapeHtml`.
-  **Hallazgo:** `winner.name` se renderiza **sin escapar** en el modal de victoria de
-  `main.js` (`onGameOver`) — self-XSS de bajo impacto en hotseat; registrado en *Riesgos
-  conocidos* a la espera de decisión. Sin cambios en backend, queries ni cabeceras.
-- **2026-06-15** — Google OAuth login: `login.html`, `functions/api/auth/google.js`,
-  `functions/api/auth/callback.js`. Secrets (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`)
-  fuera del repo. Cookie `HttpOnly; SameSite=Lax`. **Hallazgos:** (1) cookie sin firma
-  HMAC — aceptado MVP; (2) sin parámetro `state` → Login CSRF posible, impacto bajo,
-  pendiente de corrección; (3) `tokenData.error` sin `encodeURIComponent` en redirect —
-  riesgo muy bajo, registrado. Sin cambios en `/api/scores`, D1, esquema ni cabeceras.
-- **2026-06-15** — Landing page y redirect raíz: `home/index.html` (página pública en `/home`) y `_redirects` (`/ → /home 302`). **Hallazgo: ninguno.** `home/index.html` es HTML estático sin formularios, sin input de usuario, sin backend y sin cookies — superficie de ataque nula. `_redirects` solo afecta el enrutamiento de Cloudflare Pages; el destino `/home` es interno. Sin cambios en endpoints, queries, esquema, cabeceras ni secrets.
-- **2026-06-15** — Multiplayer (WebSocket + Durable Object), wallet Web3 y Pixi.js:
-  `functions/game-room.js` (DO), `js/multiplayer.js`, `js/wallet.js`, `js/pixi-overlay.js`.
-  Importmaps migrados de `node_modules/` a esm.sh CDN (riesgo de deploy eliminado).
-  **Hallazgos:** (C1) spoofing de `playerId` en WebSocket — aceptado MVP; (C2) payload
-  WebSocket persiste sin validar en DO storage — aceptado MVP; (C3) `Object.assign` sobre
-  board sin schema (`main.js:85`) — aceptado MVP; (M3) falta CSP — aceptado por complejidad.
-  `wallet.js` no añade riesgo server-side (MetaMask requiere aprobación del usuario; sin
-  contratos desplegados). El self-XSS de `winner.name` sigue pendiente (no tocado).
-- **2026-06-15** — Mapa con geometría real: `ui.js` deja de generar costas procedurales y
-  consume paths pregenerados de `js/map-shapes.js` (nuevo, generado por
-  `scripts/build-map-shapes.mjs`); nuevas `devDependencies` de build (`d3-geo`,
-  `d3-geo-projection`, `topojson-client`, `world-atlas`). **Hallazgo: ninguno en runtime.**
-  Las formas son datos estáticos del repo (no input de usuario) asignadas vía `setAttribute`,
-  no introducen sink de DOM nuevo; el sink de `name` en `updateBanner()` sigue escapado. Las
-  cuatro dependencias nuevas son **superficie de cadena de suministro solo en build** (las
-  usa exclusivamente el script `.mjs` dev-only; no se cargan en el cliente ni se despliegan).
-  Sin cambios en backend, queries, esquema ni cabeceras. El self-XSS de `winner.name` sigue
-  pendiente (no tocado en esta sesión).
-- **2026-06-15** — Registro de usuarios: `functions/api/auth/callback.js` (bifurca
-  `/register` vs `/game` consultando D1), `functions/api/gamers.js`, `functions/api/profile.js`,
-  `functions/api/register.js`, `migrations/0001_users.sql` (tabla `users`). **Hallazgos:**
-  (1) **Cookie sin HMAC — impacto escalado:** la cookie ahora controla escrituras en D1
-  (`POST /api/register`); un `sub` forjado puede crear registros en `users`. Antes era
-  cosmético; ahora es una escritura real. Aceptado para MVP, prioridad elevada. (2) Email
-  débil en `/api/register` (`includes("@")`) — vector de datos basura, sin riesgo de
-  seguridad directo. (3) Sin rate-limiting en `/api/register`. Mecanismos positivos: todas
-  las queries parametrizadas; `username` restringido a `[a-zA-Z0-9_]` (XSS imposible desde
-  este campo en cualquier sink DOM); `getSession()` aísla excepciones de cookies malformadas.
-  Sin cambios en cabeceras ni secrets.
-- **2026-06-16** — Reglas de partida: `js/map-data.js` (mapa de 42 a 44 territorios,
-  reasignación de continentes, `INITIAL_ARMIES`/`PLAYER_COLORS` de 2-6 a 1-3 jugadores),
-  `js/game.js` (`_distributeTerritories` ahora asigna un continente completo por jugador en
-  vez de territorios sueltos al azar) y `game/index.html` (opciones del `<select
-  id="player-count">` actualizadas a 1/2/3). También color fijo `#888888` para territorios
-  sin dueño en `ui.js` (antes derivado de `CONTINENTS[...].color`). **Hallazgo: ninguno.**
-  Todo es lógica/datos puros sin DOM ni red (`map-data.js`, `game.js`), un `<select>` nativo
-  sin nuevo vector de input (`index.html`), y un literal de color sin dato de usuario ni
-  `innerHTML` involucrado (`ui.js`). Sin cambios en endpoints, queries, esquema, cabeceras
-  ni secrets.
-- **2026-06-16** — Login y vinculación de wallet: `functions/api/auth/wallet.js` (nuevo),
-  `functions/api/wallet/link.js` (nuevo), `signMessage()` en `js/wallet.js`,
-  `wallet_address` en `migrations/0001_users.sql`, UI en `login.html`/`my-profile/index.html`.
-  Mecanismos correctos: queries parametrizadas, `try/catch` en `verifyMessage`, mismos
-  atributos de cookie que el login con Google. **Hallazgos:** (1) el mensaje firmado no
-  tiene nonce ni expiración → una firma capturada una vez es válida para siempre
-  (replay indefinido); (2) el mensaje no incluye el dominio de la app → phishable (un
-  sitio falso puede pedir la misma firma y reproducirla contra el backend real); (3)
-  **escalada del riesgo de cookie sin HMAC:** quien ya forje `war_session` con un `sub`
-  ajeno puede usar `/api/wallet/link` para vincular su propia wallet a la cuenta de la
-  víctima y entrar después de forma persistente por `/api/auth/wallet`, sin seguir
-  forjando cookies — convierte el riesgo ya conocido en una puerta trasera persistente.
-  Los tres aceptados para MVP; suben la prioridad de firmar `war_session` con HMAC. Sin
-  cambios en `_headers` ni secrets. El self-XSS de `winner.name` sigue pendiente (no
-  tocado en esta sesión).
-- **2026-06-17** — Corrección de export en `functions/api/game-room.js` (Worker format → Pages Functions `onRequest`) y eliminación de `loadLeaderboard()` al inicio de `js/main.js`. **Hallazgo: ninguno.** El cambio de export es una corrección de convención sin modificación de comportamiento; el routing al DO `GameRoom` es idéntico. La eliminación de `loadLeaderboard()` suprime un `GET /api/gamers` en el arranque; el sink de `escapeHtml` en esa función queda inactivo (código muerto, no un riesgo). Sin cambios en endpoints, queries, esquema, cabeceras ni secrets.
-- **2026-06-16** — Página `/lobby` (hub de navegación): `lobby/index.html` (nuevo) +
-  enlaces agregados/cambiados en `home/index.html`, `my-profile/index.html`,
-  `gamers/index.html`, `game/index.html`. **Hallazgo: ninguno.** `lobby/index.html`
-  repite el patrón ya auditado de `my-profile/index.html`: `fetch('/api/profile')`,
-  redirect a `/login.html` si `401`/`404`, username renderizado con `textContent` (no
-  `innerHTML`). Los enlaces nuevos son anchors estáticos (`href="/lobby"`, `/game`, etc.)
-  sin interpolar datos de usuario ni de DB → sin XSS ni open redirect. Sin cambios en
-  `functions/api/`, `schema.sql`, `_headers`, `wrangler.toml` ni secrets.
-- **2026-06-17** — Primera ronda sin ataques + sincronización de estado inicial online:
-  `js/game.js` (`attackUnlocked = false` en `initBoard()`; `canAttack()` lo exige;
-  `endTurn()` lo activa tras `firstRoundTurnsLeft <= 0`; setup fijo a 5 ejércitos por
-  jugador), `js/main.js` (`beginOnlineGame` aplica `initialBoard`, `initialSetup` e
-  `initialAttackUnlocked` del host; handler de `game_state` propaga `setupRemaining` y
-  `attackUnlocked`; broadcast incluye ambos campos), `js/ui.js` (🔒 literal en código
-  cuando `!g.attackUnlocked`; sin datos de usuario en innerHTML), `js/multiplayer.js`
-  (`startGame` acepta payload completo `{players, board, setupRemaining, attackUnlocked}`).
-  **Hallazgo: ninguno nuevo.** Los riesgos WebSocket ya aceptados se extienden en alcance:
-  (1) "start_game no restringido al host" ahora cubre `board`, `setupRemaining` y
-  `attackUnlocked` en el payload inicial — un peer puede forzar tablero arbitrario o
-  `attackUnlocked: true` desde el arranque; (2) "`game_state` sin validación server-side"
-  ahora incluye `attackUnlocked` — cualquier peer puede emitir
-  `{type:'game_state', payload:{attackUnlocked:true}}` durante la primera ronda y
-  desbloquear sus propios ataques sin esperar; misma raíz que el spoofing de `phase`,
-  `currentIndex`, etc. ya aceptados; (3) "`Object.assign` sin schema" aplica al estado
-  inicial además del estado en-juego. Misma disposición: aceptados para MVP. Sin cambios
-  en endpoints HTTP, queries D1, esquema, cookies, cabeceras ni secrets.
-- **2026-06-18** — Mejoras de lobby: `worker/index.js` (cap de 6 jugadores → 403, jugadores
-  auto-listos `ready: true` al unirse), `js/multiplayer.js` (callback `onClose` para
-  desconexiones post-apertura), `js/main.js` (flag `inLobby` evita callback doble,
-  limpieza de estado al desconectarse), `game/index.html` (checkbox "Estoy listo"
-  eliminado), `js/map-data.js` (+3 colores de jugador). **Hallazgo: ninguno nuevo.**
-  El cap de 6 jugadores es una mejora de seguridad menor (evita crecimiento ilimitado
-  del `Map` `players`). `onClose` es solo gestión de estado cliente; no abre nueva
-  superficie. Los colores son constantes UI. Sin cambios en endpoints HTTP, queries D1,
-  esquema, cookies, cabeceras ni secrets.
-- **2026-06-17** — Rediseño del combate (elegir unidades de ataque; ocupación
-  automática al conquistar): `js/game.js` (`attack(from,to,attackUnits)` nuevo 3.º
-  parámetro, `maxAttackUnits()`, se eliminan `pendingConquest`/`moveAfterConquest`;
-  el defensor tira con todas sus tropas y los supervivientes ocupan la zona),
-  `js/ui.js` (`openAttackModal`/`resolveAttack` reemplazan el modal de conquista),
-  `js/main.js` (`moveAfterConquest` fuera de la lista de métodos parcheados online).
-  **Hallazgo: ninguno nuevo.** Cambio 100% client-side: sin endpoints HTTP, queries
-  D1, esquema, cabeceras ni secrets nuevos. `attackUnits` se **acota** en `attack` a
-  `[1, armies-1]` (`Math.max(1, Math.min(attackUnits|0||maxAtk, maxAtk))`), así que un
-  valor manipulado no permite atacar con más tropas de las disponibles ni dejar el
-  origen en 0 (`armies - atkCount ≥ 1`, sin underflow). El modal solo interpola
-  `TERRITORIES[*].name` (constantes de `map-data.js`) y números — sin datos de usuario
-  ni de DB en `innerHTML`, sin XSS. La falta de validación server-side del `game_state`
-  sincronizado (ya aceptada para MVP) ahora abarca también el board resultante del
-  ataque; misma raíz y disposición que el spoofing de `phase`/`currentIndex` ya
-  registrado.
-- **2026-06-18** — Matchmaking público + DO hibernation-safe + dev script unificado:
-  `functions/api/game-room.js` (`?match=1` ruta al DO `__matchmaker__`), `worker/index.js`
-  (`handleMatch`, alarma pública, WebSocket attachments, `started` en storage persistente),
-  `js/main.js` (`loadProfile`, `enterOnline`, countdown modal, `renderOnlinePlayers`),
-  `js/multiplayer.js` (`requestMatch`), `scripts/dev.mjs` (nuevo, solo devtools).
-  **Mecanismos positivos:** (1) `started` ahora persiste en DO storage — **cierra el bypass
-  de hibernación**: antes, si el DO se hibernaba tras arrancar la partida, `this.started`
-  se reiniciaba y una conexión nueva podía colarse a una sala ya iniciada; ahora `storage.get('started')`
-  persiste a través de ciclos de vida del DO. (2) Roster derivado de `state.getWebSockets()` +
-  attachments — más robusto que el `Map` in-memory anterior. (3) `renderOnlinePlayers()` usa
-  `document.createElement` + `textContent` para nombres — sin riesgo XSS. (4) `loadProfile()`
-  en `main.js` usa `data.username` (restringido a `[a-zA-Z0-9_]` en DB) como `playerName` en
-  el WS URL — sin chars peligrosos inyectables. (5) No hay nuevas queries D1, cambios en
-  cookies, `_headers` ni secrets.
-  **Hallazgo — inflado de contador de sala vía `?match=1` sin autenticación:**
-  `handleMatch()` incrementa `mm.count` en cada llamada, sin auth ni rate-limit. Un script
-  puede llamarlo repetidamente y forzar la rotación de la sala pública (hacer que `mm.count`
-  llegue a 6) sin que ningún jugador real se conecte; los jugadores que luego llamen
-  `?match=1` recibirán una sala nueva vacía. Misma clase de riesgo que los gaps de
-  rate-limiting ya aceptados en el resto de endpoints. Aceptado para MVP.
-  **Hallazgo — bypass de hibernación cerrado (registrar como corrección):** el riesgo ya
-  aceptado de "sala iniciada con `started` in-memory se perdía al hibernar" queda mitigado
-  por persistir `started` en storage. La ventana de bypass era estrecha (un jugador nuevo
-  debía conectarse justo tras la hibernación y antes del primer mensaje) pero real.
-  **Hallazgo — `you_start` extiende el riesgo de `start_game` no restringido al host:**
-  la alarma pública envía `{type:'you_start', players}` al primer socket (`roster()[0]`),
-  quien entonces llama `hostStart` y emite `start_game`. Si el primer socket pertenece a
-  un jugador malintencionado, puede ignorar `you_start` o emitir un `start_game` con un
-  `payload.players` arbitrario antes de que la alarma dispare — mismo vector ya aceptado
-  para MVP. Sin disposición nueva.
-  Sin cambios en checklist pre-producción.
+- **2026-06-14** — Rediseño visual del mapa y del banner (`ui.js`, `css`, fuentes). `updateBanner()` escapa el nombre de jugador. **Hallazgo:** `winner.name` sin escapar en modal de victoria — self-XSS hotseat registrado; resuelto.
+- **2026-06-15** — Google OAuth login: `login.html`, `functions/api/auth/google.js`, `auth/callback.js`. **Hallazgos (todos resueltos 2026-06-21):** (1) cookie sin HMAC; (2) sin `state` → Login CSRF; (3) `tokenData.error` sin `encodeURIComponent`.
+- **2026-06-15** — Landing page y redirect raíz: `home/index.html`, `_redirects`. **Hallazgo: ninguno** (HTML estático, sin input ni backend).
+- **2026-06-15** — Multiplayer (WebSocket + DO), wallet Web3, Pixi.js: `functions/game-room.js`, `js/multiplayer.js`, `js/wallet.js`. **Hallazgos aceptados MVP:** (C1) spoofing de `playerId`; (C2) payload WS sin validar en DO storage; (C3) `Object.assign` sobre board sin schema; (M3) sin CSP.
+- **2026-06-15** — Mapa con geometría real: `js/map-shapes.js` (paths pregenerados), `scripts/build-map-shapes.mjs`. **Hallazgo: ninguno en runtime** (datos estáticos; `d3-geo`/`topojson-client` son devDependencies de build, no se despliegan).
+- **2026-06-15** — Registro de usuarios: `functions/api/gamers.js`, `profile.js`, `register.js`, `migrations/0001_users.sql`. **Hallazgos:** (1) cookie sin HMAC escala a escrituras D1 — resuelto 2026-06-21; (2) email débil (`includes("@")`) — resuelto 2026-06-21; (3) sin rate-limiting en `/api/register` — aceptado. Queries parametrizadas; `username` restringido a `[a-zA-Z0-9_]`.
+- **2026-06-16** — Reglas de partida: `js/map-data.js` (44 territorios, 1-3 jugadores), `js/game.js`, `game/index.html`. **Hallazgo: ninguno** (lógica/datos puros, sin DOM ni red).
+- **2026-06-16** — Login y vinculación de wallet: `functions/api/auth/wallet.js`, `wallet/link.js`, `signMessage()`, `wallet_address` en schema. **Hallazgos aceptados MVP:** (1) firma sin nonce/expiración (replay indefinido); (2) mensaje sin binding de dominio (phishable); (3) escalada cookie sin HMAC → puerta trasera persistente vía `wallet/link` — riesgo HMAC resuelto 2026-06-21.
+- **2026-06-17** — Corrección export `functions/api/game-room.js` (Worker → Pages Functions); eliminación de `loadLeaderboard()` en `main.js`. **Hallazgo: ninguno.**
+- **2026-06-16** — Página `/lobby` (hub de navegación): `lobby/index.html` + enlaces en páginas existentes. **Hallazgo: ninguno** (patrón auditado: `textContent` para username, anchors estáticos).
+- **2026-06-17** — Primera ronda sin ataques + sync de estado inicial online: `js/game.js` (`attackUnlocked`), `js/main.js`, `js/multiplayer.js`. **Sin hallazgos nuevos:** los riesgos WS ya aceptados (start_game no restringido al host, `game_state` sin validación, `Object.assign` sin schema) se extienden a `board`/`setupRemaining`/`attackUnlocked`.
+- **2026-06-18** — Mejoras de lobby: `worker/index.js` (cap 6 jugadores → 403, auto-ready), `js/multiplayer.js` (callback `onClose`), `js/main.js`, `game/index.html`. **Hallazgo: ninguno nuevo** (cap de jugadores mejora menor de seguridad).
+- **2026-06-17** — Rediseño del combate (elegir unidades, ocupación automática): `js/game.js` (`attack(from,to,attackUnits)`, `maxAttackUnits()`), `js/ui.js`, `js/main.js`. **Sin hallazgos nuevos:** `attackUnits` acotado a `[1, armies-1]`; modal interpola solo constantes y números. El riesgo ya aceptado de `game_state` sin validación se extiende al board resultante del ataque.
+- **2026-06-18** — Matchmaking público + DO hibernation-safe: `functions/api/game-room.js` (`?match=1`), `worker/index.js` (alarma, WebSocket attachments, `started` en storage persistente), `js/main.js`, `js/multiplayer.js` (`requestMatch`). **Corrección:** `started` en DO storage — cierra el bypass de hibernación. **Hallazgos aceptados MVP:** (1) inflado de contador de sala vía `?match=1` sin auth; (2) `you_start` extiende el riesgo de `start_game` no restringido al host.
 
-- **2026-06-16** — Lobby de sala (ready/start) y registro de victorias:
-  `functions/api/win.js` (nuevo), `worker/index.js` (mapa `players`, flag `started`,
-  mensajes `set_ready`/`start_game`/`lobby_update`, `resetRoom()`), `js/multiplayer.js`
-  (`playerName`, `onJoinFailed`, `setMessageHandler`, `setReady`, `startGame`),
-  `js/main.js` (pantalla de lobby, `enterLobby`/`beginOnlineGame`, `POST /api/win` al
-  ganar online), `js/ui.js` (bloqueo de turno + temporizador de 30s, sin red ni input
-  nuevo). **Hallazgos:** (1) `/api/win` no verifica que la victoria sea real — inflado de
-  `wins` ahora posible sobre cuentas reales, y es otro endpoint de escritura que depende
-  solo de la cookie sin HMAC; (2) `start_game` no está restringido al host en el
-  servidor — cualquier conectado puede forzarlo con un `payload.players` arbitrario
-  (extiende los hallazgos ya aceptados de spoofing de `playerId` y payload sin validar);
-  (3) `payload.phase: 'gameover'` puede disparar `resetRoom()` sin que haya ganado
-  realmente quien lo envía; (4) `playerName` sin límite server-side, mitigado por que los
-  sinks de nombre ya escapan. Todos aceptados para MVP. **Corrección de documentación:**
-  cerrado el hallazgo de self-XSS de `winner.name` en el modal de victoria — el código ya
-  lo escapa (`escapeHtml`), confirmado que el lobby online no lo reabre. Sin cambios en
-  `_headers` ni secrets.
-- **2026-06-19** — Reconexión automática al modo online: `worker/index.js` (reingreso a sala
-  iniciada por `playerId ∈ playerIds`, `state_sync`, `player_rejoined`, alarma de gracia de 45 s,
-  auto-pong, `try/catch` en todos los handlers + `webSocketError`), `js/multiplayer.js` (heartbeat
-  ping/pong + reconexión con backoff) y `js/main.js` (banner de reconexión, `state_sync` tratado
-  como `game_state`). **Hallazgo — extensión del spoofing de `playerId`:** el reingreso a una
-  partida en curso se autoriza solo con el `playerId` del query (a menudo la wallet pública), sin
-  verificar `war_session`; permite **tomar el asiento de otro jugador y recibir el board completo
-  vía `state_sync`**. Impacto bajo (board ya visible para los jugadores, partidas efímeras),
-  aceptado para MVP; registrado en *Riesgos aceptados* con la mitigación de token de partida.
-  **Mecanismos positivos:** (1) `try/catch` en `webSocketMessage`/`webSocketClose`/`alarm` +
-  `webSocketError` → un mensaje/handler con error ya no tumba el DO ni desconecta a la sala
-  (resistencia parcial a DoS); (2) auto-pong responde el heartbeat sin despertar el DO; (3) el
-  banner de reconexión usa `createElement` + `textContent` con texto fijo → **sin XSS**. El
-  `state_sync` aplicado con `Object.assign` extiende los riesgos ya aceptados ("`Object.assign` sin
-  schema", "`game_state` sin validación server-side") al camino de reconexión, sin raíz nueva. Sin
-  cambios en endpoints HTTP, queries D1, esquema, cookies, `_headers` ni secrets.
-- **2026-06-19** — Refuerzo de la lógica de victorias: `js/game.js` (contador `round`,
-  `canSurrender()`/`surrender()` desde la ronda 7, `_checkWin()` declara ganador al último
-  vivo), `js/main.js` (flag `rankedOnline` que gatea `POST /api/win`; sync de `round`/`winner`/`alive`;
-  `surrender` parcheado; pantalla de fin ganó/perdió), `js/ui.js` (botón Rendirse, indicador de
-  ronda), `css/style.css` (estilos de la pantalla de fin). **Hallazgos:** (1) **win forzado a
-  otro jugador** — al sincronizar `winner`, un peer puede difundir `game_state` con
-  `phase:'gameover'` + `winner:<índice víctima>` y forzar el `POST /api/win` de la víctima;
-  extensión del riesgo ya aceptado de `game_state` sin validación server-side, registrado en
-  *Riesgos aceptados*. (2) **gating `rankedOnline` no es control de seguridad** — limitar el
-  reporte de victorias al modo de emparejamiento es UX/producto; `functions/api/win.js` no
-  cambió y el inflado por curl/devtools es idéntico. **Mecanismos positivos:** (a) la pantalla
-  de fin escapa con `escapeHtml` el nombre del ganador y todos los nombres de la clasificación
-  (sinks de nombres remotos cubiertos), color de `PLAYER_COLORS` y ronda numérica → sin XSS;
-  (b) el sync de `winner` corrige un fallo latente (antes `onGameOver(null)` en clientes
-  no-actores). `game.js` es lógica pura sin DOM/red. Sin cambios en queries D1, esquema,
-  cookies, `_headers`, secrets ni en el checklist pre-producción (los vectores son extensiones
-  de ítems ya cubiertos).
-- **2026-06-19** — Flujo de ataque de dos clics y flechas SVG: `js/ui.js` (`pendingTarget`
-  para pre-seleccionar zona enemiga, `arrowsLayer` con flechas SVG animadas, refactor de
-  `handlePlayClick` al flujo de dos pasos, clases `.attack-target`/`.fortify-target`,
-  botón Rendirse con diálogo de confirmación). `css/style.css` (clases de interacción del mapa:
-  `.enemy-selected`, `.source-hint`, `.attack-arrow`, `.attack-notice`, `.round-tag`, end screen).
-  **Hallazgo: ninguno nuevo.** `pendingTarget` es estado DOM puro sin sink de datos de usuario.
-  `arrowsLayer` inyecta coordenadas numéricas de `TERRITORY_CENTERS` (constante de build, no input
-  de usuario) — sin `innerHTML` con datos de usuario. El flujo de dos clics delega en
-  `game.attack()`/`game.fortify()` por el mismo camino WebSocket ya auditado; el botón Rendirse
-  llama `game.surrender()` (validado por `canSurrender()` client-side) y luego emite `game_state`
-  — extensión de los riesgos ya aceptados de `game_state` sin validación server-side y `surrender`
-  como método sincronizado, sin raíz nueva. `js/main.js` añade `reinforcements` al payload de
-  `sendGameState` y al handler de `game_state`/`state_sync`, extendiendo el riesgo ya aceptado
-  de "`Object.assign` sin schema" y "`game_state` sin validación server-side" al nuevo campo;
-  sin raíz nueva, misma disposición: aceptado para MVP. Sin cambios en queries D1, endpoints
-  HTTP, esquema, cookies, `_headers` ni secrets.
+- **2026-06-16** — Lobby de sala (ready/start) y registro de victorias: `functions/api/win.js`, `worker/index.js` (`set_ready`/`start_game`/`lobby_update`, `resetRoom()`), `js/multiplayer.js`, `js/main.js`, `js/ui.js`. **Hallazgos aceptados MVP:** (1) `/api/win` sin verificación de victoria real; (2) `start_game` no restringido al host; (3) `payload.phase:'gameover'` dispara `resetRoom()` sin victoria real; (4) `playerName` sin límite server-side — resuelto 2026-06-21.
+- **2026-06-19** — Reconexión automática: `worker/index.js` (reingreso por `playerId`, `state_sync`, alarma de gracia 45 s, auto-pong, `try/catch` en handlers), `js/multiplayer.js` (heartbeat + backoff), `js/main.js`. **Hallazgo aceptado MVP:** reingreso autorizado solo por `playerId` sin verificar `war_session` — permite tomar el asiento de otro jugador. **Positivo:** `try/catch` en todos los handlers (resistencia parcial a DoS); auto-pong sin despertar el DO.
+- **2026-06-19** — Refuerzo lógica de victorias: `js/game.js` (`round`, `canSurrender()`, `_checkWin()`), `js/main.js` (flag `rankedOnline`, sync `round`/`winner`/`alive`, pantalla de fin), `js/ui.js`, `css/style.css`. **Hallazgos aceptados MVP:** (1) win forzado a otro jugador — peer envía `game_state {phase:'gameover', winner:<índice>}` → fuerza `POST /api/win` de la víctima; (2) `rankedOnline` es gating UX, no control de seguridad. Pantalla de fin escapa todos los sinks de nombre con `escapeHtml`.
+- **2026-06-19** — Flujo de ataque de dos clics y flechas SVG: `js/ui.js` (`pendingTarget`, `arrowsLayer`, flujo de dos pasos, botón Rendirse), `css/style.css`. **Sin hallazgos nuevos:** `arrowsLayer` usa solo coordenadas constantes; `reinforcements` añadido al payload extiende el riesgo ya aceptado de `Object.assign` sin schema.
