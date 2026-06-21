@@ -7,19 +7,10 @@ const HOW_HEARD_OPTIONS = [
   "Encontré el link por casualidad",
 ];
 
-function getSession(request) {
-  const cookie = request.headers.get("Cookie") || "";
-  const match = cookie.match(/war_session=([^;]+)/);
-  if (!match) return null;
-  try {
-    return JSON.parse(atob(match[1]));
-  } catch (_) {
-    return null;
-  }
-}
+import { getSession } from "../_lib/session.js";
 
 export async function onRequestPost({ request, env }) {
-  const session = getSession(request);
+  const session = await getSession(request, env);
   if (!session?.sub) {
     return Response.redirect(new URL("/login.html", request.url).href, 302);
   }
@@ -58,7 +49,7 @@ export async function onRequestPost({ request, env }) {
     });
   }
 
-  if (!email || typeof email !== "string" || !email.includes("@")) {
+  if (!email || typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
     return new Response(JSON.stringify({ error: "Correo inválido" }), {
       status: 400,
       headers: { "Content-Type": "application/json" },

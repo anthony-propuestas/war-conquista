@@ -1,16 +1,7 @@
-function getSession(request) {
-  const cookie = request.headers.get("Cookie") || "";
-  const match = cookie.match(/war_session=([^;]+)/);
-  if (!match) return null;
-  try {
-    return JSON.parse(atob(match[1]));
-  } catch (_) {
-    return null;
-  }
-}
+import { getSession } from "../_lib/session.js";
 
 export async function onRequestPost({ request, env }) {
-  const session = getSession(request);
+  const session = await getSession(request, env);
   if (!session?.sub) {
     return new Response(JSON.stringify({ ok: false }), {
       status: 200,

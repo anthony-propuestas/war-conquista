@@ -1,4 +1,5 @@
 import { verifyMessage } from "ethers";
+import { createSessionCookie } from "../../_lib/session.js";
 
 export async function onRequestPost({ request, env }) {
   let body;
@@ -49,14 +50,12 @@ export async function onRequestPost({ request, env }) {
     });
   }
 
-  const session = btoa(JSON.stringify({
+  const cookie = await createSessionCookie({
     sub: user.sub,
     name: user.username,
     email: user.email,
     picture: null,
-  }));
-
-  const cookie = `war_session=${session}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800`;
+  }, env);
 
   return new Response(JSON.stringify({ ok: true }), {
     status: 200,

@@ -59,7 +59,7 @@ test("firma válida y wallet vinculada → 200 {ok:true} con cookie de sesión",
   const signature = await wallet.signMessage(messageFor(wallet.address));
   const res = await onRequestPost({
     request: makeRequest({ address: wallet.address, signature }),
-    env: { DB: makeDb({ sub: "u1", username: "Ana", email: "ana@example.com" }) },
+    env: { DB: makeDb({ sub: "u1", username: "Ana", email: "ana@example.com" }), SESSION_SECRET: "test-secret" },
   });
   assert.equal(res.status, 200);
   const body = await res.json();

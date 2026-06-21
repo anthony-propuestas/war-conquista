@@ -15,20 +15,21 @@ Los tests viven en `tests/` (versionados, excluidos del deploy vía `.assetsigno
 
 | Suite | Archivo bajo prueba | Casos | Estado |
 |---|---|---|---|
+| tests/_lib/session.test.js | functions/_lib/session.js | 7 | ✅ |
 | tests/map-data.test.js | js/map-data.js | 5 | ✅ |
 | tests/game.test.js | js/game.js | 27 | ✅ |
 | tests/map-shapes.test.js | js/map-shapes.js | 4 | ✅ |
 | tests/api/auth/google.test.js | functions/api/auth/google.js | 2 | ✅ |
-| tests/api/auth/callback.test.js | functions/api/auth/callback.js | 5 | ✅ |
+| tests/api/auth/callback.test.js | functions/api/auth/callback.js | 7 | ✅ |
 | tests/multiplayer.test.js | js/multiplayer.js | 27 | ✅ |
-| tests/api/game-room.test.js | worker/index.js + functions/api/game-room.js | 28 | ✅ |
+| tests/api/game-room.test.js | worker/index.js + functions/api/game-room.js | 30 | ✅ |
 | tests/api/gamers.test.js | functions/api/gamers.js | 1 | ✅ |
 | tests/api/profile.test.js | functions/api/profile.js | 4 | ✅ |
 | tests/api/register.test.js | functions/api/register.js | 10 | ✅ |
 | tests/api/auth/wallet.test.js | functions/api/auth/wallet.js | 5 | ✅ |
 | tests/api/wallet/link.test.js | functions/api/wallet/link.js | 6 | ✅ |
 | tests/api/win.test.js | functions/api/win.js | 3 | ✅ |
-| **Total** | | **127** | ✅ |
+| **Total** | | **138** | ✅ |
 
 ## Pendiente (diferido)
 

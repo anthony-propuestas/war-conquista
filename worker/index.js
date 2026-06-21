@@ -29,7 +29,8 @@ export class GameRoom {
     }
 
     const playerId = url.searchParams.get('playerId') || crypto.randomUUID();
-    const playerName = url.searchParams.get('playerName') || 'Jugador';
+    // Acota el nombre en el servidor: el maxlength del input no aplica a quien abra el WS directo.
+    const playerName = (url.searchParams.get('playerName') || 'Jugador').trim().slice(0, 16) || 'Jugador';
     const isPublic = url.searchParams.get('public') === '1';
 
     // Sala ya iniciada: solo se permite REINGRESO de un jugador que ya pertenecía

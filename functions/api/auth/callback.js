@@ -1,12 +1,23 @@
+import { createSessionCookie } from "../../_lib/session.js";
+
 // Recibe el code de Google, lo canjea por tokens, guarda la sesión en cookie
 export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   const oauthError = url.searchParams.get("error");
+  const state = url.searchParams.get("state");
 
   if (oauthError || !code) {
-    return Response.redirect(`${url.origin}/login.html?error=${oauthError || 'no_code'}`, 302);
+    return Response.redirect(`${url.origin}/login.html?error=${encodeURIComponent(oauthError || 'no_code')}`, 302);
   }
+
+  // Anti Login-CSRF: el state debe coincidir con el de la cookie emitida en /api/auth/google.
+  const cookie = request.headers.get("Cookie") || "";
+  const stateCookie = cookie.match(/oauth_state=([^;]+)/)?.[1];
+  if (!state || !stateCookie || state !== stateCookie) {
+    return Response.redirect(`${url.origin}/login.html?error=invalid_state`, 302);
+  }
+  const clearState = "oauth_state=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0";
 
   const clientId = env.GOOGLE_CLIENT_ID;
   const clientSecret = env.GOOGLE_CLIENT_SECRET;
@@ -37,7 +48,7 @@ export async function onRequestGet({ request, env }) {
   }
 
   if (tokenData.error) {
-    return Response.redirect(`${url.origin}/login?error=${tokenData.error}`, 302);
+    return Response.redirect(`${url.origin}/login?error=${encodeURIComponent(tokenData.error)}`, 302);
   }
 
   // Obtener perfil del usuario
@@ -51,15 +62,13 @@ export async function onRequestGet({ request, env }) {
     return Response.redirect(`${url.origin}/login?error=userinfo_fetch`, 302);
   }
 
-  // Sesión simple: JSON en base64 en una cookie HttpOnly
-  const session = btoa(JSON.stringify({
+  // Sesión firmada con HMAC en una cookie HttpOnly
+  const sessionCookie = await createSessionCookie({
     sub: userInfo.sub,
     name: userInfo.name,
     email: userInfo.email,
     picture: userInfo.picture,
-  }));
-
-  const cookie = `war_session=${session}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800`;
+  }, env);
 
   // Verificar si el usuario ya está registrado
   let isRegistered = false;
@@ -70,11 +79,9 @@ export async function onRequestGet({ request, env }) {
     // Si la tabla no existe aún, tratar como no registrado
   }
 
-  return new Response(null, {
-    status: 302,
-    headers: {
-      Location: isRegistered ? "/lobby" : "/register",
-      "Set-Cookie": cookie,
-    },
-  });
+  const headers = new Headers({ Location: isRegistered ? "/lobby" : "/register" });
+  headers.append("Set-Cookie", sessionCookie);
+  headers.append("Set-Cookie", clearState);
+
+  return new Response(null, { status: 302, headers });
 }

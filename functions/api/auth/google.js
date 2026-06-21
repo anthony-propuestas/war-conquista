@@ -8,16 +8,23 @@ export async function onRequestGet({ request, env }) {
   const origin = new URL(request.url).origin;
   const redirectUri = `${origin}/api/auth/callback`;
 
+  // Anti Login-CSRF: state aleatorio guardado en cookie temporal y verificado en el callback.
+  const state = crypto.randomUUID();
+
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: "code",
     scope: "openid email profile",
     access_type: "online",
+    state,
   });
 
-  return Response.redirect(
-    `https://accounts.google.com/o/oauth2/v2/auth?${params}`,
-    302
-  );
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: `https://accounts.google.com/o/oauth2/v2/auth?${params}`,
+      "Set-Cookie": `oauth_state=${state}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`,
+    },
+  });
 }

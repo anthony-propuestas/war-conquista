@@ -47,24 +47,27 @@ Sin parámetros. Construye la URL de autorización de Google y responde con redi
 | `GOOGLE_CLIENT_ID` ausente | `500` | — (texto plano de error) |
 
 Parámetros enviados a Google: `client_id`, `redirect_uri` (`<origen>/api/auth/callback`),
-`response_type=code`, `scope=openid email profile`.
+`response_type=code`, `scope=openid email profile`, `state` (UUID anti-CSRF).
+También emite `Set-Cookie: oauth_state=<state>; HttpOnly; Secure; SameSite=Lax; Max-Age=600`.
 
-## `GET /api/auth/callback?code=<code>` — completar login
+## `GET /api/auth/callback?code=<code>&state=<state>` — completar login
 
 Google redirige aquí tras la autorización del usuario.
 
 | Caso | Status | Destino |
 |---|---|---|
-| Usuario ya registrado en DB | `302` | `/lobby` con `Set-Cookie: war_session=…` |
-| Usuario nuevo (no en DB) | `302` | `/register` con `Set-Cookie: war_session=…` |
+| Usuario ya registrado en DB | `302` | `/lobby` con `Set-Cookie: war_session=…` + limpiar `oauth_state` |
+| Usuario nuevo (no en DB) | `302` | `/register` con `Set-Cookie: war_session=…` + limpiar `oauth_state` |
 | Sin `?code` o Google devuelve `?error` | `302` | `/login.html?error=no_code` |
+| `state` ausente o no coincide con cookie `oauth_state` | `302` | `/login.html?error=invalid_state` |
 | Env vars ausentes | `500` | — |
 | Error de red al canjear code (excepción de fetch) | `302` | `/login?error=token_fetch` |
 | Google devuelve error de token | `302` | `/login?error=<error_de_google>` |
 | Error al obtener userinfo | `302` | `/login?error=userinfo_fetch` |
 
-La cookie `war_session` es `HttpOnly; SameSite=Lax; Max-Age=604800` (7 días).
-Su valor es un JSON base64 con `{ sub, name, email, picture }`.
+La cookie `war_session` es `HttpOnly; Secure; SameSite=Lax; Max-Age=604800` (7 días).
+Su valor es `base64(payload).base64url(HMAC-SHA256)` donde payload = `{ sub, name, email, picture }`.
+Ver formato completo en [auth.md](auth.md).
 El redirect "sin code" usa `/login.html`; el resto usan `/login` (sin extensión).
 Tras el callback el servidor consulta `users WHERE sub = ?` para decidir el destino.
 

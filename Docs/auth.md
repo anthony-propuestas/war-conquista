@@ -1,7 +1,8 @@
 # Autenticación — Google OAuth 2.0
 
 WAR usa el flujo **Authorization Code** de OAuth 2.0 con Google. La sesión se guarda
-en una cookie `HttpOnly` en el navegador; los datos del usuario se persisten en D1 (`users`).
+en una cookie `HttpOnly` firmada con HMAC-SHA256 en el navegador; los datos del usuario
+se persisten en D1 (`users`).
 
 ## Flujo completo
 
@@ -10,15 +11,19 @@ Usuario → /login
     │ clic "Continuar con Google"
     ▼
 GET /api/auth/google
-    │ construye URL de Google con client_id, redirect_uri, scope
+    │ genera state = crypto.randomUUID()
+    │ Set-Cookie: oauth_state=<state>  (HttpOnly; Secure; Max-Age=600)
+    │ construye URL de Google con client_id, redirect_uri, scope, state
     ▼ 302
 accounts.google.com/o/oauth2/v2/auth  (pantalla de consentimiento Google)
     │ usuario autoriza
-    ▼ 302 con ?code=…
-GET /api/auth/callback?code=<code>
+    ▼ 302 con ?code=…&state=<state>
+GET /api/auth/callback?code=<code>&state=<state>
+    │ verifica state contra cookie oauth_state  → 302 /login?error=invalid_state si no coincide
     │ POST https://oauth2.googleapis.com/token  → access_token
     │ GET  https://openidconnect.googleapis.com/v1/userinfo → perfil
-    │ Set-Cookie: war_session=<base64>
+    │ Set-Cookie: war_session=<payload.hmac>  (firmada con SESSION_SECRET)
+    │ Set-Cookie: oauth_state=  (Max-Age=0, limpiar)
     │ SELECT id FROM users WHERE sub = ?
     ├─ fila encontrada ──302──> /lobby  (usuario ya registrado)
     └─ sin fila      ──302──> /register  (primer login: completar registro)
@@ -26,8 +31,10 @@ GET /api/auth/callback?code=<code>
 
 ## Cookie de sesión (`war_session`)
 
-Valor: **JSON codificado en Base64** (no firmado — MVP).
+Valor: **`base64(payload).base64url(HMAC-SHA256)`**, firmado con `SESSION_SECRET`
+(Cloudflare Pages Secret). Módulo compartido: `functions/_lib/session.js`.
 
+Payload JSON:
 ```json
 {
   "sub":     "1234567890",
@@ -37,19 +44,24 @@ Valor: **JSON codificado en Base64** (no firmado — MVP).
 }
 ```
 
-Atributos de la cookie: `HttpOnly; SameSite=Lax; Path=/; Max-Age=604800` (7 días).
+Atributos de la cookie: `HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800` (7 días).
+Una cookie manipulada o forjada devuelve `null` en `getSession` (la firma no coincide).
+Las sesiones del formato antiguo (plain base64, sin punto) también se rechazan.
 
-### Leer la sesión desde otra Pages Function
+### Usar la sesión desde otra Pages Function
 
 ```js
-export async function onRequestGet({ request }) {
-  const cookie = request.headers.get("Cookie") ?? "";
-  const match = cookie.match(/war_session=([^;]+)/);
-  if (!match) return new Response("no autenticado", { status: 401 });
-  const session = JSON.parse(atob(match[1]));
+import { getSession } from "../_lib/session.js";
+
+export async function onRequestGet({ request, env }) {
+  const session = await getSession(request, env);
+  if (!session?.sub) return new Response("no autenticado", { status: 401 });
   // session.sub, session.name, session.email, session.picture
 }
 ```
+
+`getSession` retorna `null` si la cookie está ausente, la firma no coincide o
+`env.SESSION_SECRET` no está configurado.
 
 ## Login alternativo: wallet (MetaMask)
 
@@ -84,7 +96,8 @@ shapes de request/response en [api.md](api.md).
 
 | Aspecto | Estado actual |
 |---|---|
-| Firma de cookie | No — la cookie es base64 sin HMAC. Cualquiera puede forjar una sesión si no usa HTTPS. Válido en HTTPS (Cloudflare Pages siempre usa HTTPS en producción). |
+| Firma de cookie | ✅ HMAC-SHA256 con `SESSION_SECRET` (`functions/_lib/session.js`). Forja y manipulación rechazadas. |
+| Login CSRF | ✅ Parámetro `state` generado en `/api/auth/google`, verificado en `/api/auth/callback`. |
 | Logout | No implementado. La sesión expira sola en 7 días o borrando la cookie manualmente. |
 | Renovación de token | No — solo se usa el `access_token` para obtener el perfil en el callback; no se guarda para llamadas posteriores. |
 | Revocación | No — si el usuario revoca el acceso en Google, la cookie sigue válida hasta que expire. |

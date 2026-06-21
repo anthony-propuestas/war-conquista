@@ -33,6 +33,8 @@ WAR/
 ├── functions/gamers/[username].js # Pages Function: /gamers/<username> — perfil HTML público (D1)
 ├── functions/api/game-room.js # Pages Function: routing de /api/game-room (WS) al Durable Object
 ├── worker/index.js          # Durable Object GameRoom (Worker separado, script_name "war-game-room")
+├── functions/_lib/
+│   └── session.js          # módulo compartido: createSessionCookie / getSession (HMAC-SHA256)
 ├── functions/api/auth/
 │   ├── google.js           # inicia OAuth con Google (/api/auth/google)
 │   ├── callback.js         # completa OAuth, guarda cookie, bifurca /lobby o /register
@@ -69,10 +71,11 @@ WAR/
 | `functions/gamers/[username].js` | Backend (página) | `GET /gamers/<username>`: renderiza una página HTML de perfil público (`username` + `wins`) desde `users`; 404 HTML si no existe. Sin auth. La enlaza el ranking. Ver [api.md](api.md). |
 | `functions/api/game-room.js` | Backend | Routing de `/api/game-room`: resuelve el Durable Object `GameRoom` por `roomId` y delega la request. |
 | `worker/index.js` | Backend (Durable Object) | Sala multijugador `GameRoom`: lobby (jugadores/listos), WebSocket, broadcast, persistencia del estado y reconexión con ventana de gracia (auto-pong + reingreso por `playerId`). Ver [realtime.md](realtime.md). |
-| `functions/api/auth/google.js` | Backend | Inicia el flujo OAuth 2.0: redirige a Google con los parámetros del cliente. |
-| `functions/api/auth/callback.js` | Backend | Completa OAuth: canjea el code, obtiene el perfil del usuario, guarda cookie `war_session` y redirige a `/lobby` (registrado) o `/register` (nuevo). |
-| `functions/api/auth/wallet.js` | Backend | `POST /api/auth/wallet`: verifica firma (`ethers.verifyMessage`) y, si la wallet ya está vinculada a una cuenta, emite la misma cookie `war_session` que el login con Google. |
-| `functions/api/wallet/link.js` | Backend | `POST /api/wallet/link`: requiere `war_session`; verifica firma y guarda `wallet_address` en `users` (409 si ya pertenece a otra cuenta). |
+| `functions/_lib/session.js` | Utilidad compartida | Firma y verifica la cookie `war_session` con HMAC-SHA256. Exports: `createSessionCookie(payload, env)` y `getSession(request, env)`. El secreto vive en `env.SESSION_SECRET` (Cloudflare Pages Secret). |
+| `functions/api/auth/google.js` | Backend | Inicia el flujo OAuth 2.0: genera `state` anti-CSRF, emite cookie `oauth_state` temporal y redirige a Google. |
+| `functions/api/auth/callback.js` | Backend | Completa OAuth: verifica `state` contra `oauth_state`, canjea el code, obtiene el perfil del usuario, guarda cookie `war_session` firmada (HMAC) y redirige a `/lobby` (registrado) o `/register` (nuevo). |
+| `functions/api/auth/wallet.js` | Backend | `POST /api/auth/wallet`: verifica firma (`ethers.verifyMessage`) y, si la wallet ya está vinculada a una cuenta, emite la misma cookie `war_session` firmada que el login con Google. |
+| `functions/api/wallet/link.js` | Backend | `POST /api/wallet/link`: requiere `war_session` válida (HMAC); verifica firma y guarda `wallet_address` en `users` (409 si ya pertenece a otra cuenta). |
 
 ## Flujo principal
 

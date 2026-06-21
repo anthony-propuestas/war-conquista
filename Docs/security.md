@@ -62,14 +62,14 @@ desplegados en producción).
 
 ### `GET /api/profile`
 - Requiere cookie `war_session` válida; sin ella devuelve 401.
-- `getSession()` envuelve `JSON.parse(atob(...))` en `try/catch` → cookies malformadas o manipuladas devuelven 401, sin excepción.
+- `getSession()` (de `functions/_lib/session.js`) verifica la firma HMAC-SHA256 antes de deserializar; cookies ausentes, manipuladas o sin firma devuelven `null` → 401, sin excepción.
 - Solo expone `username` y `wins`; no filtra `sub`, `email`, `age` ni `id`.
 - 401 y 404 no revelan si el `sub` existe o no (respuestas genéricas).
 
 ### `POST /api/register`
 - `POST` correcto para una mutación.
 - Todas las queries a D1 están parametrizadas: `SELECT … WHERE sub = ?`, `SELECT … WHERE username = ?`, `INSERT INTO users … VALUES (?, ?, …)`.
-- Validaciones presentes: tipo de campo, longitud de username (3–30), regex `[a-zA-Z0-9_]`, rango de edad (5–120), email contiene `@`, allowlist de `how_heard`.
+- Validaciones presentes: tipo de campo, longitud de username (3–30), regex `[a-zA-Z0-9_]`, rango de edad (5–120), email con regex básica `^[^\s@]+@[^\s@]+\.[^\s@]+$`, allowlist de `how_heard`.
 - `username.trim()` y `email.trim()` eliminan whitespace antes de almacenar.
 
 ## Auth — `functions/api/auth/`
@@ -247,8 +247,11 @@ No son vulnerabilidades confirmadas, pero se registran:
   en el DOM (requiere otro vector previo) se ejecutaría sin restricción. Aceptado por
   complejidad de configurar CSP con `unsafe-inline` y CDN externo. Mitigación futura:
   añadir CSP permisiva pero explícita a `_headers`.
-- **Cookie `war_session` sin firma (HMAC) — impacto escalado:** el valor es JSON base64
-  sin verificación criptográfica. Con la adición de `/api/profile`, `/api/register` y,
+- **RESUELTO (2026-06-21) — Cookie `war_session` sin firma (HMAC):** ahora se firma con
+  HMAC-SHA256 vía `functions/_lib/session.js` (ver Historial). Las cookies forjadas se
+  rechazan; los riesgos derivados (escrituras en D1 con `sub` ajeno, lectura de perfiles,
+  backdoor de `wallet/link`) quedan cerrados. Texto histórico debajo:
+  ~~el valor es JSON base64 sin verificación criptográfica.~~ Con la adición de `/api/profile`, `/api/register` y,
   desde esta sesión, **`/api/win`**, la cookie ya no es solo cosmética: ahora **controla
   escrituras en D1**. Un atacante que
   forje una cookie con un `sub` arbitrario puede (1) registrar cuentas con identidades
@@ -258,17 +261,17 @@ No son vulnerabilidades confirmadas, pero se registran:
   MitM (poco probable en Cloudflare Pages), pero el impacto ha crecido de cosmético a
   escritura real en DB. Mitigación futura: HMAC del payload con un secret de Workers
   (`crypto.subtle.sign`). **Aceptado para MVP, prioridad elevada respecto a sesiones anteriores.**
-- **Validación de email débil en `/api/register`:** `email.includes("@")` acepta valores
-  como `@`, `a@`, `@@@`. El email se almacena pero no controla acceso ni se usa para
-  enviar correos, así que no hay riesgo de seguridad estricto — es un vector de datos
-  basura en la tabla `users`. Mitigación sugerida si el email pasa a usarse: validación
-  RFC básica o confirmación por envío.
-- **Sin rate-limiting en `/api/register`:** combinado con la cookie forjable, permite
-  crear registros masivos en `users`. La constraint `UNIQUE(sub)` limita a una fila por
-  `sub`, pero no limita el volumen de intentos (ni el coste en DB). Mitigación futura:
-  Cloudflare Rate Limiting o verificación Turnstile en el formulario.
-- **Sin parámetro `state` en OAuth (Login CSRF):** `/api/auth/google` no genera un
-  `state` ni `/api/auth/callback` lo verifica. Permite **Login CSRF**: un atacante
+- **RESUELTO (2026-06-21) — Validación de email débil en `/api/register`:** reemplazado
+  `email.includes("@")` por regex `^[^\s@]+@[^\s@]+\.[^\s@]+$` que rechaza `@`, `a@`,
+  `@@@` y similares. Texto histórico: ~~el email se almacenaba sin validación de formato
+  mínima — vector de datos basura sin riesgo de seguridad estricto~~.
+- **Sin rate-limiting en `/api/register`:** la constraint `UNIQUE(sub)` limita a una
+  fila por `sub`, pero no limita el volumen de intentos. Mitigación futura: Cloudflare
+  Rate Limiting o verificación Turnstile en el formulario.
+- **RESUELTO (2026-06-21) — Sin parámetro `state` en OAuth (Login CSRF):** `/api/auth/google`
+  genera un `state` aleatorio en cookie `oauth_state` y `/api/auth/callback` lo verifica
+  (rechaza con `invalid_state`). Texto histórico debajo:
+  ~~`/api/auth/google` no genera un `state` ni `/api/auth/callback` lo verifica.~~ Permite **Login CSRF**: un atacante
   puede hacer que una víctima complete el flujo OAuth con la cuenta del atacante (la
   víctima queda logueada como el atacante). Impacto bajo en WAR (leaderboard de vanidad,
   sin datos personales expuestos). **Pendiente de corrección:** generar un `state`
@@ -350,6 +353,38 @@ La tabla de la sección anterior refleja el estado al momento del despliegue. Ac
 
 ## Historial de revisiones
 
+- **2026-06-21** — **Endurecimiento de sesión y auth (correcciones, no solo registro).**
+  Cambios revisados y aplicados:
+  - **RESUELTO — Cookie `war_session` sin HMAC:** nuevo módulo `functions/_lib/session.js`
+    (`createSessionCookie` / `getSession`) que firma el payload con **HMAC-SHA256**
+    (`crypto.subtle`, secret `SESSION_SECRET`) y verifica con **comparación en tiempo
+    constante**. Formato: `base64(payload).base64url(firma)`. Migrados todos los
+    consumidores (`profile.js`, `win.js`, `register.js`, `wallet/link.js`) y emisores
+    (`auth/callback.js`, `auth/wallet.js`). Una cookie forjada o manipulada ahora devuelve
+    `null` → **caen en cascada** los riesgos escalados: forja de `sub` para escribir en D1
+    (`/api/win`, `/api/register`), lectura de perfiles ajenos (`/api/profile`) y la
+    **puerta trasera por `/api/wallet/link`**. La cookie además ahora lleva `Secure`.
+    **Requisito de despliegue:** `wrangler pages secret put SESSION_SECRET` (en dev va en
+    `.dev.vars`, gitignored). Sin el secret, `getSession` devuelve `null` y
+    `createSessionCookie` lanza → login inoperante por diseño. Las sesiones legacy (sin
+    firma) quedan invalidadas: los usuarios deben reloguear (aceptable).
+  - **RESUELTO — Login CSRF (sin `state` en OAuth):** `auth/google.js` genera un `state`
+    aleatorio (`crypto.randomUUID`) y lo guarda en cookie temporal `oauth_state`
+    (`HttpOnly; Secure; SameSite=Lax; Max-Age=600`); `auth/callback.js` lo verifica contra
+    el query y rechaza con `invalid_state` si falta o no coincide, limpiando la cookie tras
+    el login.
+  - **RESUELTO — `encodeURIComponent` en redirects de error de auth:** `oauthError` y
+    `tokenData.error` ahora se escapan en `callback.js`.
+  - **Mitigado — `playerName` sin límite server-side (`worker/index.js`):** ahora
+    `String(playerName).trim().slice(0,16)` antes de guardarlo en el attachment del socket.
+  - **Mitigado — email débil en `/api/register`:** `includes("@")` reemplazado por regex
+    básica `^[^\s@]+@[^\s@]+\.[^\s@]+$`.
+  - **Pendiente (no tocado, riesgo de romper online sin test):** binding de `playerId`
+    contra `war_session` en el DO. El `playerId` suele ser la wallet pública o un id
+    anónimo (≠ `sub`) y el cliente referencia jugadores por ese id, así que el fix requiere
+    cambio coordinado cliente+servidor y prueba del flujo multijugador. Sigue como riesgo
+    aceptado para MVP (spoofing de `playerId`, robo de asiento en reconexión, win forzado).
+  Sin cambios en `_headers` ni en el esquema D1.
 - **2026-06-14** — Línea base inicial. Cambio revisado: `database_id` real en
   `wrangler.toml` + enlace a la demo en `README.md`. **Hallazgo: ninguno** (no introduce
   superficie nueva; se confirma que `database_id` no es secreto).

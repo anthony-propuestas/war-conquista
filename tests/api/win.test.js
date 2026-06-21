@@ -2,8 +2,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { onRequestPost } from "../../functions/api/win.js";
+import { createSessionCookie } from "../../functions/_lib/session.js";
 
-const makeSession = (sub) => `war_session=${btoa(JSON.stringify({ sub }))}`;
+const TEST_SECRET = "test-secret";
+
+async function makeHmacCookie(sub) {
+  const header = await createSessionCookie({ sub }, { SESSION_SECRET: TEST_SECRET });
+  return header.match(/war_session=[^;]+/)[0];
+}
 
 const makeRequest = (cookie) =>
   new Request("http://localhost/api/win", {
@@ -26,19 +32,21 @@ function makeDb() {
   };
 }
 
+const makeEnv = (db) => ({ DB: db, SESSION_SECRET: TEST_SECRET });
+
 test("sin cookie → 200 {ok:false}, no toca la DB", async () => {
   const db = makeDb();
-  const res = await onRequestPost({ request: makeRequest(null), env: { DB: db } });
+  const res = await onRequestPost({ request: makeRequest(null), env: makeEnv(db) });
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { ok: false });
   assert.equal(db.calls.length, 0);
 });
 
-test("cookie con base64 inválido → 200 {ok:false}", async () => {
+test("cookie con formato inválido → 200 {ok:false}", async () => {
   const db = makeDb();
   const res = await onRequestPost({
     request: makeRequest("war_session=!!!invalid!!!"),
-    env: { DB: db },
+    env: makeEnv(db),
   });
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { ok: false });
@@ -48,8 +56,8 @@ test("cookie con base64 inválido → 200 {ok:false}", async () => {
 test("sesión válida → suma 1 victoria al sub correcto y responde {ok:true}", async () => {
   const db = makeDb();
   const res = await onRequestPost({
-    request: makeRequest(makeSession("u1")),
-    env: { DB: db },
+    request: makeRequest(await makeHmacCookie("u1")),
+    env: makeEnv(db),
   });
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { ok: true });

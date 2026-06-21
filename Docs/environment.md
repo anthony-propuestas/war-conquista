@@ -32,29 +32,38 @@ script_name = "war-game-room"
 
 > La sección `[[migrations]]` (registro de la clase DO, `new_sqlite_classes = ["GameRoom"]`) vive en `worker/wrangler.toml`, no en el `wrangler.toml` principal.
 
-## Secrets de Google OAuth
+## Secrets
+
+### Google OAuth
 
 `functions/api/auth/google.js` y `functions/api/auth/callback.js` leen
 `env.GOOGLE_CLIENT_ID` y `env.GOOGLE_CLIENT_SECRET`.
 
-**En local** (`npm run dev`): crear `.dev.vars` en la raíz (ya en `.gitignore`) con los
-valores reales:
+Los secrets se obtienen de **Google Cloud Console → Credenciales → OAuth 2.0 → ID de cliente**.
+URI de redirección autorizado: `<origen>/api/auth/callback` (añadir tanto el origen de
+producción como `http://localhost:8788`).
+
+### Firma de sesión (`SESSION_SECRET`)
+
+`functions/_lib/session.js` firma y verifica la cookie `war_session` con HMAC-SHA256 usando
+`env.SESSION_SECRET`. Sin este secret, `getSession` devuelve `null` y `createSessionCookie`
+lanza → el login queda inoperante. Usar un valor aleatorio robusto (≥32 bytes de entropía).
+
+**En local** (`npm run dev`): añadir al `.dev.vars` en la raíz (ya en `.gitignore`):
 ```
 GOOGLE_CLIENT_ID=<tu-client-id>
 GOOGLE_CLIENT_SECRET=<tu-client-secret>
+SESSION_SECRET=<cadena-aleatoria-larga>
 ```
 
 **En producción** (Pages → proyecto `war-conquista`):
 ```bash
 wrangler pages secret put GOOGLE_CLIENT_ID --project-name war-conquista
 wrangler pages secret put GOOGLE_CLIENT_SECRET --project-name war-conquista
+wrangler pages secret put SESSION_SECRET --project-name war-conquista
 ```
 Wrangler pide el valor de forma interactiva (no queda en el historial del shell).
 Para listar los secrets configurados: `wrangler pages secret list --project-name war-conquista`.
-
-Los secrets se obtienen de **Google Cloud Console → Credenciales → OAuth 2.0 → ID de cliente**.
-URI de redirección autorizado: `<origen>/api/auth/callback` (añadir tanto el origen de
-producción como `http://localhost:8788`).
 
 Ver flujo completo en [auth.md](auth.md).
 

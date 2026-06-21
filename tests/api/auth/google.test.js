@@ -20,4 +20,6 @@ test("con GOOGLE_CLIENT_ID redirige a Google OAuth con params correctos", async 
   assert.equal(location.searchParams.get("redirect_uri"), "http://localhost/api/auth/callback");
   assert.equal(location.searchParams.get("response_type"), "code");
   assert.ok(location.searchParams.get("scope").includes("openid"));
+  assert.ok(location.searchParams.get("state"), "debe incluir state anti-CSRF");
+  assert.ok(res.headers.get("Set-Cookie")?.includes("oauth_state="), "debe emitir cookie oauth_state");
 });

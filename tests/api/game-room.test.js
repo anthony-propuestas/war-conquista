@@ -416,3 +416,69 @@ test("router reenvía la request original a room.fetch y devuelve su respuesta",
   assert.equal(env.calls.fetched, request);
   assert.equal(res, expected);
 });
+
+// ---------- playerName server-side ----------
+
+test("playerName largo (>16 chars) se trunca en la reconexión", async () => {
+  const state = makeState();
+  state.store.set("started", true);
+  state.store.set("playerIds", ["p1"]);
+  const room = newRoom(state);
+
+  let captured;
+  const origWSP = globalThis.WebSocketPair;
+  const origResp = globalThis.Response;
+  globalThis.WebSocketPair = function () {
+    const mk = () => ({
+      sent: [],
+      send(m) { this.sent.push(m); },
+      serializeAttachment(a) { captured = a; },
+      deserializeAttachment() { return {}; },
+    });
+    return { 0: mk(), 1: mk() };
+  };
+  globalThis.Response = function (body, init) { return { body, status: init?.status }; };
+  try {
+    await room.fetch(new Request(
+      "http://localhost/api/game-room?roomId=r&playerId=p1&playerName=  VeryVeryLongName!!  ",
+      { headers: { Upgrade: "websocket" } }
+    ));
+    assert.ok(captured, "serializeAttachment fue llamado");
+    assert.equal(captured.name, "VeryVeryLongName", "nombre truncado a 16 chars después del trim");
+  } finally {
+    globalThis.WebSocketPair = origWSP;
+    globalThis.Response = origResp;
+  }
+});
+
+test("playerName vacío después de trim usa el fallback 'Jugador'", async () => {
+  const state = makeState();
+  state.store.set("started", true);
+  state.store.set("playerIds", ["p1"]);
+  const room = newRoom(state);
+
+  let captured;
+  const origWSP = globalThis.WebSocketPair;
+  const origResp = globalThis.Response;
+  globalThis.WebSocketPair = function () {
+    const mk = () => ({
+      sent: [],
+      send(m) { this.sent.push(m); },
+      serializeAttachment(a) { captured = a; },
+      deserializeAttachment() { return {}; },
+    });
+    return { 0: mk(), 1: mk() };
+  };
+  globalThis.Response = function (body, init) { return { body, status: init?.status }; };
+  try {
+    await room.fetch(new Request(
+      "http://localhost/api/game-room?roomId=r&playerId=p1&playerName=   ",
+      { headers: { Upgrade: "websocket" } }
+    ));
+    assert.ok(captured, "serializeAttachment fue llamado");
+    assert.equal(captured.name, "Jugador", "nombre vacío usa el fallback");
+  } finally {
+    globalThis.WebSocketPair = origWSP;
+    globalThis.Response = origResp;
+  }
+});
