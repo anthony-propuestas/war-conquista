@@ -2,7 +2,7 @@ import { PLAYER_COLORS } from "./map-data.js";
 import { Game } from "./game.js";
 import { UI } from "./ui.js";
 import { connectWallet, getAddress } from "./wallet.js";
-import { joinRoom, requestMatch, sendGameState, setMessageHandler, setReady, startGame as sendStartGame, disconnect, isConnected } from "./multiplayer.js";
+import { joinRoom, requestMatch, sendGameState, sendAction, setMessageHandler, setReady, startGame as sendStartGame, disconnect, isConnected } from "./multiplayer.js";
 
 const $ = (s) => document.querySelector(s);
 let ui = null;
@@ -341,6 +341,10 @@ function beginOnlineGame(players, initialBoard, initialSetup, initialAttackUnloc
   }
 
   setMessageHandler((msg) => {
+    if (msg.type === 'card_used' && ui) {
+      ui.showEnemyCardNotification(msg.payload);
+      return;
+    }
     // state_sync llega tras reconectar a media partida: misma forma que game_state.
     if ((msg.type === 'game_state' || msg.type === 'state_sync') && ui) {
       Object.assign(game.board, msg.payload.board ?? {});
@@ -382,7 +386,11 @@ function beginOnlineGame(players, initialBoard, initialSetup, initialAttackUnloc
     });
 
   updateMultiplayerBadge(roomId);
-  ui = new UI(game, onGameOver, { myIndex, playerCards: [...playerCards] });
+  ui = new UI(game, onGameOver, {
+    myIndex,
+    playerCards: [...playerCards],
+    onCardUsed: (card, playerName) => sendAction('card_used', { playerName, card }),
+  });
   showScreen("#screen-game");
   showWalletBadgeInGame();
 }

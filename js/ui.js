@@ -47,6 +47,8 @@ export class UI {
     // items de mejora: copia local para controlar usadas en esta sesion
     this.playerCards = (opts.playerCards || []).map(c => ({ ...c }));
     this.usedInSession = new Set(); // ids de cartas usadas en esta partida (sincronía optimista)
+    this.onCardUsed = opts.onCardUsed ?? null;
+    this._cunTimer = null;
 
     // temporizador por fase (solo online y cuando es mi turno)
     this.timerKey = null;
@@ -462,6 +464,8 @@ export class UI {
     // Apply effect immediately on local game
     this.game.applyCardEffect(this.game.current.id, card.effect_type, card.effect_value);
     this.usedInSession.add(cardId);
+    const player = this.game.players[this.game.current?.id ?? this.myIndex ?? 0];
+    this.onCardUsed?.(card, player?.name ?? 'Jugador');
     // Persist to API (fire and forget)
     fetch('/api/cards/use', {
       method: 'POST',
@@ -707,5 +711,18 @@ export class UI {
       this.hideDice();
       this.refresh();
     });
+  }
+
+  showEnemyCardNotification({ playerName, card }) {
+    const EFFECT_ICON = { EXTRA_UNITS: '🪖', DOUBLE_ATTACK: '⚔', SHIELD: '🛡' };
+    const el = document.getElementById('card-used-notif');
+    if (!el) return;
+    document.getElementById('cun-icon').textContent   = EFFECT_ICON[card.effect_type] || '🃏';
+    document.getElementById('cun-name').textContent   = card.name;
+    document.getElementById('cun-desc').textContent   = card.description;
+    document.getElementById('cun-player').textContent = `Usado por: ${escapeHtml(playerName)}`;
+    el.classList.add('visible');
+    clearTimeout(this._cunTimer);
+    this._cunTimer = setTimeout(() => el.classList.remove('visible'), 4500);
   }
 }

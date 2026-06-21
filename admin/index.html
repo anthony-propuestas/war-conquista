@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Oswald:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/style.css" />
   <style>
-    body { padding: 2rem; max-width: 900px; margin: 0 auto; }
+    body { padding: 2rem; max-width: 900px; margin: 0 auto; overflow-y: auto; }
     h1 { font-family: "Cinzel", serif; color: var(--accent); margin-bottom: 2rem; }
     h2 { font-family: "Oswald", sans-serif; font-size: 1.1rem; letter-spacing: 2px;
          text-transform: uppercase; color: var(--ink-dim); margin: 2rem 0 1rem; }
@@ -62,6 +62,11 @@
 
   <div class="panel">
     <h3 style="font-family:Oswald,sans-serif;font-size:1rem;margin:0 0 1rem;color:var(--ink)">Nueva carta</h3>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;">
+      <span class="effect-badge" title="Agrega N tropas de refuerzo al turno del jugador">🪖 EXTRA_UNITS — +N unidades</span>
+      <span class="effect-badge" title="Permite lanzar los dados dos veces en un ataque">⚔ DOUBLE_ATTACK — doble dados</span>
+      <span class="effect-badge" title="Absorbe un ataque entrante sin pérdidas de unidades">🛡 SHIELD — absorbe ataque</span>
+    </div>
     <div class="row">
       <div class="field"><label>Nombre</label><input id="card-name" placeholder="Ej: Refuerzo Masivo" /></div>
       <div class="field"><label>Tipo de efecto</label>
