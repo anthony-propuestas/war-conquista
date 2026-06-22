@@ -23,6 +23,9 @@ instalar nada.
 - 🌐 **Multijugador online** en tiempo real: crea o únete a una sala (auto-listo al unirse) y el anfitrión arranca la partida cuando hay 2+ jugadores (WebSocket + Durable Object `GameRoom`). Si se cae la conexión, **reconecta sola** (heartbeat + reintentos con backoff) y recupera el estado de la partida en curso.
 - 🏆 **Salón de la fama** global persistido en Cloudflare D1.
 - 🔐 **Login con Google o wallet MetaMask** para vincular tus victorias a tu cuenta.
+- 🃏 **Sistema de cartas**: recibe cartas como recompensa diaria del battle pass y úsalas en partida (Refuerzos Extra, Doble Ataque, Escudo).
+- 📅 **Battle pass diario**: calendar mensual de recompensas; reclama la carta del día en `/battle-pass`.
+- 🪙 **Tienda on-chain (WGT)**: gana tokens WGT por victorias en modo online y canjéalos por items en la tienda (`/shop`). Contratos en Base Sepolia.
 - 📱 Interfaz responsive, sin librerías JS ni frameworks. Dependencias externas en
   runtime: las fuentes **Cinzel** y **Oswald** de Google Fonts, y **ethers**/**pixi.js**
   cargados desde esm.sh (CDN) vía `importmap`.
@@ -65,6 +68,7 @@ npm run db:create                 # crea la DB "war-scores"
 # copia el database_id que imprime y pégalo en wrangler.toml
 wrangler d1 execute war-scores --remote --file migrations/0001_users.sql
 wrangler d1 execute war-scores --remote --file migrations/0002_items.sql
+wrangler d1 execute war-scores --remote --file migrations/0003_onchain.sql
 ```
 
 ### 2. Configurar secrets
@@ -74,6 +78,10 @@ wrangler pages secret put GOOGLE_CLIENT_ID --project-name war-conquista
 wrangler pages secret put GOOGLE_CLIENT_SECRET --project-name war-conquista
 wrangler pages secret put SESSION_SECRET --project-name war-conquista
 wrangler pages secret put ADMIN_EMAILS --project-name war-conquista
+# On-chain (necesarios para /api/claim-wgt y /api/deliver-item)
+wrangler pages secret put BASE_RPC_URL --project-name war-conquista
+wrangler pages secret put WGT_CONTRACT --project-name war-conquista
+wrangler pages secret put SHOP_CONTRACT --project-name war-conquista
 ```
 
 `SESSION_SECRET`: cadena aleatoria de ≥32 bytes; firma la cookie `war_session` (HMAC-SHA256).
@@ -126,6 +134,7 @@ WAR/
 ├── my-profile/index.html   # perfil del jugador autenticado (/my-profile)
 ├── admin/index.html        # panel de administración (/admin) — gestión de cartas y battle pass
 ├── battle-pass/index.html  # battle pass del jugador (/battle-pass) — calendario y claim diario
+├── shop/index.html         # tienda on-chain (/shop) — WGT balance, inventario, compra de items
 ├── css/style.css           # estilos
 ├── js/
 │   ├── map-data.js         # territorios, continentes, adyacencias

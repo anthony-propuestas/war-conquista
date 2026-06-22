@@ -21,10 +21,15 @@ WAR es un juego de estrategia multijugador. La superficie de red comprende:
 - `/api/battle-pass/claim` — reclama la recompensa del día actual (requiere `war_session`, escribe en DB)
 - `/api/admin/cards` — CRUD de definiciones de cartas (requiere `war_session` con email en `ADMIN_EMAILS`)
 - `/api/admin/battle-pass` — CRUD de recompensas del calendario (requiere `war_session` con email en `ADMIN_EMAILS`)
+- `/api/claim-wgt` — reclama tokens WGT acumulados por victorias de meses pasados (requiere `war_session` + firma ECDSA de wallet, escribe en DB + llama contrato en Base)
+- `/api/deliver-item` — entrega un ítem tras verificar una compra on-chain (requiere `war_session` + `txHash` verificado en Base, escribe en DB)
+- `/api/shop/inventory` — lista ítems del usuario en el shop (requiere `war_session`)
+- `/api/shop/pending-wgt` — WGT reclamable pendiente del usuario (requiere `war_session`)
 
 La sesión se guarda en una cookie `war_session` (`HttpOnly; SameSite=Lax`).
-No hay uploads/archivos. La wallet Web3 (`wallet.js`) es experimental (sin contratos
-desplegados en producción).
+No hay uploads/archivos. Los contratos on-chain (`contracts/src/`) existen en el repo
+pero **no están desplegados en producción todavía**; la capa on-chain se considera
+pre-producción.
 
 ## Backend — `functions/api/win.js`
 
@@ -126,6 +131,48 @@ desplegados en producción).
   `POST /api/auth/wallet` usando su wallet real, de forma persistente, como **puerta
   trasera** a la cuenta ajena. Sube la prioridad de firmar `war_session` con HMAC.
 
+## Backend — endpoints on-chain (`functions/api/claim-wgt.js`, `functions/api/deliver-item.js`, `functions/api/shop/`)
+
+### `POST /api/claim-wgt`
+
+- **Auth:** sesión HMAC (`getSession()` → 401) + firma ECDSA sobre mensaje `<userId>:<timestamp>`.
+- **Replay protection:** el backend verifica `|Date.now() - timestamp| ≤ 5 min`; una firma capturada expira. Mejora sobre `auth/wallet.js` (firma estática sin expiración).
+- **Wallet ownership:** `ethers.verifyMessage` recupera la address y la compara case-insensitive con `users.wallet_address`.
+- **Queries parametrizadas:** `SELECT … WHERE sub = ?`, `SELECT … WHERE user_id = ? AND claimed_at IS NULL AND year_month < ?`. El `UPDATE … WHERE id IN (${placeholders})` usa IDs devueltos por la propia query (nunca input del usuario) → sin inyección.
+- **Anti-doble-mint:** `claimed_at` se setea en D1 **antes** de la llamada al contrato; si la tx falla, el UPDATE se revierte → no es posible mintear dos veces el mismo mes.
+- **Solo meses cerrados:** `year_month < mes_actual` — no puede reclamarse el mes en curso.
+- **Hallazgo — [INFO] Sin rate limit:** un atacante autenticado podría hacer polling frecuente. Riesgo bajo (la query devuelve vacío si no hay meses pendientes). Extiende el riesgo ya documentado de sin rate-limiting general.
+
+### `POST /api/deliver-item`
+
+- **Input `txHash`:** validado con `/^0x[0-9a-fA-F]{64}$/` — formato incorrecto → 400.
+- **Anti-replay:** `SELECT id FROM delivered_txs WHERE tx_hash = ?` antes de procesar; hash ya usado → 409.
+- **Verificación on-chain (lectura):** `receipt.status === 1` (tx exitosa), `receipt.to === env.SHOP_CONTRACT` (case-insensitive), evento `ItemPurchased` con `buyer === user.wallet_address`. Sin estas tres condiciones → rechazo.
+- **Queries parametrizadas:** `SELECT … WHERE sub = ?`, `SELECT … WHERE id = ? AND is_active = 1`, `INSERT INTO user_shop_items … ON CONFLICT DO UPDATE`, `INSERT INTO delivered_txs`. Batch atómico.
+- **Secreto `SHOP_CONTRACT`:** viene de `env` (binding de Pages), no del repo.
+
+### `GET /api/shop/inventory` y `GET /api/shop/pending-wgt`
+
+- **Auth:** sesión HMAC → 401 si inválida.
+- **Queries parametrizadas:** `WHERE user_id = ?` en ambos; JOIN con `card_definitions` en inventory filtra ítems inactivos y cantidad cero.
+- **Datos devueltos:** inventory expone solo `id`, `name`, `description`, `quantity`. pending-wgt expone solo `wins` y `year_month`. Sin columnas internas.
+- **Sin rate limit** — mismo riesgo aceptado que el resto de endpoints.
+
+## Contratos on-chain (`contracts/src/`)
+
+### ItemShop.sol
+
+- ✅ Control de acceso: OpenZeppelin `AccessControl` con `ITEM_MANAGER_ROLE`.
+- ✅ WGT quemado al comprar (`burnFrom`) — sin posibilidad de refund ni doble-gasto.
+- **[BAJO] Sin `ReentrancyGuard`:** `burnFrom()` es una llamada externa que ocurre antes de la emisión del evento (violación del patrón CEI). Riesgo bajo en práctica: el contrato WGT es propio y de confianza; no hay actor externo en el flujo. Aceptado MVP. Mitigación: heredar `ReentrancyGuard` y marcar `purchaseItem` como `nonReentrant`.
+- **[BAJO] `updateItem` sin validación de precio/cantidad:** acepta `price=0` o `quantity=type(uint256).max`. Riesgo admin-only (solo `ITEM_MANAGER_ROLE` puede llamarlo). Aceptado MVP. Mitigación: `require(price > 0)`.
+- **[INFO] Sin eventos en `updateItem` / `setItemActive`:** las actualizaciones de items no emiten eventos, lo que dificulta la auditoría on-chain off-chain. No es una vulnerabilidad de seguridad.
+
+### WGTToken.sol
+
+- ✅ OpenZeppelin ERC20 + ERC20Burnable; mint gateado por `MINTER_ROLE`.
+- **[BAJO] Sin cap de supply:** `MINTER_ROLE` puede mintear ilimitadamente. En práctica el único minter es el worker `claim-wgt.js`, gateado por auth + `claimed_at` + solo meses cerrados. Riesgo real: si la cuenta del worker fuera comprometida, habría inflación ilimitada. Aceptado MVP. Mitigación futura: `ERC20Capped`.
+
 ## Backend — Cards, Battle Pass & Admin (`functions/api/cards/`, `functions/api/battle-pass/`, `functions/api/admin/`)
 
 ### Mecanismos de seguridad confirmados
@@ -208,7 +255,7 @@ No son vulnerabilidades confirmadas, pero se registran:
   rate-limit en la Function, o un token de partida emitido al crear la sala y verificado
   al reportar la victoria.
 - **RESUELTO (2026-06-22) — Race condition en `POST /api/battle-pass/claim`:** UPDATE ahora atómica con `WHERE (last_claim_date IS NULL OR last_claim_date != ?) + meta.changes === 0`. Ver sección Hallazgos.
-- **Sin rate-limiting** en los endpoints de escritura en general (abuso/spam de escrituras).
+- **Sin rate-limiting** en los endpoints de escritura en general (abuso/spam de escrituras). Los endpoints de shop (`/api/shop/inventory`, `/api/shop/pending-wgt`, `/api/claim-wgt`) extienden este riesgo.
 - **Spoofing de identidad en WebSocket (`worker/index.js`):** `playerId` se toma del
   parámetro URL sin verificar contra la cookie `war_session`. Cualquier cliente puede
   conectarse declarando el `playerId` de otro jugador y enviar acciones como si fuera él.
@@ -289,6 +336,7 @@ No son vulnerabilidades confirmadas, pero se registran:
   (no se renderiza en DOM), pero es un defecto menor de encoding. Riesgo muy bajo.
 - **Resuelto — XSS por nombre de jugador en el modal de victoria (`main.js`, `onGameOver`):** `escapeHtml` confirmado en `js/main.js:209`; todos los sinks de nombre remoto (lobby online, clasificación final) también escapados.
 
+- **2026-06-22 (on-chain)** — Capa on-chain: `functions/api/claim-wgt.js`, `functions/api/deliver-item.js`, `functions/api/shop/inventory.js`, `functions/api/shop/pending-wgt.js`, `contracts/src/ItemShop.sol`, `contracts/src/WGTToken.sol`, `js/wallet.js`, `migrations/0003_onchain.sql`. **Positivos:** replay protection en `claim-wgt` (firma ECDSA con timestamp de 5 min — mejora sobre `auth/wallet.js`); proof-of-purchase en `deliver-item` (verificación de receipt + evento on-chain); anti-doble-mint via `claimed_at` pre-TX; wallet ownership por `verifyMessage`; queries D1 parametrizadas en todos los endpoints nuevos; anti-replay de `txHash` via `delivered_txs`. **Hallazgos aceptados MVP:** (H1) [BAJO] `ItemShop.sol` sin `ReentrancyGuard` — `burnFrom()` externo antes de evento, riesgo bajo porque WGT es contrato propio; (H2) [BAJO] `WGTToken` sin cap de supply — minter único es el worker, gateado por auth + `claimed_at`; (H3) [INFO] `updateItem`/`setItemActive` sin eventos — auditoría on-chain limitada; (H4) [INFO] sin rate limit en endpoints shop. Sin cambios en `_headers` ni en `wrangler.toml`.
 - **2026-06-22** — Notificaciones de cartas + hardening de race conditions: `functions/api/cards/delete.js`, `functions/api/cards/use.js`, `functions/api/battle-pass/claim.js`, `js/game.js`, `js/main.js`, `js/ui.js`, `tests/`. **Resueltos:** (R1) TOCTOU en `DELETE user_cards` — query ahora incluye `AND user_id=?`; (R2) race condition de doble-claim en `/api/battle-pass/claim` — UPDATE atómica con `last_claim_date != ?` + `meta.changes === 0`; (R3) doble-uso concurrente de carta — `WHERE used_at IS NULL` + 409. **Nuevos hallazgos aceptados MVP:** (N1) [BAJO] `shield` sincronizado sin validación de tipo/rango en WebSocket — extiende el riesgo ya aceptado de `game_state` sin schema; (N2) [INFO] `card_used` broadcast no autenticado — impacto cosmético, sin efecto en DB. **Positivos:** `escapeHtml` en `showEnemyCardNotification` (nuevo sink cubierto); sanitización de `effectValue` con `Math.max/floor`; `_cardsPromise` elimina race de carga del inventario; `_useCard` migrado de fire-and-forget a async con manejo de errores. Sin cambios en `_headers` ni `wrangler.toml`.
 - **2026-06-18** — Rediseño de fase de turno + dados + refuerzos: `js/game.js`, `js/ui.js`, `css/style.css`, `game/index.html`. **Hallazgo: ninguno** (`showDice` inyecta solo enteros de `Math.random()`, lógica 100% client-side).
 
@@ -313,6 +361,9 @@ Para cada cambio que toque la superficie de ataque:
 - [ ] (Si toca estado de juego en red) Los datos asignados al board tienen schema y tipo verificado.
 - [ ] (Si toca wallet) El mensaje firmado incluye nonce/expiración y el dominio de la app.
 - [ ] (Si toca wallet) Vincular una wallet no depende únicamente de un campo de la cookie sin verificar.
+- [ ] (Si toca on-chain) Las funciones del contrato que hacen llamadas externas usan `ReentrancyGuard` (`nonReentrant`).
+- [ ] (Si toca on-chain) Todas las mutaciones de estado del contrato emiten eventos.
+- [ ] (Si toca on-chain) Los contratos que mienten tokens tienen un cap de supply o lo justifican explícitamente.
 
 ## WebSocket y wallet — mecanismos actualizados
 

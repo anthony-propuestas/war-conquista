@@ -99,11 +99,17 @@ Requiere firma del mensaje `Iniciar sesión en WAR con esta wallet (${address})`
 ### `functions/api/win.js` — registrar una victoria
 
 ```sql
-UPDATE users SET wins = wins + 1 WHERE sub = ?
+SELECT id FROM users WHERE sub = ?
+
+-- Si hay usuario, en batch:
+UPDATE users SET wins = wins + 1 WHERE id = ?
+INSERT INTO user_monthly_wins (user_id, year_month, wins)
+VALUES (?, ?, 1)
+ON CONFLICT(user_id, year_month) DO UPDATE SET wins = wins + 1
 ```
-Solo corre si la cookie `war_session` trae un `sub` válido (si no, el endpoint
-responde `{ok:false}` sin tocar la DB). No valida que `sub` exista en la tabla:
-si no hay fila, el `UPDATE` simplemente afecta 0 filas.
+Corre si la cookie `war_session` trae un `sub` válido **y** el usuario existe en la
+tabla (si no hay fila, responde `{ok:false}` sin tocar la DB). `year_month` tiene
+formato `"YYYY-MM"` (p. ej. `"2026-06"`).
 
 ---
 
@@ -271,6 +277,62 @@ INSERT OR REPLACE INTO battle_pass_rewards (month, day, card_def_id, quantity)
 DELETE FROM battle_pass_rewards WHERE month=? AND day=?
 ```
 
+### Queries — `functions/api/shop/pending-wgt.js`
+
+```sql
+SELECT id FROM users WHERE sub = ?
+
+SELECT COALESCE(SUM(wins), 0) as total
+FROM user_monthly_wins
+WHERE user_id = ? AND claimed_at IS NULL AND year_month < ?
+```
+
+`year_month < ?` usa el mes actual (`"YYYY-MM"`) para excluir el mes en curso.
+
+### Queries — `functions/api/shop/inventory.js`
+
+```sql
+SELECT id FROM users WHERE sub = ?
+
+SELECT usi.card_def_id, usi.quantity, cd.name, cd.effect_type, cd.effect_value
+FROM user_shop_items usi
+JOIN card_definitions cd ON usi.card_def_id = cd.id
+WHERE usi.user_id = ? AND usi.quantity > 0 AND cd.is_active = 1
+ORDER BY usi.card_def_id
+```
+
+### Queries — `functions/api/claim-wgt.js`
+
+```sql
+SELECT id, wallet_address FROM users WHERE sub = ?
+
+-- Wins reclamables (meses cerrados, no reclamados aún)
+SELECT id, wins FROM user_monthly_wins
+WHERE user_id = ? AND claimed_at IS NULL AND year_month < ?
+
+-- Marca como reclamado ANTES del mint (anti-doble-reclamo)
+UPDATE user_monthly_wins SET claimed_at = ? WHERE id = ?
+
+-- Si el mint on-chain falla, revierte:
+UPDATE user_monthly_wins SET claimed_at = NULL WHERE id = ?
+```
+
+### Queries — `functions/api/deliver-item.js`
+
+```sql
+SELECT id, wallet_address FROM users WHERE sub = ?
+
+-- Idempotencia: rechaza txHash ya procesado
+SELECT 1 FROM delivered_txs WHERE tx_hash = ?
+
+-- Entrega (UPSERT: quantity acumulada si ya tenía el item)
+INSERT INTO user_shop_items (user_id, card_def_id, quantity, updated_at)
+VALUES (?, ?, ?, ?)
+ON CONFLICT(user_id, card_def_id) DO UPDATE SET quantity = quantity + ?, updated_at = ?
+
+INSERT INTO delivered_txs (tx_hash, user_id, delivered_at) VALUES (?, ?, ?)
+```
+
 ---
 
 ## Migraciones
@@ -281,6 +343,7 @@ Las migraciones viven en `migrations/` y se aplican en orden ascendente.
 |---|---|---|
 | 0001 | `migrations/0001_users.sql` | Borra `scores`; crea `users` (incluye `wallet_address`) con sus índices. |
 | 0002 | `migrations/0002_items.sql` | Crea `card_definitions`, `user_cards`, `battle_pass_rewards`, `battle_pass_progress`. |
+| 0003 | `migrations/0003_onchain.sql` | Crea `user_monthly_wins`, `user_shop_items`, `delivered_txs`; inserta los 3 items iniciales en `card_definitions` (Refuerzos Extra, Doble Ataque, Escudo). |
 
 ### Comandos
 

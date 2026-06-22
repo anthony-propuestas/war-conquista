@@ -13,11 +13,13 @@ Sin body.
 | Caso | Status | Body |
 |---|---|---|
 | Sin cookie o cookie inválida (sin `sub`) | `200` | `{ "ok": false }` |
-| Éxito (`UPDATE users SET wins = wins + 1 WHERE sub = ?`) | `200` | `{ "ok": true }` |
+| Usuario no encontrado en DB | `200` | `{ "ok": false }` |
+| Éxito | `200` | `{ "ok": true }` |
 
-**Diseño clave:** degrada de forma silenciosa — una sesión inválida no es un error
-de protocolo, simplemente no incrementa nada. No hay rama `500`: si la query
-fallara se propagaría como excepción no controlada (no hay try/catch).
+**Diseño clave:** degrada silenciosamente — sesión inválida o usuario inexistente
+responden `{ok:false}`. Al confirmar el usuario, ejecuta `DB.batch()` con dos
+sentencias: incrementa `users.wins` e inserta/actualiza `user_monthly_wins` para
+el mes en curso (`year_month = "YYYY-MM"`). No hay try/catch.
 
 ## Consumidores
 
@@ -272,6 +274,79 @@ Requiere `war_session`. Sin body.
 
 **Lógica de reset mensual:** si `progress.current_month !== mes_actual`, se resetean `claimed_days` y `last_claim_date` a `[]`/`null` antes de procesar el claim.
 **Batch insert:** si `quantity > 1`, se insertan N filas en `user_cards` usando `env.DB.batch([stmt1, stmt2, ...])`.
+
+---
+
+# API — Tienda & On-Chain (`/api/shop/*`, `/api/claim-wgt`, `/api/deliver-item`)
+
+Endpoints para consultar WGT acumulado, gestionar el inventario de items de tienda y
+procesar el ciclo on-chain. Todos requieren cookie `war_session`. Los contratos viven en
+**Base Sepolia** (chain 84532); ver [onchain.md](onchain.md) para direcciones y ABI.
+
+## `GET /api/shop/pending-wgt` — WGT reclamable
+
+| Caso | Status | Body |
+|---|---|---|
+| Sin cookie / cookie inválida / usuario no en DB | `200` | `{ "total": 0 }` |
+| Éxito | `200` | `{ "total": N }` |
+
+`total` es la suma de `wins` en `user_monthly_wins` donde `claimed_at IS NULL` y
+`year_month < mes actual`. Solo meses ya cerrados son reclamables; el mes en curso
+no cuenta hasta que cierre.
+
+## `GET /api/shop/inventory` — inventario de items del jugador
+
+| Caso | Status | Body |
+|---|---|---|
+| Sin cookie / cookie inválida / usuario no en DB | `200` | `{ "items": [] }` |
+| Éxito | `200` | `{ "items": [...] }` |
+
+Devuelve solo items con `quantity > 0` y `is_active = 1` (join `user_shop_items` + `card_definitions`):
+```json
+{ "items": [
+  { "card_def_id": 1, "quantity": 5, "name": "Refuerzos Extra",
+    "effect_type": "EXTRA_UNITS", "effect_value": 3 }
+] }
+```
+
+## `POST /api/claim-wgt` — reclamar WGT acumulado
+
+**Request body**: `{ "signature": "0x...", "timestamp": 1234567890 }`
+
+El cliente firma el mensaje `claim-wgt:{user.id}:{timestamp}` con su wallet. Requiere
+wallet vinculada en `users.wallet_address`.
+
+| Caso | Status | Body |
+|---|---|---|
+| Sin cookie / cookie inválida | `401` | `{ "error": "No autenticado" }` |
+| Sin wallet vinculada | `400` | `{ "error": "No tienes una wallet vinculada" }` |
+| Firma expirada (>5 min) | `400` | `{ "error": "Firma expirada" }` |
+| Firma inválida | `400` | `{ "error": "Firma inválida" }` |
+| Sin wins de meses cerrados | `400` | `{ "error": "No tienes wins pendientes de meses anteriores" }` |
+| Éxito | `200` | `{ "ok": true, "amount": N, "txHash": "0x..." }` |
+
+**Anti-doble-reclamo:** el Worker marca `claimed_at` en D1 **antes** de llamar
+`WGTToken.mint()`. Si el mint falla, revierte el `claimed_at` a `NULL`.
+
+## `POST /api/deliver-item` — entregar item tras compra on-chain
+
+**Request body**: `{ "txHash": "0x..." }`
+
+Llamar después de que `ItemShop.buyItem()` esté confirmado en Base.
+
+| Caso | Status | Body |
+|---|---|---|
+| Sin cookie / cookie inválida | `401` | `{ "error": "No autenticado" }` |
+| Sin wallet vinculada | `400` | `{ "error": "No tienes una wallet vinculada" }` |
+| `txHash` ya procesado | `400` | `{ "error": "Este txHash ya fue entregado" }` |
+| Formato de `txHash` inválido | `400` | `{ "error": "txHash inválido" }` |
+| Tx rechazada en chain | `400` | `{ "error": "Transacción no exitosa en la chain" }` |
+| Evento `ItemPurchased` no encontrado o buyer incorrecto | `400` | (varios mensajes) |
+| Éxito | `200` | `{ "ok": true, "itemId": N, "quantity": N }` |
+
+**Verificación on-chain:** busca el receipt por `txHash` en la RPC de Base, verifica
+`status=1` y destino=`SHOP_CONTRACT`, parsea el evento `ItemPurchased` y verifica que
+`buyer == wallet_address` del usuario autenticado. Previene re-entrega vía `delivered_txs`.
 
 ---
 

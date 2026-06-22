@@ -23,11 +23,11 @@ WAR es un juego online multijugador con integración blockchain.
 - Soporte para wallets compatibles con EVM
 - **Estado:** `js/wallet.js` con `connectWallet()`. Botón en `/game`, `/login`, `/home`.
 
-### 4. Firma de Transacciones Onchain ⚠️ (requiere contrato desplegado)
-- Minteo de NFTs desde el juego
-- Recepción de recompensas directamente en la billetera del jugador
-- Soporte para múltiples tipos de transacciones onchain
-- **Estado:** `mintNFT()` y `claimReward()` en `js/wallet.js` listos — necesitan dirección de contrato ERC-721.
+### 4. Integración On-Chain ✅ (Base Sepolia desplegado)
+- Tokens WGT (ERC-20) acumulados por victorias y reclamables a la wallet
+- Tienda on-chain: compra de items de mejora quemando WGT
+- Contratos `WGTToken` e `ItemShop` desplegados en Base Sepolia
+- **Estado:** `WGTToken` en `0x6bc93daaa5e35dece8f1d676757cfc1d6616b535`, `ItemShop` en `0x197c835cc303088713c1ea3549ef1fb76a3786ca`. Endpoints `/api/claim-wgt` y `/api/deliver-item` implementados. UI de tienda (`/shop`) pendiente. Deploy en mainnet pendiente.
 
 ---
 
@@ -64,19 +64,17 @@ El flujo OAuth está implementado pero necesita credenciales reales.
 
 ---
 
-### C. Contrato NFT (minteo de recompensas)
-El código de firma (`mintNFT`, `claimReward`) está en `js/wallet.js` pero necesita un contrato ERC-721 desplegado.
+### C. ✅ Contratos on-chain (WGT + Tienda) — Base Sepolia desplegados
 
-**Pasos:**
-1. Instalar Foundry: https://getfoundry.sh
-2. Claude puede escribir el contrato ERC-721 cuando lo pidas
-3. Desplegar en testnet Sepolia primero (gratis):
-   ```
-   forge create --rpc-url https://rpc.sepolia.org --private-key TU_CLAVE src/WarNFT.sol:WarNFT
-   ```
-4. Pegar la dirección del contrato en `js/wallet.js` y el ABI en `js/abi/war-nft.json`
+`WGTToken.sol` (ERC-20) e `ItemShop.sol` desplegados en Base Sepolia.
+Endpoints `claim-wgt` y `deliver-item` implementados. Foundry en `contracts/`.
 
-**Sin esto:** El juego funciona completo pero sin minteo de NFTs.
+**Pendiente:**
+- UI de tienda (`/shop`) — página HTML todavía no existe
+- Deploy en Base mainnet (paso 9 de `planONCHAIN.md`)
+- Tests end-to-end en Base Sepolia
+
+**Sin esto:** El ciclo WGT ↔ items solo funciona vía API directa; sin UI de tienda el jugador no puede reclamar ni comprar desde el browser.
 
 ---
 
@@ -96,8 +94,14 @@ Para probar la integración wallet en el browser, necesitas la extensión MetaMa
 | Animaciones PixiJS | `js/pixi-overlay.js` | ✅ Completo |
 | Wallet / MetaMask | `js/wallet.js` | ✅ Completo |
 | Multiplayer cliente | `js/multiplayer.js` | ✅ Completo |
-| Multiplayer servidor | `functions/game-room.js` | ✅ Código listo, pendiente deploy |
-| Leaderboard | `functions/api/scores.js` | ✅ Completo (D1) |
-| Auth Google init | `functions/api/auth/google.js` | ✅ Completo |
-| Auth Google callback | `functions/api/auth/callback.js` | ✅ Completo |
-| Contrato NFT | — | ⚠️ Por escribir y desplegar |
+| Multiplayer servidor | `worker/index.js` + `functions/api/game-room.js` | ✅ Completo |
+| Auth Google | `functions/api/auth/google.js`, `callback.js` | ✅ Completo |
+| Registro / Perfil / Ranking | `functions/api/register.js`, `profile.js`, `gamers.js` | ✅ Completo |
+| Victorias | `functions/api/win.js` | ✅ Completo |
+| Cartas & Battle Pass | `functions/api/cards/*`, `battle-pass/*`, `admin/*` | ✅ Completo |
+| Reclamo WGT | `functions/api/claim-wgt.js` | ✅ Completo (Base Sepolia) |
+| Entrega de items | `functions/api/deliver-item.js` | ✅ Completo (Base Sepolia) |
+| Inventario tienda | `functions/api/shop/inventory.js` | ✅ Completo |
+| WGT pendiente | `functions/api/shop/pending-wgt.js` | ✅ Completo |
+| Contratos on-chain | `WGTToken.sol`, `ItemShop.sol` | ✅ Base Sepolia — mainnet pendiente |
+| UI Tienda | `/shop` | ⚠️ Pendiente |

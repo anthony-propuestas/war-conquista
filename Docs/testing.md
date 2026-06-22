@@ -28,7 +28,7 @@ Los tests viven en `tests/` (versionados, excluidos del deploy vía `.assetsigno
 | tests/api/register.test.js | functions/api/register.js | 10 | ✅ |
 | tests/api/auth/wallet.test.js | functions/api/auth/wallet.js | 5 | ✅ |
 | tests/api/wallet/link.test.js | functions/api/wallet/link.js | 6 | ✅ |
-| tests/api/win.test.js | functions/api/win.js | 3 | ✅ |
+| tests/api/win.test.js | functions/api/win.js | 4 | ✅ |
 | tests/api/cards/inventory.test.js | functions/api/cards/inventory.js | 3 | ✅ |
 | tests/api/cards/use.test.js | functions/api/cards/use.js | 5 | ✅ |
 | tests/api/cards/delete.test.js | functions/api/cards/delete.js | 3 | ✅ |
@@ -36,7 +36,9 @@ Los tests viven en `tests/` (versionados, excluidos del deploy vía `.assetsigno
 | tests/api/battle-pass/status.test.js | functions/api/battle-pass/status.js | 3 | ✅ |
 | tests/api/admin/cards.test.js | functions/api/admin/cards.js | 5 | ✅ |
 | tests/api/admin/battle-pass.test.js | functions/api/admin/battle-pass.js | 4 | ✅ |
-| **Total** | | **173** | ✅ |
+| tests/api/shop/inventory.test.js | functions/api/shop/inventory.js | 3 | ✅ |
+| tests/api/shop/pending-wgt.test.js | functions/api/shop/pending-wgt.js | 3 | ✅ |
+| **Total** | | **180** | ✅ |
 
 ## Pendiente (diferido)
 

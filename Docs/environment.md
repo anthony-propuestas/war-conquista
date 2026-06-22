@@ -82,16 +82,45 @@ wrangler pages secret put ADMIN_EMAILS --project-name war-conquista
 Wrangler pide el valor de forma interactiva. Para múltiples admins, introducir
 `email1@dominio.com,email2@dominio.com` (coma sin espacios).
 
+### On-chain (Base) — `BASE_RPC_URL`, `WGT_CONTRACT`, `SHOP_CONTRACT`
+
+Los endpoints `functions/api/claim-wgt.js` y `functions/api/deliver-item.js` leen tres
+variables de entorno adicionales:
+
+| Variable | Descripción |
+|---|---|
+| `BASE_RPC_URL` | URL del nodo RPC de Base (p. ej. Alchemy/Infura para Base Sepolia o mainnet). |
+| `WGT_CONTRACT` | Dirección del contrato `WGTToken` desplegado en Base (el Worker firma la TX de mint como minter). |
+| `SHOP_CONTRACT` | Dirección del contrato `ItemShop` en Base. `deliver-item.js` verifica que la TX se haya hecho a este contrato. |
+
+**En local** (`.dev.vars`): añadir las tres variables con los valores del deploy de testnet
+(o un nodo local de Foundry si se prueba off-chain):
+```
+BASE_RPC_URL=https://base-sepolia.g.alchemy.com/v2/<API_KEY>
+WGT_CONTRACT=0x6bc93daaa5e35dece8f1d676757cfc1d6616b535
+SHOP_CONTRACT=0x197c835cc303088713c1ea3549ef1fb76a3786ca
+```
+
+**En producción** (Pages → proyecto `war-conquista`):
+```bash
+wrangler pages secret put BASE_RPC_URL --project-name war-conquista
+wrangler pages secret put WGT_CONTRACT --project-name war-conquista
+wrangler pages secret put SHOP_CONTRACT --project-name war-conquista
+```
+
+Ver contratos y dirección de minter en [onchain.md](onchain.md).
+
 ## El binding `DB`
 
 Todos los endpoints que acceden a D1 (`win.js`, `gamers.js`, `profile.js`, `register.js`,
-`gamers/[username].js`, `cards/*`, `battle-pass/*`, `admin/*`) leen `env.DB` (ver [api.md](api.md)).
+`gamers/[username].js`, `cards/*`, `battle-pass/*`, `admin/*`, `shop/*`, `claim-wgt.js`, `deliver-item.js`) leen `env.DB` (ver [api.md](api.md)).
 
 **En local** (`npm run dev`): wrangler crea una D1 local automáticamente a partir del
 binding del `wrangler.toml`. Aplica el esquema actual ejecutando las migraciones manualmente:
 ```bash
 wrangler d1 execute war-scores --local --file migrations/0001_users.sql
 wrangler d1 execute war-scores --local --file migrations/0002_items.sql
+wrangler d1 execute war-scores --local --file migrations/0003_onchain.sql
 ```
 
 **En Pages (panel):** si despliegas vía Git en vez de CLI, añade el binding manualmente

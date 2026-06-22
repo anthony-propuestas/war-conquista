@@ -17,6 +17,9 @@ WAR/
 ├── my-profile/index.html   # perfil del jugador autenticado (/my-profile)
 ├── battle-pass/index.html  # página de battle pass (/battle-pass) — calendario + botón claim
 ├── admin/index.html        # panel de administración (/admin) — gestión de cartas y calendario
+├── shop/index.html         # tienda on-chain (/shop) — balance WGT, inventario, compra de items
+├── contracts/              # contratos Solidity (Foundry) — no se despliegan como parte del build
+│   └── src/WGTToken.sol · src/ItemShop.sol · script/Deploy.s.sol
 ├── map-preview.html        # dev-only: SVG estático del mapa para QA visual (sin JS, sin enlaces desde la app; NO excluido del deploy — accesible pero no enlazado)
 ├── css/style.css           # estilos
 ├── js/
@@ -50,12 +53,18 @@ WAR/
 ├── functions/api/battle-pass/
 │   ├── status.js           # GET /api/battle-pass/status — estado del battle pass del jugador
 │   └── claim.js            # POST /api/battle-pass/claim — reclamar recompensa diaria
+├── functions/api/shop/
+│   ├── inventory.js        # GET /api/shop/inventory — inventario de items comprados del jugador
+│   └── pending-wgt.js      # GET /api/shop/pending-wgt — total WGT reclamable
+├── functions/api/claim-wgt.js  # POST /api/claim-wgt — verifica firma ECDSA + mintea WGT en Base
+├── functions/api/deliver-item.js # POST /api/deliver-item — verifica txHash en Base + entrega item en D1
 ├── functions/api/admin/
 │   ├── cards.js            # GET|POST|PUT|DELETE /api/admin/cards — CRUD card_definitions
 │   └── battle-pass.js      # GET|POST|DELETE /api/admin/battle-pass — CRUD battle_pass_rewards
 ├── migrations/
 │   ├── 0001_users.sql      # migración: borra scores, crea users
-│   └── 0002_items.sql      # migración: crea card_definitions, user_cards, battle_pass_rewards, battle_pass_progress
+│   ├── 0002_items.sql      # migración: crea card_definitions, user_cards, battle_pass_rewards, battle_pass_progress
+│   └── 0003_onchain.sql    # migración: crea user_monthly_wins, user_shop_items, delivered_txs; inserta los 3 items iniciales
 ├── scripts/build-map-shapes.mjs # dev-only: genera map-shapes.js desde Natural Earth
 ├── scripts/dev.mjs              # dev-only: arranca DO Worker + Pages en paralelo con TLS compartido
 ├── tests/                  # node --test (excluido del deploy)
@@ -94,6 +103,10 @@ WAR/
 | `functions/api/cards/delete.js` | Backend | `DELETE /api/cards/delete?id=<card_id>`: verifica pertenencia y borra la fila de `user_cards`. |
 | `functions/api/battle-pass/status.js` | Backend | `GET /api/battle-pass/status`: devuelve estado del mes actual (días reclamados, `can_claim_today`, `today_reward`, calendario completo). |
 | `functions/api/battle-pass/claim.js` | Backend | `POST /api/battle-pass/claim`: reclama la recompensa del día; resetea el progreso al cambiar de mes; inserta N cartas en `user_cards` vía `DB.batch()` si hay recompensa. |
+| `functions/api/shop/inventory.js` | Backend | `GET /api/shop/inventory`: devuelve items comprados del jugador con `quantity > 0` (join `user_shop_items` + `card_definitions`). Sin sesión → `{ items: [] }`. |
+| `functions/api/shop/pending-wgt.js` | Backend | `GET /api/shop/pending-wgt`: suma `wins` de meses cerrados sin reclamar en `user_monthly_wins`. Sin sesión → `{ total: 0 }`. |
+| `functions/api/claim-wgt.js` | Backend | `POST /api/claim-wgt { signature, timestamp }`: verifica firma ECDSA del mensaje `claim-wgt:{user.id}:{timestamp}`, suma wins reclamables, marca `claimed_at` antes del mint y llama `WGTToken.mint()` en Base Sepolia. Anti-doble-reclamo: revierte si el mint falla. |
+| `functions/api/deliver-item.js` | Backend | `POST /api/deliver-item { txHash }`: verifica tx en Base RPC (`status=1`, destino=`SHOP_CONTRACT`, evento `ItemPurchased`, buyer == wallet del usuario), upsert en `user_shop_items`, registra en `delivered_txs` (idempotente). |
 | `functions/api/admin/cards.js` | Backend | `GET|POST|PUT|DELETE /api/admin/cards`: CRUD sobre `card_definitions`. Requiere que `session.email` esté en `ADMIN_EMAILS` (→ 403 si no). |
 | `functions/api/admin/battle-pass.js` | Backend | `GET|POST|DELETE /api/admin/battle-pass`: CRUD sobre `battle_pass_rewards`. Misma guard de admin. |
 

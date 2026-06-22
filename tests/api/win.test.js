@@ -17,19 +17,26 @@ const makeRequest = (cookie) =>
     headers: cookie ? { Cookie: cookie } : {},
   });
 
-function makeDb() {
+function makeDb(firstResult = { id: 1 }) {
   const calls = [];
-  return {
+  const batchCalls = [];
+  const db = {
     calls,
+    batchCalls,
     prepare(sql) {
-      return {
+      const stmt = {
         bind(...args) {
           calls.push({ sql, args });
-          return { run: async () => {} };
+          return stmt;
         },
+        run: async () => {},
+        first: async () => firstResult,
       };
+      return stmt;
     },
+    batch: async (stmts) => { batchCalls.push(stmts); },
   };
+  return db;
 }
 
 const makeEnv = (db) => ({ DB: db, SESSION_SECRET: TEST_SECRET });
@@ -53,15 +60,26 @@ test("cookie con formato inválido → 200 {ok:false}", async () => {
   assert.equal(db.calls.length, 0);
 });
 
+test("usuario no encontrado → 200 {ok:false}", async () => {
+  const db = makeDb(null);
+  const res = await onRequestPost({
+    request: makeRequest(await makeHmacCookie("u1")),
+    env: makeEnv(db),
+  });
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { ok: false });
+  assert.equal(db.batchCalls.length, 0);
+});
+
 test("sesión válida → suma 1 victoria al sub correcto y responde {ok:true}", async () => {
-  const db = makeDb();
+  const db = makeDb({ id: 1 });
   const res = await onRequestPost({
     request: makeRequest(await makeHmacCookie("u1")),
     env: makeEnv(db),
   });
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { ok: true });
-  assert.equal(db.calls.length, 1);
-  assert.equal(db.calls[0].sql, "UPDATE users SET wins = wins + 1 WHERE sub = ?");
+  assert.equal(db.calls[0].sql, "SELECT id FROM users WHERE sub = ?");
   assert.deepEqual(db.calls[0].args, ["u1"]);
+  assert.equal(db.batchCalls.length, 1);
 });
