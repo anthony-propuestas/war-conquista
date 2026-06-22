@@ -111,7 +111,8 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 0;
 /* ---------- Layout de juego ---------- */
 .topbar {
   --turn-color: var(--accent);
-  height: 64px; display: flex; align-items: center; gap: 18px;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  height: 54px; display: flex; align-items: center; gap: 18px;
   padding: 0 18px; border-bottom: 1px solid var(--line);
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--turn-color) 22%, transparent) 0%, transparent 38%),
@@ -181,23 +182,35 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 0;
 }
 .step-sep { color: var(--ink-dim); opacity: .5; font-size: .9rem; }
 
-.game-layout { display: grid; grid-template-columns: 1fr 340px; height: calc(100vh - 56px - 40px); }
-
-.action-guide {
-  min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 10px;
-  background: rgba(0,0,0,.45); border-top: 1px solid var(--line);
-  padding: 6px 16px; font-size: .78rem; color: var(--ink-dim); flex-wrap: wrap;
+/* Mapa: ocupa toda la pantalla menos topbar y sidebar */
+.map-wrap {
+  position: fixed;
+  top: 54px; left: 0; right: 320px; bottom: 0;
+  overflow: hidden;
+  background: radial-gradient(1200px 800px at 50% 30%, var(--sea) 0%, var(--sea-2) 70%, #123a55 100%);
 }
-.action-guide .guide-item { color: var(--ink); }
-.action-guide .guide-sep { opacity: .35; }
-
-.map-wrap { position: relative; overflow: hidden; background:
-  radial-gradient(1200px 800px at 50% 30%, var(--sea) 0%, var(--sea-2) 70%, #123a55 100%); }
 .map-wrap::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
   box-shadow: inset 0 0 160px 30px rgba(3,12,22,.65);
 }
 #map { width: 100%; height: 100%; display: block; position: relative; z-index: 1; }
+
+/* Guía de juego colapsable (dentro del sidebar) */
+.guide-details {
+  background: var(--bg-2); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 10px 14px;
+}
+.guide-details > summary {
+  cursor: pointer; font-weight: 600; font-size: .82rem;
+  color: var(--ink-dim); user-select: none; list-style: none;
+}
+.guide-details > summary::-webkit-details-marker { display: none; }
+.guide-details[open] > summary { color: var(--ink); margin-bottom: 8px; }
+.guide-content {
+  display: flex; flex-direction: column; gap: 8px;
+  font-size: .82rem; color: var(--ink-dim); line-height: 1.5;
+}
+.guide-content p b { color: var(--ink); }
 
 /* ---------- Mapa SVG ---------- */
 .graticule line { stroke: rgba(120,180,220,.07); stroke-width: 1; }
@@ -256,12 +269,26 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 0;
   paint-order: stroke; stroke: rgba(6,16,26,.55); stroke-width: 3px;
 }
 
-/* ---------- Sidebar ---------- */
+/* ---------- Sidebar (desktop: panel fijo derecho · móvil: hoja inferior) ---------- */
 .sidebar {
+  position: fixed;
+  top: 54px; right: 0; bottom: 0; width: 320px; z-index: 100;
   background: var(--panel); border-left: 1px solid var(--line);
   padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px;
 }
 .sidebar h3 { font-size: .8rem; text-transform: uppercase; letter-spacing: 1px; color: var(--ink-dim); margin-bottom: 8px; }
+
+/* Elementos solo-móvil (ocultos en desktop) */
+.sidebar-handle { display: none; }
+.sidebar-tabs   { display: none; }
+.sidebar-tab    { display: none; }
+
+/* Secciones: en desktop siempre visibles */
+.sidebar-section { display: flex; flex-direction: column; gap: 14px; }
+
+/* Barra inferior y overlay: ocultos en desktop */
+.mob-tabbar      { display: none; }
+.sidebar-overlay { display: none; }
 
 .phase-box { background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; }
 .phase-name { font-size: 1.15rem; font-weight: 800; color: var(--accent); }
@@ -557,12 +584,94 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 0;
 }
 .btn-icon-del:hover { color: #f87171; }
 
-/* ---------- Responsive ---------- */
-@media (max-width: 900px) {
-  .game-layout { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
-  .sidebar { border-left: none; border-top: 1px solid var(--line); max-height: 42vh; }
-  body { overflow: auto; }
-  .topbar { height: 56px; gap: 10px; padding: 0 12px; }
+/* ---------- Responsive: móvil (mapa full-screen + hoja inferior) ---------- */
+@media (max-width: 899px) {
+  body { overflow: hidden; }
+
+  /* Topbar más compacto */
+  .topbar { height: 48px; gap: 10px; padding: 0 12px; }
+  .brand { font-size: 1.1rem; }
+  .turn-avatar { width: 32px; height: 32px; font-size: 1rem; }
+  .turn-card { padding: 4px 12px 4px 4px; }
+  .turn-name { font-size: .9rem; }
   .phase-steps { display: none; }
-  .turn-name { font-size: .98rem; }
+
+  /* Mapa: ancho completo, deja hueco para topbar y barra inferior */
+  .map-wrap { top: 48px; right: 0; bottom: 52px; }
+
+  /* Sidebar → hoja inferior deslizable */
+  .sidebar {
+    top: auto; left: 0; right: 0; width: 100%;
+    bottom: 52px; max-height: 66vh;
+    border-left: none; border-top: 1px solid var(--line);
+    border-radius: 20px 20px 0 0;
+    transform: translateY(110%);
+    transition: transform .35s cubic-bezier(.25,.46,.45,.94);
+    padding: 0 14px 16px; gap: 0;
+    z-index: 140;
+  }
+  .sidebar.mob-open {
+    transform: translateY(0);
+    box-shadow: 0 -8px 40px rgba(0,0,0,.6);
+  }
+
+  /* Handle de arrastre */
+  .sidebar-handle {
+    display: block; width: 40px; height: 4px;
+    background: var(--line-strong); border-radius: 2px;
+    margin: 12px auto 10px; cursor: pointer; flex-shrink: 0;
+  }
+
+  /* Pestañas internas del sidebar */
+  .sidebar-tabs {
+    display: flex; border-bottom: 1px solid var(--line);
+    margin-bottom: 12px; flex-shrink: 0;
+  }
+  .sidebar-tab {
+    display: flex; flex: 1;
+    align-items: center; justify-content: center; gap: 6px;
+    font: inherit; font-weight: 700; font-size: .88rem;
+    color: var(--ink-dim); background: transparent;
+    border: none; border-bottom: 2px solid transparent;
+    padding: 10px 8px; cursor: pointer; transition: color .15s;
+  }
+  .sidebar-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* Secciones: solo visible la activa */
+  .sidebar-section { display: none; }
+  .sidebar-section.active { display: flex; }
+
+  /* Barra de botones inferior */
+  .mob-tabbar {
+    display: flex; position: fixed;
+    bottom: 0; left: 0; right: 0; height: 52px;
+    background: rgba(10,22,36,.97);
+    border-top: 1px solid var(--line);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    z-index: 200; align-items: stretch;
+  }
+  .mob-tab-btn {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 2px;
+    border: none; background: transparent; color: var(--ink-dim);
+    cursor: pointer; font: inherit; padding: 6px 8px;
+    transition: color .15s, background .15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mob-tab-btn[aria-expanded="true"] {
+    color: var(--accent); background: rgba(224,182,92,.09);
+  }
+  .mob-tab-icon  { font-size: 1.3rem; line-height: 1; }
+  .mob-tab-label { font-size: .62rem; text-transform: uppercase; letter-spacing: .5px; font-weight: 700; }
+
+  /* Overlay oscuro de fondo */
+  .sidebar-overlay {
+    display: none; position: fixed; inset: 0; bottom: 52px;
+    background: rgba(0,0,0,.5); z-index: 130;
+  }
+  .sidebar-overlay.visible { display: block; }
+
+  /* Dados y avisos: suben por encima de la barra inferior */
+  .dice-tray    { bottom: 76px; }
+  .attack-notice { bottom: 68px; }
 }

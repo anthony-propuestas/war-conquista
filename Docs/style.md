@@ -108,6 +108,41 @@ El lienzo del mapa SVG del juego (`.map-wrap`, `.terr`, colores de continente
 y de jugador, `--sea`/`--sea-2`, los dados) se mantiene intacto a propósito —
 es la única parte de la interfaz que no sigue esta paleta.
 
+## Sistema de layout (pantalla de juego)
+
+`game/index.html` usa tres piezas fijas que no se superponen. Antes existía `.game-layout` (CSS grid); fue reemplazado por posición fija.
+
+| Elemento | Regla CSS | Descripción |
+|---|---|---|
+| `.topbar` | `position: fixed; top: 0; left: 0; right: 0; height: 54px; z-index: 200` | Barra superior — siempre visible |
+| `.map-wrap` | `position: fixed; top: 54px; left: 0; right: 320px; bottom: 0` | Zona del mapa SVG (todo menos el sidebar) |
+| `.sidebar` | `position: fixed; top: 54px; right: 0; bottom: 0; width: 320px; z-index: 100` | Panel de información / acciones |
+
+Componentes del sidebar:
+
+| Clase | Descripción |
+|---|---|
+| `.sidebar-handle` | Asa de arrastre (visual en móvil) |
+| `.sidebar-tabs` | Pestañas de navegación dentro del panel |
+| `.sidebar-overlay` | Overlay semitransparente sobre el mapa cuando el sidebar está abierto en móvil |
+| `.guide-details` / `.guide-content` | Acordeón colapsable de guía |
+
+## Layout móvil (`max-width: 899px`)
+
+El sidebar se convierte en una hoja deslizante desde abajo:
+
+- `.sidebar`: `transform: translateY(110%)` oculto por defecto; `.sidebar.mob-open` lo muestra (`translateY(0)`)
+- `.map-wrap`: `right: 0; bottom: 52px` — ocupa toda la anchura, deja espacio a la barra inferior
+
+Barra de navegación inferior:
+
+| Clase | Descripción |
+|---|---|
+| `.mob-tabbar` | Barra fija inferior, `height: 52px; z-index: 150` |
+| `.mob-tab-btn` | Botón de pestaña individual |
+| `.mob-tab-icon` | Ícono del botón |
+| `.mob-tab-label` | Etiqueta de texto bajo el ícono |
+
 ## Clases de interacción del mapa
 
 Estas clases viven en `css/style.css` y se aplican dinámicamente por `js/ui.js`

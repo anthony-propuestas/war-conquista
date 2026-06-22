@@ -55,7 +55,7 @@ WAR/
 │   └── claim.js            # POST /api/battle-pass/claim — reclamar recompensa diaria
 ├── functions/api/shop/
 │   ├── inventory.js        # GET /api/shop/inventory — inventario de items comprados del jugador
-│   ├── pending-wgt.js      # GET /api/shop/pending-wgt — total WGT reclamable
+│   ├── pending-wgt.js      # GET /api/shop/pending-wgt — { total, currentMonth } WGT reclamable
 │   └── listings.js         # GET /api/shop/listings — cartas disponibles en la tienda (público)
 ├── functions/api/claim-wgt.js  # POST /api/claim-wgt — verifica firma ECDSA + mintea WGT en Base
 ├── functions/api/deliver-item.js # POST /api/deliver-item — verifica txHash en Base + entrega item en D1
@@ -108,7 +108,7 @@ WAR/
 | `functions/api/battle-pass/status.js` | Backend | `GET /api/battle-pass/status`: devuelve estado del mes actual (días reclamados, `can_claim_today`, `today_reward`, calendario completo). |
 | `functions/api/battle-pass/claim.js` | Backend | `POST /api/battle-pass/claim`: reclama la recompensa del día; resetea el progreso al cambiar de mes; inserta N cartas en `user_cards` vía `DB.batch()` si hay recompensa. |
 | `functions/api/shop/inventory.js` | Backend | `GET /api/shop/inventory`: devuelve items comprados del jugador con `quantity > 0` (join `user_shop_items` + `card_definitions`). Sin sesión → `{ items: [] }`. |
-| `functions/api/shop/pending-wgt.js` | Backend | `GET /api/shop/pending-wgt`: suma `wins` de meses cerrados sin reclamar en `user_monthly_wins`. Sin sesión → `{ total: 0 }`. |
+| `functions/api/shop/pending-wgt.js` | Backend | `GET /api/shop/pending-wgt`: retorna `{ total, currentMonth }` — wins de meses cerrados (`total`) y del mes en curso (`currentMonth`), consultados en paralelo con `Promise.all`. Sin sesión → `{ total: 0, currentMonth: 0 }`. |
 | `functions/api/claim-wgt.js` | Backend | `POST /api/claim-wgt { signature, timestamp }`: verifica firma ECDSA del mensaje `claim-wgt:{user.id}:{timestamp}`, suma wins reclamables, marca `claimed_at` antes del mint y llama `WGTToken.mint()` en Base Sepolia. Anti-doble-reclamo: revierte si el mint falla. |
 | `functions/api/deliver-item.js` | Backend | `POST /api/deliver-item { txHash }`: verifica tx en Base RPC (`status=1`, destino=`SHOP_CONTRACT`, evento `ItemPurchased`, buyer == wallet del usuario), upsert en `user_shop_items`, registra en `delivered_txs` (idempotente). |
 | `functions/api/admin/cards.js` | Backend | `GET|POST|PUT|DELETE /api/admin/cards`: CRUD sobre `card_definitions`. Requiere que `session.email` esté en `ADMIN_EMAILS` (→ 403 si no). |

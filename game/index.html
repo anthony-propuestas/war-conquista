@@ -125,52 +125,81 @@
 
   <!-- ============ PANTALLA DE JUEGO ============ -->
   <section id="screen-game" class="screen">
+
+    <!-- Mapa ocupa toda la pantalla -->
+    <div class="map-wrap">
+      <svg id="map" viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid meet"
+           role="img" aria-label="Mapa del mundo"></svg>
+    </div>
+
+    <!-- Barra superior -->
     <header class="topbar">
       <div class="brand">WAR</div>
       <div id="turn-banner" class="turn-banner"></div>
       <div class="topbar-right">
         <span id="multiplayer-indicator" class="multiplayer-indicator hidden"></span>
         <span id="topbar-wallet" class="wallet-badge hidden"></span>
-        <button id="btn-quit" class="btn btn-ghost">Salir</button>
+        <button id="btn-quit" class="btn btn-ghost btn-small">✕</button>
       </div>
     </header>
 
-    <div class="game-layout">
-      <!-- Mapa -->
-      <div class="map-wrap">
-        <svg id="map" viewBox="0 0 1000 560" preserveAspectRatio="xMidYMid meet"
-             role="img" aria-label="Mapa del mundo"></svg>
+    <!-- Panel lateral (desktop: sidebar fijo · móvil: hoja inferior deslizable) -->
+    <aside class="sidebar" id="game-sidebar">
+      <!-- Handle de arrastre (solo móvil) -->
+      <div class="sidebar-handle" id="sidebar-handle" role="button" tabindex="0" aria-label="Cerrar panel"></div>
+
+      <!-- Pestañas de navegación (solo móvil) -->
+      <nav class="sidebar-tabs" aria-label="Secciones del juego">
+        <button class="sidebar-tab active" data-tab="actions">⚔ Acciones</button>
+        <button class="sidebar-tab" data-tab="status">👥 Estado</button>
+      </nav>
+
+      <!-- Sección: fase y acciones -->
+      <div class="sidebar-section active" id="section-actions">
+        <div id="phase-box" class="phase-box"></div>
+        <div id="action-box" class="action-box"></div>
+        <details class="guide-details">
+          <summary>❓ Cómo jugar</summary>
+          <div class="guide-content">
+            <p>🪖 <b>Colocar tropas:</b> activa el botón y toca tus territorios</p>
+            <p>⚔ <b>Atacar:</b> toca tu territorio (≥2 tropas) → toca un vecino enemigo</p>
+            <p>🔄 <b>Mover tropas:</b> toca tu territorio → toca un aliado adyacente</p>
+          </div>
+        </details>
       </div>
 
-      <!-- Panel lateral -->
-      <aside class="sidebar">
-        <div id="phase-box" class="phase-box"></div>
-
-        <div id="action-box" class="action-box"></div>
-
+      <!-- Sección: jugadores, cartas y registro -->
+      <div class="sidebar-section" id="section-status">
         <div class="players-box">
           <h3>Jugadores</h3>
           <ul id="players-list"></ul>
         </div>
-
         <div id="items-panel" class="items-panel hidden">
           <h3>Mis Cartas</h3>
           <ul id="items-list"></ul>
         </div>
-
         <div class="log-box">
           <h3>Registro</h3>
           <ul id="log-list"></ul>
         </div>
-      </aside>
-    </div>
-    <div id="action-guide" class="action-guide">
-      <span class="guide-item">🪖 <b>Colocar tropas:</b> activa el botón y haz clic en tus territorios</span>
-      <span class="guide-sep">·</span>
-      <span class="guide-item">⚔ <b>Atacar:</b> clic en territorio propio → clic en vecino enemigo</span>
-      <span class="guide-sep">·</span>
-      <span class="guide-item">🔄 <b>Mover tropas:</b> clic en territorio propio → clic en aliado adyacente</span>
-    </div>
+      </div>
+    </aside>
+
+    <!-- Barra de botones inferior (solo móvil) -->
+    <nav class="mob-tabbar" id="mob-tabbar" aria-label="Menú del juego">
+      <button class="mob-tab-btn" id="mob-btn-actions" aria-expanded="false">
+        <span class="mob-tab-icon">⚔</span>
+        <span class="mob-tab-label">Acciones</span>
+      </button>
+      <button class="mob-tab-btn" id="mob-btn-status" aria-expanded="false">
+        <span class="mob-tab-icon">👥</span>
+        <span class="mob-tab-label">Estado</span>
+      </button>
+    </nav>
+
+    <!-- Overlay oscuro al abrir sidebar (solo móvil) -->
+    <div class="sidebar-overlay" id="sidebar-overlay" aria-hidden="true"></div>
+
   </section>
 
   <div id="dice-tray" class="dice-tray hidden"></div>
@@ -219,5 +248,83 @@
   }
   </script>
   <script type="module" src="../js/main.js"></script>
+  <script>
+  // Lógica de paneles: sidebar deslizable en móvil, siempre visible en desktop
+  (function () {
+    function ready(fn) {
+      if (document.readyState !== 'loading') fn(); else document.addEventListener('DOMContentLoaded', fn);
+    }
+    ready(function () {
+      var sidebar  = document.getElementById('game-sidebar');
+      var overlay  = document.getElementById('sidebar-overlay');
+      var handle   = document.getElementById('sidebar-handle');
+      var btnAct   = document.getElementById('mob-btn-actions');
+      var btnStat  = document.getElementById('mob-btn-status');
+      var tabs     = document.querySelectorAll('.sidebar-tab');
+      var secAct   = document.getElementById('section-actions');
+      var secStat  = document.getElementById('section-status');
+      var open     = false;
+      var activeTab = 'actions';
+
+      function isMobile() { return window.innerWidth < 900; }
+
+      function showTab(tab) {
+        activeTab = tab;
+        tabs.forEach(function (t) { t.classList.toggle('active', t.dataset.tab === tab); });
+        secAct.classList.toggle('active', tab === 'actions');
+        secStat.classList.toggle('active', tab === 'status');
+      }
+
+      function openSidebar(tab) {
+        showTab(tab);
+        sidebar.classList.add('mob-open');
+        overlay.classList.add('visible');
+        open = true;
+        btnAct.setAttribute('aria-expanded',  tab === 'actions' ? 'true' : 'false');
+        btnStat.setAttribute('aria-expanded', tab === 'status'  ? 'true' : 'false');
+      }
+
+      function closeSidebar() {
+        sidebar.classList.remove('mob-open');
+        overlay.classList.remove('visible');
+        open = false;
+        btnAct.setAttribute('aria-expanded', 'false');
+        btnStat.setAttribute('aria-expanded', 'false');
+      }
+
+      function onMobBtn(tab) {
+        if (!isMobile()) return;
+        if (open && activeTab === tab) closeSidebar(); else openSidebar(tab);
+      }
+
+      if (btnAct)  btnAct.addEventListener('click', function () { onMobBtn('actions'); });
+      if (btnStat) btnStat.addEventListener('click', function () { onMobBtn('status'); });
+
+      tabs.forEach(function (tab) {
+        tab.addEventListener('click', function () { showTab(tab.dataset.tab); });
+      });
+
+      if (overlay) overlay.addEventListener('click', closeSidebar);
+      if (handle)  handle.addEventListener('click', closeSidebar);
+      if (handle)  handle.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') closeSidebar(); });
+
+      window.addEventListener('resize', function () {
+        if (!isMobile()) {
+          closeSidebar();
+          secAct.classList.add('active');
+          secStat.classList.add('active');
+        } else {
+          showTab(activeTab);
+        }
+      });
+
+      // Desktop: mostrar ambas secciones siempre
+      if (!isMobile()) {
+        secAct.classList.add('active');
+        secStat.classList.add('active');
+      }
+    });
+  })();
+  </script>
 </body>
 </html>
