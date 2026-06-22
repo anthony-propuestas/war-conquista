@@ -122,26 +122,18 @@ Componentes del sidebar:
 
 | Clase | Descripción |
 |---|---|
-| `.sidebar-handle` | Asa de arrastre (visual en móvil) |
 | `.sidebar-tabs` | Pestañas de navegación dentro del panel |
-| `.sidebar-overlay` | Overlay semitransparente sobre el mapa cuando el sidebar está abierto en móvil |
 | `.guide-details` / `.guide-content` | Acordeón colapsable de guía |
 
 ## Layout móvil (`max-width: 899px`)
 
-El sidebar se convierte en una hoja deslizante desde abajo:
+El sidebar es un HUD fijo siempre visible en la parte inferior del mapa:
 
-- `.sidebar`: `transform: translateY(110%)` oculto por defecto; `.sidebar.mob-open` lo muestra (`translateY(0)`)
-- `.map-wrap`: `right: 0; bottom: 52px` — ocupa toda la anchura, deja espacio a la barra inferior
-
-Barra de navegación inferior:
-
-| Clase | Descripción |
-|---|---|
-| `.mob-tabbar` | Barra fija inferior, `height: 52px; z-index: 150` |
-| `.mob-tab-btn` | Botón de pestaña individual |
-| `.mob-tab-icon` | Ícono del botón |
-| `.mob-tab-label` | Etiqueta de texto bajo el ícono |
+- `.sidebar`: `height: 28vh; bottom: 0` — visible desde el inicio, sin animación ni botón para abrirlo
+- `.map-wrap`: `right: 0; bottom: 28vh` — ocupa toda la anchura sobre el HUD
+- Las pestañas `.sidebar-tabs` / `.sidebar-tab` permanecen visibles para cambiar entre Acciones y Estado
+- No existe barra de botones inferior ni overlay de fondo
+- `.dice-tray` y `.attack-notice` se posicionan `bottom: calc(28vh + 12px)` / `calc(28vh + 8px)` para aparecer sobre el HUD
 
 ## Clases de interacción del mapa
 

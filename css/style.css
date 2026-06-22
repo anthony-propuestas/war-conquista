@@ -596,30 +596,20 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 0;
   .turn-name { font-size: .9rem; }
   .phase-steps { display: none; }
 
-  /* Mapa: ancho completo, deja hueco para topbar y barra inferior */
-  .map-wrap { top: 48px; right: 0; bottom: 52px; }
+  /* Mapa: ancho completo, deja hueco para topbar y HUD inferior */
+  .map-wrap { top: 48px; right: 0; bottom: 28vh; }
 
-  /* Sidebar → hoja inferior deslizable */
+  /* Sidebar → HUD fijo siempre visible en la parte baja */
   .sidebar {
     top: auto; left: 0; right: 0; width: 100%;
-    bottom: 52px; max-height: 66vh;
+    bottom: 0; height: 28vh;
     border-left: none; border-top: 1px solid var(--line);
-    border-radius: 20px 20px 0 0;
-    transform: translateY(110%);
-    transition: transform .35s cubic-bezier(.25,.46,.45,.94);
-    padding: 0 14px 16px; gap: 0;
+    border-radius: 12px 12px 0 0;
+    transform: none;
+    transition: none;
+    padding: 0 14px 10px; gap: 0;
     z-index: 140;
-  }
-  .sidebar.mob-open {
-    transform: translateY(0);
-    box-shadow: 0 -8px 40px rgba(0,0,0,.6);
-  }
-
-  /* Handle de arrastre */
-  .sidebar-handle {
-    display: block; width: 40px; height: 4px;
-    background: var(--line-strong); border-radius: 2px;
-    margin: 12px auto 10px; cursor: pointer; flex-shrink: 0;
+    overflow-y: auto;
   }
 
   /* Pestañas internas del sidebar */
@@ -633,45 +623,15 @@ select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 0;
     font: inherit; font-weight: 700; font-size: .88rem;
     color: var(--ink-dim); background: transparent;
     border: none; border-bottom: 2px solid transparent;
-    padding: 10px 8px; cursor: pointer; transition: color .15s;
+    padding: 7px 8px; cursor: pointer; transition: color .15s;
   }
   .sidebar-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
   /* Secciones: solo visible la activa */
   .sidebar-section { display: none; }
-  .sidebar-section.active { display: flex; }
+  .sidebar-section.active { display: flex; overflow-y: auto; flex: 1; min-height: 0; }
 
-  /* Barra de botones inferior */
-  .mob-tabbar {
-    display: flex; position: fixed;
-    bottom: 0; left: 0; right: 0; height: 52px;
-    background: rgba(10,22,36,.97);
-    border-top: 1px solid var(--line);
-    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-    z-index: 200; align-items: stretch;
-  }
-  .mob-tab-btn {
-    flex: 1; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 2px;
-    border: none; background: transparent; color: var(--ink-dim);
-    cursor: pointer; font: inherit; padding: 6px 8px;
-    transition: color .15s, background .15s;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .mob-tab-btn[aria-expanded="true"] {
-    color: var(--accent); background: rgba(224,182,92,.09);
-  }
-  .mob-tab-icon  { font-size: 1.3rem; line-height: 1; }
-  .mob-tab-label { font-size: .62rem; text-transform: uppercase; letter-spacing: .5px; font-weight: 700; }
-
-  /* Overlay oscuro de fondo */
-  .sidebar-overlay {
-    display: none; position: fixed; inset: 0; bottom: 52px;
-    background: rgba(0,0,0,.5); z-index: 130;
-  }
-  .sidebar-overlay.visible { display: block; }
-
-  /* Dados y avisos: suben por encima de la barra inferior */
-  .dice-tray    { bottom: 76px; }
-  .attack-notice { bottom: 68px; }
+  /* Dados y avisos: suben por encima del HUD */
+  .dice-tray    { bottom: calc(28vh + 12px); }
+  .attack-notice { bottom: calc(28vh + 8px); }
 }

@@ -145,10 +145,7 @@
 
     <!-- Panel lateral (desktop: sidebar fijo · móvil: hoja inferior deslizable) -->
     <aside class="sidebar" id="game-sidebar">
-      <!-- Handle de arrastre (solo móvil) -->
-      <div class="sidebar-handle" id="sidebar-handle" role="button" tabindex="0" aria-label="Cerrar panel"></div>
-
-      <!-- Pestañas de navegación (solo móvil) -->
+      <!-- Pestañas de navegación -->
       <nav class="sidebar-tabs" aria-label="Secciones del juego">
         <button class="sidebar-tab active" data-tab="actions">⚔ Acciones</button>
         <button class="sidebar-tab" data-tab="status">👥 Estado</button>
@@ -185,20 +182,6 @@
       </div>
     </aside>
 
-    <!-- Barra de botones inferior (solo móvil) -->
-    <nav class="mob-tabbar" id="mob-tabbar" aria-label="Menú del juego">
-      <button class="mob-tab-btn" id="mob-btn-actions" aria-expanded="false">
-        <span class="mob-tab-icon">⚔</span>
-        <span class="mob-tab-label">Acciones</span>
-      </button>
-      <button class="mob-tab-btn" id="mob-btn-status" aria-expanded="false">
-        <span class="mob-tab-icon">👥</span>
-        <span class="mob-tab-label">Estado</span>
-      </button>
-    </nav>
-
-    <!-- Overlay oscuro al abrir sidebar (solo móvil) -->
-    <div class="sidebar-overlay" id="sidebar-overlay" aria-hidden="true"></div>
 
   </section>
 
@@ -249,77 +232,26 @@
   </script>
   <script type="module" src="../js/main.js"></script>
   <script>
-  // Lógica de paneles: sidebar deslizable en móvil, siempre visible en desktop
   (function () {
     function ready(fn) {
       if (document.readyState !== 'loading') fn(); else document.addEventListener('DOMContentLoaded', fn);
     }
     ready(function () {
-      var sidebar  = document.getElementById('game-sidebar');
-      var overlay  = document.getElementById('sidebar-overlay');
-      var handle   = document.getElementById('sidebar-handle');
-      var btnAct   = document.getElementById('mob-btn-actions');
-      var btnStat  = document.getElementById('mob-btn-status');
-      var tabs     = document.querySelectorAll('.sidebar-tab');
-      var secAct   = document.getElementById('section-actions');
-      var secStat  = document.getElementById('section-status');
-      var open     = false;
-      var activeTab = 'actions';
-
-      function isMobile() { return window.innerWidth < 900; }
+      var tabs    = document.querySelectorAll('.sidebar-tab');
+      var secAct  = document.getElementById('section-actions');
+      var secStat = document.getElementById('section-status');
 
       function showTab(tab) {
-        activeTab = tab;
         tabs.forEach(function (t) { t.classList.toggle('active', t.dataset.tab === tab); });
         secAct.classList.toggle('active', tab === 'actions');
         secStat.classList.toggle('active', tab === 'status');
       }
 
-      function openSidebar(tab) {
-        showTab(tab);
-        sidebar.classList.add('mob-open');
-        overlay.classList.add('visible');
-        open = true;
-        btnAct.setAttribute('aria-expanded',  tab === 'actions' ? 'true' : 'false');
-        btnStat.setAttribute('aria-expanded', tab === 'status'  ? 'true' : 'false');
-      }
-
-      function closeSidebar() {
-        sidebar.classList.remove('mob-open');
-        overlay.classList.remove('visible');
-        open = false;
-        btnAct.setAttribute('aria-expanded', 'false');
-        btnStat.setAttribute('aria-expanded', 'false');
-      }
-
-      function onMobBtn(tab) {
-        if (!isMobile()) return;
-        if (open && activeTab === tab) closeSidebar(); else openSidebar(tab);
-      }
-
-      if (btnAct)  btnAct.addEventListener('click', function () { onMobBtn('actions'); });
-      if (btnStat) btnStat.addEventListener('click', function () { onMobBtn('status'); });
-
       tabs.forEach(function (tab) {
         tab.addEventListener('click', function () { showTab(tab.dataset.tab); });
       });
 
-      if (overlay) overlay.addEventListener('click', closeSidebar);
-      if (handle)  handle.addEventListener('click', closeSidebar);
-      if (handle)  handle.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') closeSidebar(); });
-
-      window.addEventListener('resize', function () {
-        if (!isMobile()) {
-          closeSidebar();
-          secAct.classList.add('active');
-          secStat.classList.add('active');
-        } else {
-          showTab(activeTab);
-        }
-      });
-
-      // Desktop: mostrar ambas secciones siempre
-      if (!isMobile()) {
+      if (window.innerWidth >= 900) {
         secAct.classList.add('active');
         secStat.classList.add('active');
       }
