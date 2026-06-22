@@ -110,30 +110,28 @@ es la única parte de la interfaz que no sigue esta paleta.
 
 ## Sistema de layout (pantalla de juego)
 
-`game/index.html` usa tres piezas fijas que no se superponen. Antes existía `.game-layout` (CSS grid); fue reemplazado por posición fija.
+`game/index.html` usa el mapa a pantalla completa con paneles HUD flotantes superpuestos. La sidebar fija de 320px fue eliminada.
 
 | Elemento | Regla CSS | Descripción |
 |---|---|---|
 | `.topbar` | `position: fixed; top: 0; left: 0; right: 0; height: 54px; z-index: 200` | Barra superior — siempre visible |
-| `.map-wrap` | `position: fixed; top: 54px; left: 0; right: 320px; bottom: 0` | Zona del mapa SVG (todo menos el sidebar) |
-| `.sidebar` | `position: fixed; top: 54px; right: 0; bottom: 0; width: 320px; z-index: 100` | Panel de información / acciones |
+| `.map-wrap` | `position: fixed; inset: 0` | Zona del mapa SVG — ocupa toda la pantalla |
 
-Componentes del sidebar:
+Paneles HUD (`position: fixed`, `z-index: 150`). Usan `background: rgba(13,27,42,0.86)` + `backdrop-filter: blur(14px)` — excepción al relleno sólido de la filosofía base, para no tapar el mapa:
 
-| Clase | Descripción |
-|---|---|
-| `.sidebar-tabs` | Pestañas de navegación dentro del panel |
-| `.guide-details` / `.guide-content` | Acordeón colapsable de guía |
+| Clase | Posición | Descripción |
+|---|---|---|
+| `.hud-phase` | top-left | Fase actual, ronda, botón rendirse |
+| `.hud-actions` | bottom-left | Botones de acción (atacar, fortify, terminar turno) |
+| `.hud-status` | top-right | Jugadores, cartas/items, log — colapsable con `#btn-hud-toggle` |
+| `.hud-zoom` | bottom-right | Controles de zoom (zoom-in, zoom-out, reset) |
 
 ## Layout móvil (`max-width: 899px`)
 
-El sidebar es un HUD fijo siempre visible en la parte inferior del mapa:
+El mapa sigue a `inset: 0`; los paneles HUD se comprimen y superponen:
 
-- `.sidebar`: `height: 28vh; bottom: 0` — visible desde el inicio, sin animación ni botón para abrirlo
-- `.map-wrap`: `right: 0; bottom: 28vh` — ocupa toda la anchura sobre el HUD
-- Las pestañas `.sidebar-tabs` / `.sidebar-tab` permanecen visibles para cambiar entre Acciones y Estado
-- No existe barra de botones inferior ni overlay de fondo
-- `.dice-tray` y `.attack-notice` se posicionan `bottom: calc(28vh + 12px)` / `calc(28vh + 8px)` para aparecer sobre el HUD
+- `.hud-status` se colapsa con `#btn-hud-toggle` (toggle en la cabecera del panel)
+- No existe drawer, pestañas, overlay ni barra de botones inferior
 
 ## Clases de interacción del mapa
 
@@ -168,7 +166,7 @@ y jerarquía para el momento de victoria/derrota.
 
 ## Componente: Panel de cartas (items de mejora)
 
-Bloque `.items-panel` en el sidebar de `game/index.html`. Se muestra solo cuando el
+Bloque `.items-panel` en el panel `.hud-status` de `game/index.html`. Se muestra solo cuando el
 jugador tiene cartas en su inventario; permanece oculto (`class="hidden"`) en caso contrario.
 
 | Selector | Descripción |

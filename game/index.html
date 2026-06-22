@@ -143,30 +143,31 @@
       </div>
     </header>
 
-    <!-- Panel lateral (desktop: sidebar fijo · móvil: hoja inferior deslizable) -->
-    <aside class="sidebar" id="game-sidebar">
-      <!-- Pestañas de navegación -->
-      <nav class="sidebar-tabs" aria-label="Secciones del juego">
-        <button class="sidebar-tab active" data-tab="actions">⚔ Acciones</button>
-        <button class="sidebar-tab" data-tab="status">👥 Estado</button>
-      </nav>
+    <!-- HUD: Información de fase (top-left) -->
+    <div class="hud-panel hud-phase" id="hud-phase">
+      <div id="phase-box" class="phase-box"></div>
+    </div>
 
-      <!-- Sección: fase y acciones -->
-      <div class="sidebar-section active" id="section-actions">
-        <div id="phase-box" class="phase-box"></div>
-        <div id="action-box" class="action-box"></div>
-        <details class="guide-details">
-          <summary>❓ Cómo jugar</summary>
-          <div class="guide-content">
-            <p>🪖 <b>Colocar tropas:</b> activa el botón y toca tus territorios</p>
-            <p>⚔ <b>Atacar:</b> toca tu territorio (≥2 tropas) → toca un vecino enemigo</p>
-            <p>🔄 <b>Mover tropas:</b> toca tu territorio → toca un aliado adyacente</p>
-          </div>
-        </details>
+    <!-- HUD: Botones de acción (bottom-left) -->
+    <div class="hud-panel hud-actions" id="hud-actions">
+      <div id="action-box" class="action-box"></div>
+      <details class="guide-details">
+        <summary>❓ Cómo jugar</summary>
+        <div class="guide-content">
+          <p>🪖 <b>Colocar tropas:</b> activa el botón y toca tus territorios</p>
+          <p>⚔ <b>Atacar:</b> toca tu territorio (≥2 tropas) → toca un vecino enemigo</p>
+          <p>🔄 <b>Mover tropas:</b> toca tu territorio → toca un aliado adyacente</p>
+        </div>
+      </details>
+    </div>
+
+    <!-- HUD: Estado (top-right, colapsable) -->
+    <div class="hud-panel hud-status" id="hud-status">
+      <div class="hud-status-header">
+        <span class="hud-status-title">👥 Estado</span>
+        <button class="hud-toggle-btn" id="btn-hud-toggle" title="Colapsar">−</button>
       </div>
-
-      <!-- Sección: jugadores, cartas y registro -->
-      <div class="sidebar-section" id="section-status">
+      <div class="hud-status-content">
         <div class="players-box">
           <h3>Jugadores</h3>
           <ul id="players-list"></ul>
@@ -180,7 +181,14 @@
           <ul id="log-list"></ul>
         </div>
       </div>
-    </aside>
+    </div>
+
+    <!-- HUD: Controles de zoom (bottom-right) -->
+    <div class="hud-zoom" id="hud-zoom">
+      <button id="btn-zoom-in"    title="Acercar">+</button>
+      <button id="btn-zoom-out"   title="Alejar">−</button>
+      <button id="btn-zoom-reset" title="Restablecer">⌂</button>
+    </div>
 
 
   </section>
@@ -237,24 +245,20 @@
       if (document.readyState !== 'loading') fn(); else document.addEventListener('DOMContentLoaded', fn);
     }
     ready(function () {
-      var tabs    = document.querySelectorAll('.sidebar-tab');
-      var secAct  = document.getElementById('section-actions');
-      var secStat = document.getElementById('section-status');
+      var hudStatus = document.getElementById('hud-status');
+      var toggleBtn = document.getElementById('btn-hud-toggle');
+      if (!hudStatus || !toggleBtn) return;
 
-      function showTab(tab) {
-        tabs.forEach(function (t) { t.classList.toggle('active', t.dataset.tab === tab); });
-        secAct.classList.toggle('active', tab === 'actions');
-        secStat.classList.toggle('active', tab === 'status');
+      // En móvil, el panel de estado empieza colapsado
+      if (window.innerWidth < 900) {
+        hudStatus.classList.add('collapsed');
+        toggleBtn.textContent = '+';
       }
 
-      tabs.forEach(function (tab) {
-        tab.addEventListener('click', function () { showTab(tab.dataset.tab); });
+      toggleBtn.addEventListener('click', function () {
+        var collapsed = hudStatus.classList.toggle('collapsed');
+        toggleBtn.textContent = collapsed ? '+' : '−';
       });
-
-      if (window.innerWidth >= 900) {
-        secAct.classList.add('active');
-        secStat.classList.add('active');
-      }
     });
   })();
   </script>

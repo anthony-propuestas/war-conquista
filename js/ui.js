@@ -92,11 +92,14 @@ export class UI {
     }
     map.appendChild(defs);
 
+    // Viewport group: todo el contenido zoomeable va aquí
+    const vp = svg("g", { id: "vp" });
+
     // 1) oceano: reticula de meridianos y paralelos
     const grid = svg("g", { class: "graticule" });
     for (let x = VX; x <= VX + W; x += 100) grid.appendChild(svg("line", { x1: x, y1: VY, x2: x, y2: VY + H }));
     for (let y = VY; y <= VY + H; y += 70) grid.appendChild(svg("line", { x1: VX, y1: y, x2: VX + W, y2: y }));
-    map.appendChild(grid);
+    vp.appendChild(grid);
 
     // 2) rutas maritimas (conexiones por agua; van debajo de la tierra)
     const sea = svg("g", { class: "sea-routes" });
@@ -105,7 +108,7 @@ export class UI {
       if (!ca || !cb) continue;
       sea.appendChild(svg("line", { x1: ca[0], y1: ca[1], x2: cb[0], y2: cb[1], class: "sea-route" }));
     }
-    map.appendChild(sea);
+    vp.appendChild(sea);
 
     // 3) territorios: silueta geografica real (path) + contador + nombre
     const layer = svg("g", { filter: "url(#landShadow)" });
@@ -124,7 +127,7 @@ export class UI {
       layer.appendChild(g);
       this.nodes[id] = { g, region, marker, count };
     }
-    map.appendChild(layer);
+    vp.appendChild(layer);
 
     // 4) etiquetas de continente (sobre el centroide de sus territorios)
     const contLabels = svg("g");
@@ -138,9 +141,115 @@ export class UI {
       label.textContent = cont.name.toUpperCase();
       contLabels.appendChild(label);
     }
-    map.appendChild(contLabels);
+    vp.appendChild(contLabels);
+
     this.arrowsLayer = svg("g", { id: "attack-arrows", "pointer-events": "none" });
-    map.appendChild(this.arrowsLayer);
+    vp.appendChild(this.arrowsLayer);
+    map.appendChild(vp);
+
+    this._initZoomPan(map);
+  }
+
+  // ---------- zoom y pan del mapa ----------
+  _initZoomPan(mapEl) {
+    const wrap = document.querySelector(".map-wrap");
+    this._vp = { tx: 0, ty: 0, scale: 1 };
+    this._panMoved = false;
+
+    const applyTransform = () => {
+      const { tx, ty, scale } = this._vp;
+      document.getElementById("vp")
+        .setAttribute("transform", `translate(${tx},${ty}) scale(${scale})`);
+    };
+
+    const zoomAround = (cx, cy, factor) => {
+      const newScale = Math.min(6, Math.max(0.35, this._vp.scale * factor));
+      const ratio = newScale / this._vp.scale;
+      this._vp.tx = cx + (this._vp.tx - cx) * ratio;
+      this._vp.ty = cy + (this._vp.ty - cy) * ratio;
+      this._vp.scale = newScale;
+      applyTransform();
+    };
+
+    // Convierte coordenadas de pantalla a espacio SVG viewBox
+    const toSvg = (clientX, clientY) => {
+      const rect = wrap.getBoundingClientRect();
+      return [
+        (clientX - rect.left) / rect.width  * 1000,
+        (clientY - rect.top)  / rect.height * 560,
+      ];
+    };
+
+    // Zoom con rueda, centrado en la posición del cursor
+    wrap.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const [mx, my] = toSvg(e.clientX, e.clientY);
+      zoomAround(mx, my, e.deltaY < 0 ? 1.15 : 1 / 1.15);
+    }, { passive: false });
+
+    // Pan con arrastre de puntero
+    let _pan = null;
+    mapEl.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      this._panMoved = false;
+      _pan = { x: e.clientX, y: e.clientY, tx: this._vp.tx, ty: this._vp.ty };
+      mapEl.setPointerCapture(e.pointerId);
+    });
+    mapEl.addEventListener("pointermove", (e) => {
+      if (!_pan) return;
+      const rect = wrap.getBoundingClientRect();
+      const dx = (e.clientX - _pan.x) / rect.width  * 1000;
+      const dy = (e.clientY - _pan.y) / rect.height * 560;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) this._panMoved = true;
+      this._vp.tx = _pan.tx + dx;
+      this._vp.ty = _pan.ty + dy;
+      applyTransform();
+    });
+    mapEl.addEventListener("pointerup", () => { _pan = null; });
+    mapEl.addEventListener("pointercancel", () => { _pan = null; });
+
+    // Pinch-to-zoom táctil
+    let _touches = null;
+    wrap.addEventListener("touchstart", (e) => {
+      if (e.touches.length === 2) {
+        _touches = { d: Math.hypot(
+          e.touches[1].clientX - e.touches[0].clientX,
+          e.touches[1].clientY - e.touches[0].clientY
+        ), scale: this._vp.scale };
+        e.preventDefault();
+      }
+    }, { passive: false });
+    wrap.addEventListener("touchmove", (e) => {
+      if (e.touches.length === 2 && _touches) {
+        const d = Math.hypot(
+          e.touches[1].clientX - e.touches[0].clientX,
+          e.touches[1].clientY - e.touches[0].clientY
+        );
+        const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        const [mx, my] = toSvg(midX, midY);
+        const newScale = Math.min(6, Math.max(0.35, _touches.scale * d / _touches.d));
+        const ratio = newScale / this._vp.scale;
+        this._vp.tx = mx + (this._vp.tx - mx) * ratio;
+        this._vp.ty = my + (this._vp.ty - my) * ratio;
+        this._vp.scale = newScale;
+        applyTransform();
+        e.preventDefault();
+      }
+    }, { passive: false });
+    wrap.addEventListener("touchend", () => { _touches = null; });
+
+    // Botones de zoom
+    document.getElementById("btn-zoom-in")?.addEventListener("click", () => {
+      zoomAround(500, 280, 1.3);
+    });
+    document.getElementById("btn-zoom-out")?.addEventListener("click", () => {
+      zoomAround(500, 280, 1 / 1.3);
+    });
+    document.getElementById("btn-zoom-reset")?.addEventListener("click", () => {
+      this._vp = { tx: 0, ty: 0, scale: 1 };
+      applyTransform();
+    });
   }
 
   // ---------- refresco completo ----------
@@ -503,6 +612,7 @@ export class UI {
 
   // ---------- clic en territorio ----------
   onTerritoryClick(id, e) {
+    if (this._panMoved) { this._panMoved = false; return; }
     const g = this.game;
     if (!this.isMyTurn()) return;
     if (g.phase === "setup") {
