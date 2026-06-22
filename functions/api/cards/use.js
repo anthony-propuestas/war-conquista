@@ -20,8 +20,11 @@ export async function onRequestPost(context) {
 
   if (!card) return Response.json({ error: 'Carta no disponible' }, { status: 404 });
 
-  await env.DB.prepare('UPDATE user_cards SET used_at=? WHERE id=?')
-    .bind(Date.now(), card_id).run();
+  const result = await env.DB.prepare(
+    'UPDATE user_cards SET used_at=? WHERE id=? AND used_at IS NULL'
+  ).bind(Date.now(), card_id).run();
+  if (result.meta.changes === 0)
+    return Response.json({ error: 'Carta ya fue usada' }, { status: 409 });
 
   return Response.json({ effect_type: card.effect_type, effect_value: card.effect_value, name: card.name });
 }

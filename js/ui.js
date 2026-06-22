@@ -461,18 +461,25 @@ export class UI {
     const card = this.playerCards.find(c => c.id === cardId);
     if (!card || this.usedInSession.has(cardId)) return;
     if (!confirm(`Usar "${card.name}"?`)) return;
-    // Apply effect immediately on local game
+    // Apply effect optimistically; mark used before fetch to block double-clicks
     this.game.applyCardEffect(this.game.current.id, card.effect_type, card.effect_value);
     this.usedInSession.add(cardId);
     const player = this.game.players[this.game.current?.id ?? this.myIndex ?? 0];
     this.onCardUsed?.(card, player?.name ?? 'Jugador');
-    // Persist to API (fire and forget)
-    fetch('/api/cards/use', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ card_id: cardId }),
-    }).catch(() => {});
     this.refresh();
+    // Persist to API — keep card as used regardless of outcome to prevent double-use
+    try {
+      const res = await fetch('/api/cards/use', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ card_id: cardId }),
+      });
+      if (!res.ok && res.status !== 409) {
+        console.warn('[cartas] No se registró el uso en el servidor (status', res.status, ')');
+      }
+    } catch {
+      console.warn('[cartas] Error de red al registrar uso de carta');
+    }
   }
 
   async _discardCard(cardId) {

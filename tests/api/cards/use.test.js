@@ -17,7 +17,7 @@ function makeDb(firstMap = {}) {
           const result = Object.entries(firstMap).find(([k]) => sql.includes(k))?.[1] ?? null;
           return {
             first: async () => result,
-            run: async () => { runs.push(sql); },
+            run: async () => { runs.push(sql); return { meta: { changes: 1 } }; },
           };
         },
       };
@@ -68,4 +68,33 @@ test("uso exitoso → 200 con effect_type y UPDATE ejecutado", async () => {
   assert.equal(body.effect_value, 3);
   assert.equal(body.name, "Refuerzo");
   assert.ok(db.runs.some((s) => s.includes("UPDATE user_cards SET used_at")));
+});
+
+test("carta ya fue usada (UPDATE changes=0) → 409", async () => {
+  const card = { id: 1, effect_type: "EXTRA_UNITS", effect_value: 3, name: "Refuerzo" };
+  function makeDbUsed() {
+    const db = {
+      prepare(sql) {
+        return {
+          bind() {
+            const firstMap = {
+              "SELECT id FROM users": { id: 7 },
+              "FROM user_cards": card,
+            };
+            const result = Object.entries(firstMap).find(([k]) => sql.includes(k))?.[1] ?? null;
+            return {
+              first: async () => result,
+              run: async () => ({ meta: { changes: 0 } }),
+            };
+          },
+        };
+      },
+    };
+    return db;
+  }
+  const cookie = await makeCookie({ sub: "u1" });
+  const res = await onRequestPost({ request: makeReq(cookie), env: makeEnv(makeDbUsed()) });
+  assert.equal(res.status, 409);
+  const body = await res.json();
+  assert.equal(body.error, "Carta ya fue usada");
 });

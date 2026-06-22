@@ -17,7 +17,7 @@ Los tests viven en `tests/` (versionados, excluidos del deploy vía `.assetsigno
 |---|---|---|---|
 | tests/_lib/session.test.js | functions/_lib/session.js | 7 | ✅ |
 | tests/map-data.test.js | js/map-data.js | 5 | ✅ |
-| tests/game.test.js | js/game.js | 31 | ✅ |
+| tests/game.test.js | js/game.js | 33 | ✅ |
 | tests/map-shapes.test.js | js/map-shapes.js | 4 | ✅ |
 | tests/api/auth/google.test.js | functions/api/auth/google.js | 2 | ✅ |
 | tests/api/auth/callback.test.js | functions/api/auth/callback.js | 7 | ✅ |
@@ -30,13 +30,13 @@ Los tests viven en `tests/` (versionados, excluidos del deploy vía `.assetsigno
 | tests/api/wallet/link.test.js | functions/api/wallet/link.js | 6 | ✅ |
 | tests/api/win.test.js | functions/api/win.js | 3 | ✅ |
 | tests/api/cards/inventory.test.js | functions/api/cards/inventory.js | 3 | ✅ |
-| tests/api/cards/use.test.js | functions/api/cards/use.js | 4 | ✅ |
+| tests/api/cards/use.test.js | functions/api/cards/use.js | 5 | ✅ |
 | tests/api/cards/delete.test.js | functions/api/cards/delete.js | 3 | ✅ |
-| tests/api/battle-pass/claim.test.js | functions/api/battle-pass/claim.js | 5 | ✅ |
+| tests/api/battle-pass/claim.test.js | functions/api/battle-pass/claim.js | 6 | ✅ |
 | tests/api/battle-pass/status.test.js | functions/api/battle-pass/status.js | 3 | ✅ |
 | tests/api/admin/cards.test.js | functions/api/admin/cards.js | 5 | ✅ |
 | tests/api/admin/battle-pass.test.js | functions/api/admin/battle-pass.js | 4 | ✅ |
-| **Total** | | **169** | ✅ |
+| **Total** | | **173** | ✅ |
 
 ## Pendiente (diferido)
 

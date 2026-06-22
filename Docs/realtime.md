@@ -84,6 +84,10 @@ durante la inactividad (guardado en try/catch por si el runtime no expone la API
     **todos** (incluido el emisor) via `broadcast(null, …)`. El DO no genera ni
     modifica el estado inicial; lo calcula el host en el cliente (crea un `Game`
     temporal) y lo envía dentro del mensaje `start_game`.
+  - `type === 'card_used'` → **no se persiste en storage**; se retransmite a todos
+    menos el emisor. Payload: `{ playerName, card: { name, description, effect_type } }`.
+    El cliente receptor llama `ui.showEnemyCardNotification(msg.payload)` para mostrar
+    un aviso temporal de qué carta usó el jugador indicado.
   - cualquier otro tipo → se retransmite igual que `game_state` (broadcast a todos
     menos el emisor).
 
@@ -97,9 +101,10 @@ durante la inactividad (guardado en try/catch por si el runtime no expone la API
   tumbe el DO.
 - **`alarm()`** — tiene **doble rol** según `started`:
   - Sala pública sin iniciar: se dispara 60 s después de que el primer jugador entra. Si hay
-    ≥ 2 jugadores conectados arranca la partida automáticamente (equivale a que el host pulse
-    "Iniciar"); si hay < 2, cancela y llama `resetRoom()`. Evita que las salas públicas queden
-    bloqueadas esperando al host.
+    ≥ 2 jugadores conectados, emite `{ type: 'you_start' }` al primer jugador (host), quien
+    llama `hostStart(lobbyPlayers)` → `sendStartGame({…})` para arrancar la partida (equivale
+    a que el host pulsara "Iniciar"); si hay < 2, difunde `{ type: 'match_failed' }` y llama
+    `resetRoom()`. Evita que las salas públicas queden bloqueadas esperando al host.
   - Partida en curso (gracia de reconexión agotada): si la sala sigue **vacía**, libera el
     estado con `resetRoom()`; si alguien volvió mientras tanto, no hace nada.
 - **`resetRoom()`** — `state.storage.deleteAll()`, vacía `players` y pone
@@ -137,7 +142,7 @@ Al crear o unirse a una sala, `enterLobby(code, playerName)`:
    reparto de continentes y llama
    `startGame({ players, board, setupRemaining, attackUnlocked, firstRoundTurnsLeft })` —
    el estado inicial viaja dentro del mensaje para que todos arranquen de forma idéntica.
-4. `beginOnlineGame(players, initialBoard, initialSetup, initialAttackUnlocked, initialFirstRoundTurnsLeft)` crea el `Game` + `UI` (con
+4. `beginOnlineGame` (ahora `async`) espera primero a que el inventario de cartas esté cargado (`await _cardsPromise`) para garantizar que `playerCards` esté disponible en `UI` desde el primer render. Luego crea el `Game` + `UI` (con
    `myIndex` = posición del jugador local) y, si recibe `initialBoard`, pisa
    inmediatamente el board aleatorio local con el del host — eliminando la divergencia
    que producía `Math.random()` en `_distributeTerritories()`; también aplica `setupRemaining`,
@@ -145,15 +150,22 @@ Al crear o unirse a una sala, `enterLobby(code, playerName)`:
    handler con `setMessageHandler` y **parchea los métodos mutadores de `Game`**
    (`placeSetupArmy`, `placeReinforcement`, `attack`, `endTurn`, `fortify`,
    `autoPlaceSetup`, `surrender`): cada uno, tras
-   ejecutar el original, llama `sendGameState({ board, currentIndex, phase, setupRemaining, attackUnlocked, firstRoundTurnsLeft, round, reinforcements, winner, alive })`.
-   `winner` viaja como índice del jugador (o `null`) y `alive` como array de booleanos por
-   jugador, de modo que la rendición y el resultado final se propagan a todos los clientes.
-5. En el handler de partida, al recibir `game_state` —o `state_sync`, que llega tras
-   reconectar a media partida y tiene la **misma forma**— aplica el estado remoto sobre el
-   `Game` local (`Object.assign(game.board, …)`, `currentIndex`, `phase`, `setupRemaining`,
-   `attackUnlocked`, `firstRoundTurnsLeft`, `round`, `reinforcements`, `alive[]` por jugador y `winner`
-   reconstruido desde su índice) y hace `ui.refresh()`. Así un jugador que se cayó recupera
-   el tablero exacto al volver, y todos ven la misma pantalla de fin ganó/perdió.
+   ejecutar el original, llama `sendGameState({ board, currentIndex, phase, setupRemaining, attackUnlocked, firstRoundTurnsLeft, round, reinforcements, winner, alive, shield })`.
+   `winner` viaja como índice del jugador (o `null`), `alive` como array de booleanos por
+   jugador, y `shield` como índice del jugador con escudo activo (o `null`), de modo que
+   la rendición, el resultado final y el estado de escudo se propagan a todos los clientes.
+   Además pasa `onCardUsed` a `UI`: cuando un jugador local usa una carta, `UI._useCard()`
+   llama `onCardUsed(card, playerName)` → `sendAction('card_used', { playerName, card })`
+   para notificar a los demás (ver sección DO arriba).
+5. En el handler de partida, el primer filtro comprueba `msg.type === 'card_used'`: si es
+   así, llama `ui.showEnemyCardNotification(msg.payload)` y no procesa más. Al recibir
+   `game_state` —o `state_sync`, que llega tras reconectar a media partida y tiene la
+   **misma forma**— aplica el estado remoto sobre el `Game` local (`Object.assign(game.board, …)`,
+   `currentIndex`, `phase`, `setupRemaining`, `attackUnlocked`, `firstRoundTurnsLeft`,
+   `round`, `reinforcements`, `alive[]` por jugador, `winner` reconstruido desde su índice,
+   y `_shield` —índice del jugador con escudo, o `null`—) y hace `ui.refresh()`. Así un
+   jugador que se cayó recupera el tablero exacto al volver, y todos ven la misma pantalla
+   de fin ganó/perdió.
 
 Al terminar la partida, `main.js` muestra la pantalla ganó/perdió y solo en el **modo online
 de emparejamiento** (`rankedOnline`), si gana el jugador local, hace `POST /api/win` (ver

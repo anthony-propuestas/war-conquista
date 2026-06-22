@@ -203,10 +203,11 @@ Marca la carta como usada (`used_at = Date.now()`) y devuelve el efecto para apl
 | Sin sesión | `401` | `{ "error": "No autenticado" }` |
 | Usuario no encontrado en DB | `404` | `{ "error": "Usuario no encontrado" }` |
 | `card_id` faltante | `400` | `{ "error": "Falta card_id" }` |
-| Carta no encontrada, ya usada, ajena o inactiva | `404` | `{ "error": "Carta no disponible" }` |
+| Carta no encontrada, ajena o inactiva | `404` | `{ "error": "Carta no disponible" }` |
+| Carta ya usada (guard a nivel de UPDATE) | `409` | `{ "error": "Carta ya fue usada" }` |
 | Éxito | `200` | `{ "effect_type": "EXTRA_UNITS", "effect_value": 3, "name": "Refuerzo" }` |
 
-Lo llama `js/ui.js → _useCard()` en background (fire and forget tras aplicar el efecto localmente).
+Lo llama `js/ui.js → _useCard()`. El efecto se aplica en local primero (optimista); luego hace `await fetch` y si el servidor responde `409` (carta ya usada en otra pestaña o doble envío) conserva la carta marcada como usada de todas formas. Solo loguea warning si status no es `200` ni `409`.
 
 ## `DELETE /api/cards/delete?id=<card_id>` — descartar una carta
 
@@ -266,7 +267,7 @@ Requiere `war_session`. Sin body.
 | Sin sesión | `401` | `{ "error": "No autenticado" }` |
 | Usuario no encontrado | `404` | `{ "error": "Usuario no encontrado" }` |
 | Ya reclamó hoy | `200` | `{ "already_claimed": true, "claimed_days": [...] }` |
-| Día sin recompensa | `200` | `{ "claimed": true, "reward": null, "claimed_days": [...] }` |
+| Día sin recompensa (sin carta en calendario) | `200` | `{ "no_reward": true, "claimed_days": [...] }` (no escribe en DB) |
 | Éxito con carta | `200` | `{ "claimed": true, "reward": { "name": "...", "quantity": 2, ... }, "claimed_days": [...] }` |
 
 **Lógica de reset mensual:** si `progress.current_month !== mes_actual`, se resetean `claimed_days` y `last_claim_date` a `[]`/`null` antes de procesar el claim.

@@ -31,6 +31,7 @@ async function loadProfile() {
 
 // ---------- items de mejora (cartas del jugador) ----------
 let playerCards = []; // [{ id, name, description, effect_type, effect_value, used_at }]
+let _cardsPromise = null;
 async function loadCards() {
   try {
     const res = await fetch('/api/cards/inventory');
@@ -324,7 +325,8 @@ function closeWaitModal() {
 }
 
 // ---------- pasar del lobby a la partida sincronizada ----------
-function beginOnlineGame(players, initialBoard, initialSetup, initialAttackUnlocked, initialFirstRoundTurnsLeft) {
+async function beginOnlineGame(players, initialBoard, initialSetup, initialAttackUnlocked, initialFirstRoundTurnsLeft) {
+  await _cardsPromise; // garantiza que el inventario esté cargado antes de armar la UI
   inLobby = false;
   const configs = players.map((p, i) => ({ name: p.name, color: PLAYER_COLORS[i] }));
   const game = new Game(configs);
@@ -357,6 +359,7 @@ function beginOnlineGame(players, initialBoard, initialSetup, initialAttackUnloc
       if (msg.payload.reinforcements != null) game.reinforcements = msg.payload.reinforcements;
       if (Array.isArray(msg.payload.alive)) game.players.forEach((p, i) => { p.alive = msg.payload.alive[i]; });
       if (msg.payload.winner != null) game.winner = game.players[msg.payload.winner] ?? null;
+      if (msg.payload.shield !== undefined) game._shield = msg.payload.shield;
       ui.refresh();
     }
   });
@@ -373,6 +376,7 @@ function beginOnlineGame(players, initialBoard, initialSetup, initialAttackUnloc
       reinforcements: game.reinforcements,
       winner: game.winner ? game.winner.id : null,
       alive: game.players.map((p) => p.alive),
+      shield: game._shield ?? null,
     });
   };
   ['placeSetupArmy','placeReinforcement','attack','endTurn','fortify','autoPlaceSetup','surrender','applyCardEffect']
@@ -556,4 +560,4 @@ walletAddress = sessionStorage.getItem('walletAddress');
 renderWalletUI();
 renderPlayerFields();
 loadProfile();
-loadCards();
+_cardsPromise = loadCards();

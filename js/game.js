@@ -40,6 +40,8 @@ export class Game {
     this.round = 1;                // ronda actual (todos juegan una vez = 1 ronda)
     this._turnsPlayed = 0;
     this.log = [];
+    this._doubleAttack = false;
+    this._shield = null;
 
     this._distributeTerritories();
   }
@@ -247,6 +249,7 @@ export class Game {
 
   // ---------- fin de turno ----------
   endTurn() {
+    this._doubleAttack = false;
     if (!this.attackUnlocked) {
       this.firstRoundTurnsLeft--;
       if (this.firstRoundTurnsLeft <= 0) {
@@ -296,8 +299,9 @@ export class Game {
     if (this.phase !== 'play') return false;
     if (this.current.id !== playerId) return false;
     if (effectType === 'EXTRA_UNITS') {
-      this.reinforcements += Number(effectValue);
-      this._log(`${this.current.name} usa una carta: +${effectValue} refuerzos extra!`);
+      const units = Math.max(1, Math.floor(Number(effectValue)));
+      this.reinforcements += units;
+      this._log(`${this.current.name} usa una carta: +${units} refuerzos extra!`);
       return true;
     }
     if (effectType === 'DOUBLE_ATTACK') {

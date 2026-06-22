@@ -16,7 +16,7 @@ export async function onRequestDelete(context) {
     .bind(card_id, user.id).first();
   if (!card) return Response.json({ error: 'Carta no encontrada' }, { status: 404 });
 
-  await env.DB.prepare('DELETE FROM user_cards WHERE id=?').bind(card_id).run();
+  await env.DB.prepare('DELETE FROM user_cards WHERE id=? AND user_id=?').bind(card_id, user.id).run();
 
   return Response.json({ ok: true });
 }

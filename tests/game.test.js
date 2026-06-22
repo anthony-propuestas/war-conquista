@@ -388,6 +388,28 @@ test("applyCardEffect SHIELD guarda el id del jugador en _shield", () => {
   assert.equal(g._shield, 0);
 });
 
+test("applyCardEffect EXTRA_UNITS aplica floor y garantiza mínimo 1", () => {
+  const g = newGame();
+  g.autoPlaceSetup();
+  g.autoPlaceSetup();
+  const antes = g.reinforcements;
+  g.applyCardEffect(0, "EXTRA_UNITS", 2.9); // floor(2.9)=2
+  assert.equal(g.reinforcements, antes + 2);
+  g.reinforcements = antes;
+  g.applyCardEffect(0, "EXTRA_UNITS", 0); // max(1,0)=1
+  assert.equal(g.reinforcements, antes + 1);
+});
+
+test("endTurn resetea _doubleAttack", () => {
+  const g = newGame();
+  g.autoPlaceSetup();
+  g.autoPlaceSetup();
+  g.applyCardEffect(0, "DOUBLE_ATTACK", 0);
+  assert.equal(g._doubleAttack, true);
+  g.endTurn();
+  assert.equal(g._doubleAttack, false);
+});
+
 test("applyCardEffect devuelve false en setup o con jugador incorrecto", () => {
   const g = newGame();
   assert.equal(g.applyCardEffect(0, "EXTRA_UNITS", 3), false); // fase setup

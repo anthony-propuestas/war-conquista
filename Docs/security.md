@@ -131,7 +131,7 @@ desplegados en producción).
 ### Mecanismos de seguridad confirmados
 
 - **Auth:** todos los endpoints requieren `war_session` HMAC válida (`getSession()` → 401 si falta o manipulada). Los endpoints admin además verifican que el email de la sesión esté en la variable de entorno `ADMIN_EMAILS` (403 si no).
-- **Ownership en use/delete de cartas:** las queries usan `WHERE id = ? AND user_id = ?`; si la carta no existe o pertenece a otro usuario, devuelven 404 sin exponer información de la otra cuenta.
+- **Ownership en use/delete de cartas:** las queries usan `WHERE id = ? AND user_id = ?`; si la carta no existe o pertenece a otro usuario, devuelven 404 sin exponer información de la otra cuenta. **Desde 2026-06-22:** el `DELETE FROM user_cards` también incluye `AND user_id=?` (antes solo el SELECT previo verificaba ownership; ahora la eliminación misma es atómica con la verificación de pertenencia).
 - **Mutaciones en métodos correctos:** `POST` para use/claim, `DELETE` para delete/remove, `PUT` para update admin, `GET` para lecturas. Sin mutaciones por GET.
 - **Queries parametrizadas:** todas usan `.prepare(...).bind(...)`. El `INSERT … ON CONFLICT` de claim y los `SELECT … WHERE user_id = ?` de inventario nunca interpolan valores del usuario.
 - **Datos devueltos al cliente:** cards API expone solo `id`, `name`, `description`, `effect_type`, `effect_value`. No se filtran columnas internas (`user_id`, `used_at`, `created_at`). Admin endpoints exponen `is_active` adicionalmente — solo accesible por admins.
@@ -140,10 +140,10 @@ desplegados en producción).
 
 ### Hallazgos
 
-- **[MEDIO] Race condition en `POST /api/battle-pass/claim`:** dos requests simultáneos pasan el check `last_claim_date !== todayStr` antes de que el primero actualice la DB, resultando en doble claim del mismo día y cartas duplicadas en el inventario. La query D1 no usa transacción ni constraint que provoque conflicto en el segundo request. Mitigación futura: `BEGIN IMMEDIATE` + query atómica, o `UNIQUE(user_id, last_claim_date)` en el schema. **Aceptado para MVP** (impacto bajo: cartas sin valor económico en juego casual).
+- **RESUELTO (2026-06-22) — [MEDIO] Race condition en `POST /api/battle-pass/claim`:** la UPDATE ahora es atómica: `WHERE user_id=? AND (last_claim_date IS NULL OR last_claim_date != ?)` + check `meta.changes === 0` → devuelve `already_claimed: true` sin crear cartas duplicadas. El doble-claim simultáneo ya no es posible con D1.
 - **[BAJO] Admin card `PUT` sin validación de campos vacíos:** el endpoint `POST /api/admin/cards` valida `!name?.trim()` y `!description?.trim()` y devuelve 400, pero el `PUT` no replica esas validaciones. Un admin puede actualizar una carta dejando el nombre o la descripción vacíos. No es un vector de ataque externo; riesgo de inconsistencia de datos.
 - **[BAJO] Parámetro `month` sin rango en admin battle-pass:** `parseInt(searchParams.get('month'))` acepta cualquier entero (0, -1, 13, 9999). La query es parametrizada (sin inyección SQL), pero meses fuera de [1-12] devuelven resultados vacíos sin error claro al cliente. Riesgo de lógica, no de seguridad.
-- **[INFO] Fire-and-forget en uso de cartas (`js/ui.js:_useCard()`):** el efecto de la carta se aplica localmente antes de confirmar con el API; `.catch(() => {})` silencia errores de red. Si el API falla, la carta queda marcada como "usada" en UI pero sigue disponible en servidor (desincronización). No es un vector de ataque; se registra como riesgo de integridad de estado.
+- **RESUELTO (2026-06-22) — [INFO] Fire-and-forget en uso de cartas:** `_useCard` ahora es `async` y verifica el status de respuesta; `WHERE used_at IS NULL` + `meta.changes === 0` → 409 previene el doble-uso concurrente. La desincronización de UI por error de red sigue siendo posible (la carta se marca usada localmente de todas formas), pero ya no hay riesgo de que el servidor procese dos usos del mismo id.
 
 ## Frontend — `js/main.js` y `js/ui.js`
 
@@ -161,6 +161,7 @@ desplegados en producción).
   (`escapeHtml(winner.name)`, `escapeHtml(p.name)`); el color sale de `PLAYER_COLORS`
   (constante) y la ronda es numérica → **sin XSS**. Amplía la lista de sinks del nombre
   remoto, todos cubiertos por el escape de salida.
+- **`showEnemyCardNotification` (`js/ui.js:730`, desde 2026-06-22):** nuevo sink que recibe `playerName` desde el payload WebSocket y lo renderiza con `escapeHtml(playerName)`; `card.name` y `card.description` usan `textContent`. Sin XSS. Registrado como sink nuevo cubierto.
 - **Duplicación de `escapeHtml`:** existe la misma función en `main.js` y en `ui.js`. No es
   una vulnerabilidad, pero el riesgo es divergencia futura; si crece la lógica de escape,
   unificarla en un módulo compartido.
@@ -206,7 +207,7 @@ No son vulnerabilidades confirmadas, pero se registran:
   leaderboard legacy. Mitigaciones posibles si llegara a importar: Cloudflare Turnstile,
   rate-limit en la Function, o un token de partida emitido al crear la sala y verificado
   al reportar la victoria.
-- **[MEDIO] Race condition en `POST /api/battle-pass/claim`:** dos requests simultáneos pueden reclamar la recompensa del mismo día dos veces porque el check `last_claim_date !== todayStr` no es atómico. Resulta en cartas duplicadas en el inventario. Mitigación futura: transacción D1 con `BEGIN IMMEDIATE` o `UNIQUE(user_id, last_claim_date)`. **Aceptado para MVP.**
+- **RESUELTO (2026-06-22) — Race condition en `POST /api/battle-pass/claim`:** UPDATE ahora atómica con `WHERE (last_claim_date IS NULL OR last_claim_date != ?) + meta.changes === 0`. Ver sección Hallazgos.
 - **Sin rate-limiting** en los endpoints de escritura en general (abuso/spam de escrituras).
 - **Spoofing de identidad en WebSocket (`worker/index.js`):** `playerId` se toma del
   parámetro URL sin verificar contra la cookie `war_session`. Cualquier cliente puede
@@ -252,6 +253,8 @@ No son vulnerabilidades confirmadas, pero se registran:
   Mitigación futura: aplicar `String(playerName).trim().slice(0, 16)` en
   `worker/index.js` antes de guardarlo en `players`, igual que ya se hace con `name` en
   el leaderboard legacy.
+- **[BAJO] `shield` sincronizado por WebSocket sin validación (`js/main.js`, desde 2026-06-22):** `msg.payload.shield` se asigna directamente a `game._shield` sin validar tipo ni rango. Un peer malicioso en la misma sala puede otorgar o revocar el escudo de cualquier jugador enviando `{type:'game_state', payload:{shield: <playerId>|null}}`. Extiende el riesgo ya aceptado de `game_state` sin schema. Mismo nivel de disposición: aceptado para MVP. Mitigación futura: validar `shield` contra la lista de `playerIds` en el DO antes de persistir/broadcast.
+- **[INFO] `card_used` transmitido por cliente, no servidor (`js/main.js` + `js/ui.js`, desde 2026-06-22):** cuando un jugador usa una carta, el cliente emite `sendAction('card_used', {playerName, card})` y el servidor lo hace broadcast tal cual. El receptor muestra la notificación con `textContent`/`escapeHtml(playerName)` — sin XSS. Pero la validez del evento no está verificada: un peer puede emitir `card_used` con carta inventada o nombre falso. Impacto: engaño cosmético (notificación falsa), sin efecto en el estado del juego ni en la DB. Aceptado para MVP.
 - **`Object.assign` sin schema (`main.js`):** `Object.assign(game.board, msg.payload.board ?? {})`
   acepta cualquier objeto del WebSocket. Permite sobrescribir campos internos del board
   desde la red. Aceptado para MVP. Mitigación futura: validar claves y tipos del payload
@@ -286,6 +289,7 @@ No son vulnerabilidades confirmadas, pero se registran:
   (no se renderiza en DOM), pero es un defecto menor de encoding. Riesgo muy bajo.
 - **Resuelto — XSS por nombre de jugador en el modal de victoria (`main.js`, `onGameOver`):** `escapeHtml` confirmado en `js/main.js:209`; todos los sinks de nombre remoto (lobby online, clasificación final) también escapados.
 
+- **2026-06-22** — Notificaciones de cartas + hardening de race conditions: `functions/api/cards/delete.js`, `functions/api/cards/use.js`, `functions/api/battle-pass/claim.js`, `js/game.js`, `js/main.js`, `js/ui.js`, `tests/`. **Resueltos:** (R1) TOCTOU en `DELETE user_cards` — query ahora incluye `AND user_id=?`; (R2) race condition de doble-claim en `/api/battle-pass/claim` — UPDATE atómica con `last_claim_date != ?` + `meta.changes === 0`; (R3) doble-uso concurrente de carta — `WHERE used_at IS NULL` + 409. **Nuevos hallazgos aceptados MVP:** (N1) [BAJO] `shield` sincronizado sin validación de tipo/rango en WebSocket — extiende el riesgo ya aceptado de `game_state` sin schema; (N2) [INFO] `card_used` broadcast no autenticado — impacto cosmético, sin efecto en DB. **Positivos:** `escapeHtml` en `showEnemyCardNotification` (nuevo sink cubierto); sanitización de `effectValue` con `Math.max/floor`; `_cardsPromise` elimina race de carga del inventario; `_useCard` migrado de fire-and-forget a async con manejo de errores. Sin cambios en `_headers` ni `wrangler.toml`.
 - **2026-06-18** — Rediseño de fase de turno + dados + refuerzos: `js/game.js`, `js/ui.js`, `css/style.css`, `game/index.html`. **Hallazgo: ninguno** (`showDice` inyecta solo enteros de `Math.random()`, lógica 100% client-side).
 
 ## Checklist pre-producción

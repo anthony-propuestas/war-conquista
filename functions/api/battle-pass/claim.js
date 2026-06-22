@@ -48,13 +48,17 @@ export async function onRequestPost(context) {
     WHERE bp.month = ? AND bp.day = ? AND cd.is_active = 1
   `).bind(month, day).first();
 
-  claimedDays.push(day);
-  await env.DB.prepare(
-    'UPDATE battle_pass_progress SET claimed_days=?, last_claim_date=? WHERE user_id=?'
-  ).bind(JSON.stringify(claimedDays), todayStr, user.id).run();
-
   if (!reward) {
-    return Response.json({ claimed: true, reward: null, claimed_days: claimedDays });
+    return Response.json({ no_reward: true, claimed_days: claimedDays });
+  }
+
+  claimedDays.push(day);
+  const claimResult = await env.DB.prepare(
+    `UPDATE battle_pass_progress SET claimed_days=?, last_claim_date=?
+     WHERE user_id=? AND (last_claim_date IS NULL OR last_claim_date != ?)`
+  ).bind(JSON.stringify(claimedDays), todayStr, user.id, todayStr).run();
+  if (claimResult.meta.changes === 0) {
+    return Response.json({ already_claimed: true, claimed_days: claimedDays });
   }
 
   const inserts = [];
