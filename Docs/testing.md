@@ -17,7 +17,7 @@ Los tests viven en `tests/` (versionados, excluidos del deploy vía `.assetsigno
 |---|---|---|---|
 | tests/_lib/session.test.js | functions/_lib/session.js | 7 | ✅ |
 | tests/map-data.test.js | js/map-data.js | 5 | ✅ |
-| tests/game.test.js | js/game.js | 33 | ✅ |
+| tests/game.test.js | js/game.js | 34 | ✅ |
 | tests/map-shapes.test.js | js/map-shapes.js | 4 | ✅ |
 | tests/api/auth/google.test.js | functions/api/auth/google.js | 2 | ✅ |
 | tests/api/auth/callback.test.js | functions/api/auth/callback.js | 7 | ✅ |
@@ -38,7 +38,9 @@ Los tests viven en `tests/` (versionados, excluidos del deploy vía `.assetsigno
 | tests/api/admin/battle-pass.test.js | functions/api/admin/battle-pass.js | 4 | ✅ |
 | tests/api/shop/inventory.test.js | functions/api/shop/inventory.js | 3 | ✅ |
 | tests/api/shop/pending-wgt.test.js | functions/api/shop/pending-wgt.js | 3 | ✅ |
-| **Total** | | **180** | ✅ |
+| tests/api/admin/shop-listings.test.js | functions/api/admin/shop-listings.js | 8 | ✅ |
+| tests/api/shop/listings.test.js | functions/api/shop/listings.js | 2 | ✅ |
+| **Total** | | **191** | ✅ |
 
 ## Pendiente (diferido)
 

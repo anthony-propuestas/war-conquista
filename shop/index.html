@@ -123,11 +123,7 @@
       "function buyItem(uint256 itemId) external"
     ];
 
-    const ITEM_META = {
-      1: { icon: '⚔️', name: 'Refuerzos Extra', desc: 'Añade 3 unidades extra al refuerzo de este turno' },
-      2: { icon: '💥', name: 'Doble Ataque',    desc: 'El ataque de este turno cuenta doble' },
-      3: { icon: '🛡️', name: 'Escudo',           desc: 'Bloquea el próximo ataque que recibas' },
-    };
+    const EFFECT_ICON = { EXTRA_UNITS: '🪖', DOUBLE_ATTACK: '⚔️', SHIELD: '🛡️' };
 
     let provider, signer, walletAddress;
     let wgtContract, shopContract;
@@ -230,46 +226,43 @@
       const grid = document.getElementById('items-grid');
       grid.innerHTML = '';
 
-      // Leer inventario del jugador
+      // Inventario del jugador e items del catálogo (D1) en paralelo
       let owned = {};
+      let listings = [];
       try {
-        const inv = await fetch('/api/shop/inventory');
-        if (inv.ok) {
-          const { items } = await inv.json();
-          for (const item of (items ?? [])) {
-            owned[item.card_def_id] = item.quantity;
-          }
+        const [invRes, listRes] = await Promise.all([
+          fetch('/api/shop/inventory'),
+          fetch('/api/shop/listings'),
+        ]);
+        if (invRes.ok) {
+          const { items } = await invRes.json();
+          for (const item of (items ?? [])) owned[item.card_def_id] = item.quantity;
         }
+        if (listRes.ok) listings = await listRes.json();
       } catch {}
 
-      // Leer items del contrato
-      const itemIds = [1, 2, 3];
-      for (const id of itemIds) {
-        try {
-          const [price, qty, active] = await shopContract.items(id);
-          if (!active) continue;
-          const meta = ITEM_META[id] ?? { icon: '🎴', name: `Item #${id}`, desc: '' };
-          const ownedQty = owned[id] ?? 0;
-          const card = document.createElement('div');
-          card.className = 'item-card';
-          card.innerHTML = `
-            <div class="item-icon">${meta.icon}</div>
-            <div class="item-name">${meta.name}</div>
-            <div class="item-desc">${meta.desc}</div>
-            <div class="item-meta">
-              <span class="item-price">${formatUnits(price, 18)} WGT</span>
-              <span class="item-qty">x${qty} unidades</span>
-            </div>
-            <div class="item-owned">En inventario: ${ownedQty}</div>
-            <button class="btn btn-buy" id="btn-buy-${id}">Comprar</button>
-            <div class="tx-note">Requiere 2 transacciones en MetaMask</div>
-            <div class="buy-status" id="buy-status-${id}"></div>
-          `;
-          grid.appendChild(card);
-          document.getElementById(`btn-buy-${id}`).addEventListener('click', () => buyItem(id, price));
-        } catch (e) {
-          console.warn(`item ${id}`, e);
-        }
+      for (const item of listings) {
+        const id    = item.card_def_id;
+        const price = parseUnits(String(item.wgt_price ?? 1), 18);
+
+        const icon     = EFFECT_ICON[item.effect_type] ?? '🎴';
+        const ownedQty = owned[id] ?? 0;
+        const card     = document.createElement('div');
+        card.className = 'item-card';
+        card.innerHTML = `
+          <div class="item-icon">${icon}</div>
+          <div class="item-name">${item.name}</div>
+          <div class="item-desc">${item.description}</div>
+          <div class="item-meta">
+            <span class="item-price">${item.wgt_price ?? 1} WGT</span>
+          </div>
+          <div class="item-owned">En inventario: ${ownedQty}</div>
+          <button class="btn btn-buy" id="btn-buy-${id}">Comprar</button>
+          <div class="tx-note">Requiere 2 transacciones en MetaMask</div>
+          <div class="buy-status" id="buy-status-${id}"></div>
+        `;
+        grid.appendChild(card);
+        document.getElementById(`btn-buy-${id}`).addEventListener('click', () => buyItem(id, price));
       }
 
       if (grid.children.length === 0) {

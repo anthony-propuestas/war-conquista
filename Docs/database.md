@@ -335,6 +335,71 @@ INSERT INTO delivered_txs (tx_hash, user_id, delivered_at) VALUES (?, ?, ?)
 
 ---
 
+## Esquema 0004–0005: `shop_listings` — catálogo de la tienda
+
+La migración 0004 crea la tabla; la 0005 añade el precio en WGT.
+
+```sql
+-- 0004_shop_listings.sql
+CREATE TABLE IF NOT EXISTS shop_listings (
+  card_def_id INTEGER PRIMARY KEY,
+  is_listed   INTEGER NOT NULL DEFAULT 1,
+  listed_at   INTEGER,
+  FOREIGN KEY (card_def_id) REFERENCES card_definitions(id) ON DELETE CASCADE
+);
+
+-- 0005_shop_price.sql
+ALTER TABLE shop_listings ADD COLUMN wgt_price REAL NOT NULL DEFAULT 1;
+```
+
+| Columna | Tipo | Rol |
+|---|---|---|
+| `card_def_id` | `INTEGER` PK | FK a `card_definitions(id)` con CASCADE. Un listing por carta. |
+| `is_listed` | `INTEGER` | `1` = visible en la tienda pública; `0` = oculta. |
+| `listed_at` | `INTEGER` | Timestamp epoch-ms del último listing. Ordena la tienda (`ORDER BY listed_at ASC`). |
+| `wgt_price` | `REAL` | Precio en WGT para comprar la carta. Mínimo 0, por defecto 1. |
+
+### Queries — `functions/api/admin/shop-listings.js`
+
+```sql
+-- GET: cartas activas con su estado de listing (LEFT JOIN para incluir las no listadas)
+SELECT
+  cd.id AS card_def_id, cd.name, cd.description, cd.effect_type, cd.effect_value,
+  COALESCE(sl.is_listed, 0) AS is_listed,
+  COALESCE(sl.wgt_price, 1) AS wgt_price
+FROM card_definitions cd
+LEFT JOIN shop_listings sl ON cd.id = sl.card_def_id
+WHERE cd.is_active = 1
+ORDER BY cd.created_at DESC
+
+-- POST (upsert por card_def_id):
+INSERT INTO shop_listings (card_def_id, is_listed, listed_at, wgt_price)
+VALUES (?, ?, ?, ?)
+ON CONFLICT(card_def_id) DO UPDATE SET
+  is_listed = excluded.is_listed,
+  listed_at = excluded.listed_at,
+  wgt_price = excluded.wgt_price
+
+-- DELETE:
+DELETE FROM shop_listings WHERE card_def_id = ?
+```
+
+### Queries — `functions/api/shop/listings.js`
+
+```sql
+SELECT
+  sl.card_def_id, cd.name, cd.description, cd.effect_type, cd.effect_value,
+  COALESCE(sl.wgt_price, 1) AS wgt_price
+FROM shop_listings sl
+JOIN card_definitions cd ON cd.id = sl.card_def_id
+WHERE sl.is_listed = 1 AND cd.is_active = 1
+ORDER BY sl.listed_at ASC
+```
+
+Endpoint público (sin auth). Solo devuelve cartas donde `is_listed = 1` y la definición está activa.
+
+---
+
 ## Migraciones
 
 Las migraciones viven en `migrations/` y se aplican en orden ascendente.
@@ -344,6 +409,8 @@ Las migraciones viven en `migrations/` y se aplican en orden ascendente.
 | 0001 | `migrations/0001_users.sql` | Borra `scores`; crea `users` (incluye `wallet_address`) con sus índices. |
 | 0002 | `migrations/0002_items.sql` | Crea `card_definitions`, `user_cards`, `battle_pass_rewards`, `battle_pass_progress`. |
 | 0003 | `migrations/0003_onchain.sql` | Crea `user_monthly_wins`, `user_shop_items`, `delivered_txs`; inserta los 3 items iniciales en `card_definitions` (Refuerzos Extra, Doble Ataque, Escudo). |
+| 0004 | `migrations/0004_shop_listings.sql` | Crea `shop_listings` (catálogo de cartas en la tienda). |
+| 0005 | `migrations/0005_shop_price.sql` | Añade columna `wgt_price` a `shop_listings`. |
 
 ### Comandos
 

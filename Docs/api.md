@@ -309,6 +309,20 @@ Devuelve solo items con `quantity > 0` y `is_active = 1` (join `user_shop_items`
 ] }
 ```
 
+## `GET /api/shop/listings` — cartas disponibles en la tienda
+
+Endpoint **público** (sin auth). Devuelve todas las cartas con `is_listed = 1` y `is_active = 1`, ordenadas por `listed_at ASC`.
+
+**200 OK**:
+```json
+[
+  { "card_def_id": 1, "name": "Refuerzos Extra", "description": "...",
+    "effect_type": "EXTRA_UNITS", "effect_value": 3, "wgt_price": 2 }
+]
+```
+
+Array vacío si no hay cartas listadas. No hay códigos de error: si `env.DB` falla, el runtime propaga el 500.
+
 ## `POST /api/claim-wgt` — reclamar WGT acumulado
 
 **Request body**: `{ "signature": "0x...", "timestamp": 1234567890 }`
@@ -366,6 +380,18 @@ Gestiona el catálogo `card_definitions`.
 | `POST` | Crea una nueva. Body: `{ name, description, effect_type, effect_value? }`. → `201 { "id": <new_id> }`. Campos `name`, `description` y `effect_type` son requeridos (400 si faltan o vacíos). |
 | `PUT` | Edita una existente. Body: `{ id, name, description, effect_type, effect_value, is_active }`. `is_active=0` la oculta. → `200 { "ok": true }`. |
 | `DELETE` | Elimina por `?id=<id>` (query param). → `200 { "ok": true }`. |
+
+## `GET|POST|DELETE /api/admin/shop-listings` — gestión del catálogo de la tienda
+
+Gestiona la tabla `shop_listings` (qué cartas aparecen en la tienda y a qué precio).
+
+| Método | Parámetros / Body | Qué hace |
+|---|---|---|
+| `GET` | — | Lista todas las `card_definitions` activas con su estado en `shop_listings` (LEFT JOIN). Devuelve `{ card_def_id, name, description, effect_type, effect_value, is_listed, wgt_price }` para cada carta. |
+| `POST` | Body `{ card_def_id, is_listed?, wgt_price? }` | Upsert del listing por `card_def_id`. `is_listed` defecto `false`; `wgt_price` defecto `1`, mínimo `0`. → `200 { "ok": true }`. `card_def_id` es requerido (400 si falta). |
+| `DELETE` | `?card_def_id=<id>` | Elimina el listing de esa carta. → `200 { "ok": true }`. 400 si falta el param. |
+
+Método no listado → `405 Method Not Allowed` (texto plano).
 
 ## `GET|POST|DELETE /api/admin/battle-pass` — CRUD del calendario de recompensas
 

@@ -33,22 +33,65 @@
     .card-item .card-meta { font-size: .8rem; color: var(--ink-dim); }
     .card-actions { display: flex; gap: .5rem; margin-top: .75rem; }
     .btn-sm { padding: .3rem .7rem; font-size: .8rem; }
-    .bp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: .4rem; }
-    .bp-day { background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
-              padding: .5rem; text-align: center; cursor: pointer; transition: border-color .2s; }
-    .bp-day:hover { border-color: var(--accent); }
-    .bp-day.has-reward { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--bg)); }
-    .bp-day .day-num { font-family: "Cinzel", serif; font-size: 1rem; color: var(--ink); }
-    .bp-day .day-card { font-size: .65rem; color: var(--accent); margin-top: .2rem; white-space: nowrap;
-                        overflow: hidden; text-overflow: ellipsis; }
-    .month-nav { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
-    .month-nav span { font-family: "Cinzel", serif; font-size: 1.1rem; }
+    .effect-badge { display: inline-block; background: var(--accent); color: var(--bg);
+                    border-radius: 4px; padding: .15rem .5rem; font-size: .75rem; font-weight: 700; }
     #error-banner { background: #7f1d1d; color: #fca5a5; padding: .75rem 1rem;
                     border-radius: 6px; margin-bottom: 1rem; display: none; }
     #success-banner { background: #14532d; color: #86efac; padding: .75rem 1rem;
                       border-radius: 6px; margin-bottom: 1rem; display: none; }
-    .effect-badge { display: inline-block; background: var(--accent); color: var(--bg);
-                    border-radius: 4px; padding: .15rem .5rem; font-size: .75rem; font-weight: 700; }
+
+    /* ── Home view ── */
+    .home-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-top: 3rem;
+    }
+    @media (max-width: 540px) { .home-grid { grid-template-columns: 1fr; } }
+    .big-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      padding: 2.5rem 1.5rem;
+      background: var(--panel);
+      border: 2px solid var(--line);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      color: var(--ink);
+      font-family: inherit;
+    }
+    .big-btn:hover {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 6%, var(--panel));
+    }
+    .big-btn .big-icon { font-size: 2.8rem; }
+    .big-btn .big-label {
+      font-family: "Cinzel", serif;
+      font-size: 1rem;
+      color: var(--accent);
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    /* ── Shop listings view ── */
+    .listing-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: .75rem 0;
+      border-bottom: 1px solid var(--line);
+      flex-wrap: wrap;
+    }
+    .listing-row:last-child { border-bottom: none; }
+    .listing-info { flex: 1; min-width: 160px; }
+    .listing-info .lname { font-family: "Cinzel", serif; font-size: .95rem; color: var(--accent); }
+    .listing-info .ldesc { font-size: .8rem; color: var(--ink-dim); margin-top: .1rem; }
+    .listing-toggle { display: flex; align-items: center; gap: .4rem; font-size: .85rem; color: var(--ink-dim); }
+    .listing-toggle input[type=checkbox] { width: 1rem; height: 1rem; accent-color: var(--accent); cursor: pointer; }
+    .back-btn { margin-bottom: 1.5rem; }
   </style>
 </head>
 <body>
@@ -57,60 +100,76 @@
 
   <h1>Panel de Administración</h1>
 
-  <!-- ===== CARDS SECTION ===== -->
-  <h2>Cartas de Items de Mejora</h2>
-
-  <div class="panel">
-    <h3 style="font-family:Oswald,sans-serif;font-size:1rem;margin:0 0 1rem;color:var(--ink)">Nueva carta</h3>
-    <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;">
-      <span class="effect-badge" title="Agrega N tropas de refuerzo al turno del jugador">🪖 EXTRA_UNITS — +N unidades</span>
-      <span class="effect-badge" title="Permite lanzar los dados dos veces en un ataque">⚔ DOUBLE_ATTACK — doble dados</span>
-      <span class="effect-badge" title="Absorbe un ataque entrante sin pérdidas de unidades">🛡 SHIELD — absorbe ataque</span>
+  <!-- ══════════ HOME VIEW ══════════ -->
+  <div id="view-home">
+    <div class="home-grid">
+      <button class="big-btn" id="btn-go-cards">
+        <span class="big-icon">🃏</span>
+        <span class="big-label">Crear tarjetas<br>de juego</span>
+      </button>
+      <button class="big-btn" id="btn-go-shop">
+        <span class="big-icon">🛒</span>
+        <span class="big-label">Tienda<br>Poner en venta</span>
+      </button>
     </div>
-    <div class="row">
-      <div class="field"><label>Nombre</label><input id="card-name" placeholder="Ej: Refuerzo Masivo" /></div>
-      <div class="field"><label>Tipo de efecto</label>
-        <select id="card-effect-type">
-          <option value="EXTRA_UNITS">Unidades extra</option>
-          <option value="DOUBLE_ATTACK">Doble ataque</option>
-          <option value="SHIELD">Escudo</option>
-        </select>
+  </div>
+
+  <!-- ══════════ CARDS VIEW ══════════ -->
+  <div id="view-cards" hidden>
+    <button class="btn btn-ghost btn-sm back-btn" id="btn-back-cards">← Volver</button>
+
+    <h2>Cartas de Items de Mejora</h2>
+
+    <div class="panel">
+      <h3 style="font-family:Oswald,sans-serif;font-size:1rem;margin:0 0 1rem;color:var(--ink)">Nueva carta</h3>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;">
+        <span class="effect-badge" title="Agrega N tropas de refuerzo al turno del jugador">🪖 EXTRA_UNITS — +N unidades</span>
+        <span class="effect-badge" title="Permite lanzar los dados dos veces en un ataque">⚔ DOUBLE_ATTACK — doble dados</span>
+        <span class="effect-badge" title="Absorbe un ataque entrante sin pérdidas de unidades">🛡 SHIELD — absorbe ataque</span>
       </div>
-      <div class="field"><label>Valor</label><input id="card-effect-value" type="number" value="20" min="1" /></div>
+      <div class="row">
+        <div class="field"><label>Nombre</label><input id="card-name" placeholder="Ej: Refuerzo Masivo" /></div>
+        <div class="field"><label>Tipo de efecto</label>
+          <select id="card-effect-type">
+            <option value="EXTRA_UNITS">Unidades extra</option>
+            <option value="DOUBLE_ATTACK">Doble ataque</option>
+            <option value="SHIELD">Escudo</option>
+          </select>
+        </div>
+        <div class="field"><label>Valor</label><input id="card-effect-value" type="number" value="20" min="1" /></div>
+      </div>
+      <div class="field"><label>Descripción</label><textarea id="card-desc" placeholder="Descripción visible al jugador"></textarea></div>
+      <button class="btn btn-primary" id="btn-add-card">Crear carta</button>
     </div>
-    <div class="field"><label>Descripción</label><textarea id="card-desc" placeholder="Descripción visible al jugador"></textarea></div>
-    <button class="btn btn-primary" id="btn-add-card">Crear carta</button>
-  </div>
 
-  <div class="cards-grid" id="cards-grid">
-    <p style="color:var(--ink-dim);grid-column:1/-1">Cargando cartas…</p>
-  </div>
-
-  <!-- ===== BATTLE PASS SECTION ===== -->
-  <h2>Battle Pass — Calendario</h2>
-
-  <div class="panel">
-    <div class="month-nav">
-      <button class="btn btn-ghost btn-sm" id="bp-prev">◀</button>
-      <span id="bp-month-label"></span>
-      <button class="btn btn-ghost btn-sm" id="bp-next">▶</button>
+    <div class="cards-grid" id="cards-grid">
+      <p style="color:var(--ink-dim);grid-column:1/-1">Cargando cartas…</p>
     </div>
-    <div class="bp-grid" id="bp-grid"></div>
   </div>
 
-  <!-- Modal asignar recompensa -->
+  <!-- ══════════ SHOP VIEW ══════════ -->
+  <div id="view-shop" hidden>
+    <button class="btn btn-ghost btn-sm back-btn" id="btn-back-shop">← Volver</button>
+
+    <h2>Tienda — Gestionar listado</h2>
+    <p style="color:var(--ink-dim);font-size:.88rem;margin-bottom:.75rem;">
+      Activa o desactiva cada carta en la tienda. El precio lo controla el contrato en Base.
+    </p>
+
+    <div class="panel" id="shop-listing-panel">
+      <p style="color:var(--ink-dim)">Cargando cartas…</p>
+    </div>
+  </div>
+
+  <!-- Modal asignar recompensa (sin uso en este diseño pero mantenido por compatibilidad) -->
   <div id="modal" class="modal hidden">
     <div class="modal-card" id="modal-card" style="max-width:400px"></div>
   </div>
 
   <script type="module">
-    const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
-                    'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
     let cards = [];
-    let bpRewards = {};
-    let bpMonth = new Date().getMonth() + 1;
-    let bpYear = new Date().getFullYear();
 
+    // ── Banners ──
     function flash(msg, ok = true) {
       const el = document.getElementById(ok ? 'success-banner' : 'error-banner');
       el.textContent = msg;
@@ -118,7 +177,19 @@
       setTimeout(() => { el.style.display = 'none'; }, 3000);
     }
 
-    // ---- Cards ----
+    // ── View switching ──
+    function showView(name) {
+      document.getElementById('view-home').hidden  = name !== 'home';
+      document.getElementById('view-cards').hidden = name !== 'cards';
+      document.getElementById('view-shop').hidden  = name !== 'shop';
+    }
+
+    document.getElementById('btn-go-cards').onclick = () => { showView('cards'); loadCards(); };
+    document.getElementById('btn-go-shop').onclick  = () => { showView('shop');  loadShopListings(); };
+    document.getElementById('btn-back-cards').onclick = () => showView('home');
+    document.getElementById('btn-back-shop').onclick  = () => showView('home');
+
+    // ── Cards section ──
     async function loadCards() {
       const res = await fetch('/api/admin/cards');
       if (res.status === 403) { document.body.innerHTML = '<h2 style="color:#f87171;padding:2rem">Acceso denegado</h2>'; return; }
@@ -127,22 +198,27 @@
     }
 
     function effectLabel(type, value) {
-      if (type === 'EXTRA_UNITS') return `+${value} unidades`;
+      if (type === 'EXTRA_UNITS')   return `+${value} unidades`;
       if (type === 'DOUBLE_ATTACK') return 'Doble ataque';
-      if (type === 'SHIELD') return 'Escudo';
+      if (type === 'SHIELD')        return 'Escudo';
       return type;
     }
 
     function renderCards() {
       const grid = document.getElementById('cards-grid');
-      if (!cards.length) { grid.innerHTML = '<p style="color:var(--ink-dim);grid-column:1/-1">No hay cartas creadas aún.</p>'; return; }
+      if (!cards.length) {
+        grid.innerHTML = '<p style="color:var(--ink-dim);grid-column:1/-1">No hay cartas creadas aún.</p>';
+        return;
+      }
       grid.innerHTML = cards.map(c => `
         <div class="card-item${c.is_active ? '' : ' inactive'}" data-id="${c.id}">
           <div class="card-name">${esc(c.name)}</div>
           <div class="card-desc">${esc(c.description)}</div>
           <div class="card-meta">
             <span class="effect-badge">${effectLabel(c.effect_type, c.effect_value)}</span>
-            ${c.is_active ? '<span style="color:#86efac;font-size:.75rem;margin-left:.5rem">● Activa</span>' : '<span style="color:#f87171;font-size:.75rem;margin-left:.5rem">● Inactiva</span>'}
+            ${c.is_active
+              ? '<span style="color:#86efac;font-size:.75rem;margin-left:.5rem">● Activa</span>'
+              : '<span style="color:#f87171;font-size:.75rem;margin-left:.5rem">● Inactiva</span>'}
           </div>
           <div class="card-actions">
             <button class="btn btn-ghost btn-sm" onclick="toggleCard(${c.id},${c.is_active ? 0 : 1})">${c.is_active ? 'Desactivar' : 'Activar'}</button>
@@ -155,26 +231,32 @@
     window.toggleCard = async (id, newState) => {
       const card = cards.find(c => c.id === id);
       if (!card) return;
-      await fetch('/api/admin/cards', { method: 'PUT', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ ...card, is_active: newState }) });
+      await fetch('/api/admin/cards', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...card, is_active: newState }),
+      });
       await loadCards();
     };
 
     window.deleteCard = async (id) => {
       if (!confirm('¿Eliminar esta carta permanentemente?')) return;
       const res = await fetch(`/api/admin/cards?id=${id}`, { method: 'DELETE' });
-      if (res.ok) { flash('Carta eliminada'); await loadCards(); await loadBp(); }
+      if (res.ok) { flash('Carta eliminada'); await loadCards(); }
       else flash('Error al eliminar', false);
     };
 
     document.getElementById('btn-add-card').addEventListener('click', async () => {
-      const name = document.getElementById('card-name').value.trim();
-      const desc = document.getElementById('card-desc').value.trim();
-      const effect_type = document.getElementById('card-effect-type').value;
+      const name         = document.getElementById('card-name').value.trim();
+      const desc         = document.getElementById('card-desc').value.trim();
+      const effect_type  = document.getElementById('card-effect-type').value;
       const effect_value = parseInt(document.getElementById('card-effect-value').value, 10) || 0;
       if (!name || !desc) { flash('Completa nombre y descripción', false); return; }
-      const res = await fetch('/api/admin/cards', { method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ name, description: desc, effect_type, effect_value }) });
+      const res = await fetch('/api/admin/cards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, description: desc, effect_type, effect_value }),
+      });
       if (res.ok) {
         flash('Carta creada');
         document.getElementById('card-name').value = '';
@@ -183,85 +265,59 @@
       } else flash('Error al crear', false);
     });
 
-    // ---- Battle Pass ----
-    async function loadBp() {
-      const res = await fetch(`/api/admin/battle-pass?month=${bpMonth}`);
-      const data = await res.json();
-      bpRewards = {};
-      data.forEach(r => { bpRewards[r.day] = r; });
-      renderBp();
-    }
-
-    function renderBp() {
-      const daysInMonth = new Date(bpYear, bpMonth, 0).getDate();
-      document.getElementById('bp-month-label').textContent = `${MONTHS[bpMonth - 1]} ${bpYear}`;
-      const grid = document.getElementById('bp-grid');
-      grid.innerHTML = '';
-      for (let d = 1; d <= daysInMonth; d++) {
-        const r = bpRewards[d];
-        const el = document.createElement('div');
-        el.className = 'bp-day' + (r ? ' has-reward' : '');
-        el.innerHTML = `<div class="day-num">${d}</div><div class="day-card">${r ? esc(r.card_name) : '—'}</div>`;
-        el.addEventListener('click', () => openDayModal(d, r));
-        grid.appendChild(el);
+    // ── Shop listings section ──
+    async function loadShopListings() {
+      const panel = document.getElementById('shop-listing-panel');
+      panel.innerHTML = '<p style="color:var(--ink-dim)">Cargando…</p>';
+      const res = await fetch('/api/admin/shop-listings');
+      if (res.status === 403) { panel.innerHTML = '<p style="color:#f87171">Acceso denegado</p>'; return; }
+      const listings = await res.json();
+      if (!listings.length) {
+        panel.innerHTML = '<p style="color:var(--ink-dim)">No hay cartas activas. Crea cartas primero.</p>';
+        return;
       }
+      panel.innerHTML = listings.map(l => `
+        <div class="listing-row">
+          <div class="listing-info">
+            <div class="lname">${esc(l.name)}</div>
+            <div class="ldesc">
+              <span class="effect-badge" style="font-size:.7rem">${effectLabel(l.effect_type, l.effect_value)}</span>
+            </div>
+          </div>
+          <div class="listing-toggle">
+            <input type="checkbox" id="listed-${l.card_def_id}" ${l.is_listed ? 'checked' : ''} />
+            <label for="listed-${l.card_def_id}">En venta</label>
+          </div>
+          <div style="display:flex;align-items:center;gap:.4rem;">
+            <input type="number" id="price-${l.card_def_id}" value="${l.wgt_price ?? 1}" min="0" step="0.1"
+              style="width:80px;background:var(--bg);border:1px solid var(--line);border-radius:6px;color:var(--ink);padding:.3rem .5rem;font-size:.85rem;" />
+            <span style="font-size:.8rem;color:var(--ink-dim);">WGT</span>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="saveListing(${l.card_def_id})">Guardar</button>
+        </div>
+      `).join('');
     }
 
-    function openDayModal(day, existing) {
-      const modal = document.getElementById('modal');
-      const card = document.getElementById('modal-card');
-      const opts = cards.filter(c => c.is_active).map(c =>
-        `<option value="${c.id}" ${existing?.card_def_id === c.id ? 'selected' : ''}>${esc(c.name)}</option>`
-      ).join('');
-      card.innerHTML = `
-        <h3 style="font-family:Cinzel,serif;margin:0 0 1rem">Día ${day} — ${MONTHS[bpMonth-1]}</h3>
-        ${existing ? `<p style="color:var(--ink-dim);font-size:.9rem">Recompensa actual: <b>${esc(existing.card_name)}</b> x${existing.quantity}</p>` : ''}
-        <div class="field"><label>Carta</label>
-          <select id="modal-card-sel">${opts.length ? opts : '<option value="">— sin cartas activas —</option>'}</select>
-        </div>
-        <div class="field"><label>Cantidad</label>
-          <input id="modal-qty" type="number" min="1" value="${existing?.quantity || 1}" />
-        </div>
-        <div style="display:flex;gap:.75rem;margin-top:1rem">
-          <button class="btn btn-primary" id="modal-save">Guardar</button>
-          ${existing ? '<button class="btn btn-ghost" id="modal-del" style="color:#f87171">Quitar recompensa</button>' : ''}
-          <button class="btn btn-ghost" id="modal-cancel">Cancelar</button>
-        </div>`;
-      modal.classList.remove('hidden');
-      document.getElementById('modal-cancel').onclick = () => modal.classList.add('hidden');
-      document.getElementById('modal-save').onclick = async () => {
-        const cid = document.getElementById('modal-card-sel').value;
-        const qty = parseInt(document.getElementById('modal-qty').value, 10) || 1;
-        if (!cid) { flash('Selecciona una carta', false); return; }
-        await fetch('/api/admin/battle-pass', { method: 'POST', headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ month: bpMonth, day, card_def_id: Number(cid), quantity: qty }) });
-        modal.classList.add('hidden');
-        flash('Recompensa guardada');
-        await loadBp();
-      };
-      if (existing) {
-        document.getElementById('modal-del').onclick = async () => {
-          await fetch(`/api/admin/battle-pass?month=${bpMonth}&day=${day}`, { method: 'DELETE' });
-          modal.classList.add('hidden');
-          flash('Recompensa eliminada');
-          await loadBp();
-        };
-      }
-    }
-
-    document.getElementById('bp-prev').onclick = () => {
-      bpMonth--; if (bpMonth < 1) { bpMonth = 12; bpYear--; }
-      loadBp();
-    };
-    document.getElementById('bp-next').onclick = () => {
-      bpMonth++; if (bpMonth > 12) { bpMonth = 1; bpYear++; }
-      loadBp();
+    window.saveListing = async (card_def_id) => {
+      const is_listed = document.getElementById(`listed-${card_def_id}`).checked;
+      const wgt_price = parseFloat(document.getElementById(`price-${card_def_id}`).value) || 1;
+      const res = await fetch('/api/admin/shop-listings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ card_def_id, is_listed, wgt_price }),
+      });
+      if (res.ok) flash('Guardado');
+      else flash('Error al guardar', false);
     };
 
-    function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
 
-    loadCards();
-    loadBp();
+    // Verificar acceso al cargar
+    fetch('/api/admin/cards').then(r => {
+      if (r.status === 403) document.body.innerHTML = '<h2 style="color:#f87171;padding:2rem">Acceso denegado</h2>';
+    });
   </script>
 </body>
 </html>

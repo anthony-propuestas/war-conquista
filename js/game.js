@@ -183,7 +183,7 @@ export class Game {
     let defDice = Array.from({ length: defCount }, d6).sort((a, b) => b - a);
 
     // Escudo: si el defensor lo tiene activo, sus dados son todos 6
-    if (this._shield === this.board[toId].owner) { defDice = defDice.map(() => 6); this._shield = null; }
+    if (this._shield !== null && this._shield === this.board[toId].owner) { defDice = defDice.map(() => 6); this._shield = null; }
 
     let atkLoss = 0, defLoss = 0;
     const pairs = Math.min(atkDice.length, defDice.length);

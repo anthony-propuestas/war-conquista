@@ -1,0 +1,1 @@
+ALTER TABLE shop_listings ADD COLUMN wgt_price REAL NOT NULL DEFAULT 1;

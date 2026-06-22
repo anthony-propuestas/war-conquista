@@ -417,3 +417,15 @@ test("applyCardEffect devuelve false en setup o con jugador incorrecto", () => {
   g.autoPlaceSetup(); // fase play, currentIndex=0
   assert.equal(g.applyCardEffect(1, "EXTRA_UNITS", 3), false); // p1 no es el actual
 });
+
+test("SHIELD no activa cuando _shield=null aunque owner=null (regresión null===null)", () => {
+  const g = newGame();
+  g.phase = "play";
+  g.attackUnlocked = true;
+  g.board["alaska"] = { owner: 0, armies: 5 };
+  g.board["kamchatka"] = { owner: null, armies: 1 }; // sin dueño
+  // _shield es null por defecto; antes null===null activaba el escudo espuriamente
+  const res = withDice([0.9, 0.9, 0.9, 0.0], () => g.attack("alaska", "kamchatka", 3));
+  assert.equal(res.conquered, true);
+  assert.equal(res.defLoss, 1);
+});

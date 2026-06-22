@@ -55,16 +55,20 @@ WAR/
 │   └── claim.js            # POST /api/battle-pass/claim — reclamar recompensa diaria
 ├── functions/api/shop/
 │   ├── inventory.js        # GET /api/shop/inventory — inventario de items comprados del jugador
-│   └── pending-wgt.js      # GET /api/shop/pending-wgt — total WGT reclamable
+│   ├── pending-wgt.js      # GET /api/shop/pending-wgt — total WGT reclamable
+│   └── listings.js         # GET /api/shop/listings — cartas disponibles en la tienda (público)
 ├── functions/api/claim-wgt.js  # POST /api/claim-wgt — verifica firma ECDSA + mintea WGT en Base
 ├── functions/api/deliver-item.js # POST /api/deliver-item — verifica txHash en Base + entrega item en D1
 ├── functions/api/admin/
 │   ├── cards.js            # GET|POST|PUT|DELETE /api/admin/cards — CRUD card_definitions
-│   └── battle-pass.js      # GET|POST|DELETE /api/admin/battle-pass — CRUD battle_pass_rewards
+│   ├── battle-pass.js      # GET|POST|DELETE /api/admin/battle-pass — CRUD battle_pass_rewards
+│   └── shop-listings.js    # GET|POST|DELETE /api/admin/shop-listings — catálogo de la tienda
 ├── migrations/
-│   ├── 0001_users.sql      # migración: borra scores, crea users
-│   ├── 0002_items.sql      # migración: crea card_definitions, user_cards, battle_pass_rewards, battle_pass_progress
-│   └── 0003_onchain.sql    # migración: crea user_monthly_wins, user_shop_items, delivered_txs; inserta los 3 items iniciales
+│   ├── 0001_users.sql          # migración: borra scores, crea users
+│   ├── 0002_items.sql          # migración: crea card_definitions, user_cards, battle_pass_rewards, battle_pass_progress
+│   ├── 0003_onchain.sql        # migración: crea user_monthly_wins, user_shop_items, delivered_txs; inserta los 3 items iniciales
+│   ├── 0004_shop_listings.sql  # migración: crea shop_listings (catálogo de la tienda)
+│   └── 0005_shop_price.sql     # migración: añade wgt_price a shop_listings
 ├── scripts/build-map-shapes.mjs # dev-only: genera map-shapes.js desde Natural Earth
 ├── scripts/dev.mjs              # dev-only: arranca DO Worker + Pages en paralelo con TLS compartido
 ├── tests/                  # node --test (excluido del deploy)
@@ -109,6 +113,8 @@ WAR/
 | `functions/api/deliver-item.js` | Backend | `POST /api/deliver-item { txHash }`: verifica tx en Base RPC (`status=1`, destino=`SHOP_CONTRACT`, evento `ItemPurchased`, buyer == wallet del usuario), upsert en `user_shop_items`, registra en `delivered_txs` (idempotente). |
 | `functions/api/admin/cards.js` | Backend | `GET|POST|PUT|DELETE /api/admin/cards`: CRUD sobre `card_definitions`. Requiere que `session.email` esté en `ADMIN_EMAILS` (→ 403 si no). |
 | `functions/api/admin/battle-pass.js` | Backend | `GET|POST|DELETE /api/admin/battle-pass`: CRUD sobre `battle_pass_rewards`. Misma guard de admin. |
+| `functions/api/admin/shop-listings.js` | Backend | `GET|POST|DELETE /api/admin/shop-listings`: gestiona qué cartas aparecen en la tienda pública y a qué precio (`shop_listings`). Misma guard de admin. |
+| `functions/api/shop/listings.js` | Backend | `GET /api/shop/listings`: devuelve las cartas con `is_listed=1` y `is_active=1` ordenadas por `listed_at`. Sin auth (público). |
 
 ## Flujo principal
 
