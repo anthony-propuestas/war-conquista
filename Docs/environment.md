@@ -89,16 +89,17 @@ variables de entorno adicionales:
 
 | Variable | Descripción |
 |---|---|
-| `BASE_RPC_URL` | URL del nodo RPC de Base (p. ej. Alchemy/Infura para Base Sepolia o mainnet). |
-| `WGT_CONTRACT` | Dirección del contrato `WGTToken` desplegado en Base (el Worker firma la TX de mint como minter). |
-| `SHOP_CONTRACT` | Dirección del contrato `ItemShop` en Base. `deliver-item.js` verifica que la TX se haya hecho a este contrato. |
+| `BASE_RPC_URL` | URL del nodo RPC de Base mainnet (p. ej. Alchemy/Infura). |
+| `WGT_CONTRACT` | Dirección del contrato `WGTToken` en Base mainnet. |
+| `SHOP_CONTRACT` | Dirección del contrato `ItemShop` en Base mainnet. `deliver-item.js` verifica que la TX se haya hecho a este contrato. |
+| `MINTER_PRIVATE_KEY` | Clave privada de la wallet minter (`0x966C7f05D8415f00e33d68825A2d37F52e086246`). `claim-wgt.js` la usa para firmar la TX de mint en nombre del servidor. **Nunca en el repo.** |
 
-**En local** (`.dev.vars`): añadir las tres variables con los valores del deploy de testnet
-(o un nodo local de Foundry si se prueba off-chain):
+**En local** (`.dev.vars`): añadir las variables con los valores de mainnet:
 ```
-BASE_RPC_URL=https://base-sepolia.g.alchemy.com/v2/<API_KEY>
+BASE_RPC_URL=https://mainnet.base.org  # o nodo Alchemy/Infura de Base mainnet
 WGT_CONTRACT=0x6bc93daaa5e35dece8f1d676757cfc1d6616b535
 SHOP_CONTRACT=0x197c835cc303088713c1ea3549ef1fb76a3786ca
+MINTER_PRIVATE_KEY=<clave-privada-del-minter>
 ```
 
 **En producción** (Pages → proyecto `war-conquista`):
@@ -106,6 +107,7 @@ SHOP_CONTRACT=0x197c835cc303088713c1ea3549ef1fb76a3786ca
 wrangler pages secret put BASE_RPC_URL --project-name war-conquista
 wrangler pages secret put WGT_CONTRACT --project-name war-conquista
 wrangler pages secret put SHOP_CONTRACT --project-name war-conquista
+wrangler pages secret put MINTER_PRIVATE_KEY --project-name war-conquista
 ```
 
 Ver contratos y dirección de minter en [onchain.md](onchain.md).
@@ -121,6 +123,8 @@ binding del `wrangler.toml`. Aplica el esquema actual ejecutando las migraciones
 wrangler d1 execute war-scores --local --file migrations/0001_users.sql
 wrangler d1 execute war-scores --local --file migrations/0002_items.sql
 wrangler d1 execute war-scores --local --file migrations/0003_onchain.sql
+wrangler d1 execute war-scores --local --file migrations/0004_shop_listings.sql
+wrangler d1 execute war-scores --local --file migrations/0005_shop_price.sql
 ```
 
 **En Pages (panel):** si despliegas vía Git en vez de CLI, añade el binding manualmente

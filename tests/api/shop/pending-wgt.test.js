@@ -17,7 +17,7 @@ const makeRequest = (cookie) =>
     headers: cookie ? { Cookie: cookie } : {},
   });
 
-function makeDb({ user = { id: 1 }, total = 0 } = {}) {
+function makeDb({ user = { id: 1 }, pastTotal = 0, currentTotal = 0 } = {}) {
   let callCount = 0;
   return {
     prepare(sql) {
@@ -25,7 +25,9 @@ function makeDb({ user = { id: 1 }, total = 0 } = {}) {
         bind(...args) { return stmt; },
         first: async () => {
           callCount++;
-          return callCount === 1 ? user : { total };
+          if (callCount === 1) return user;
+          if (callCount === 2) return { total: pastTotal };
+          return { total: currentTotal };
         },
       };
       return stmt;
@@ -52,10 +54,19 @@ test("usuario no encontrado → {total:0}", async () => {
 });
 
 test("wins de meses pasados → {total: suma}", async () => {
-  const db = makeDb({ user: { id: 1 }, total: 7 });
+  const db = makeDb({ user: { id: 1 }, pastTotal: 7 });
   const res = await onRequestGet({
     request: makeRequest(await makeHmacCookie("u1")),
     env: makeEnv(db),
   });
-  assert.deepEqual(await res.json(), { total: 7 });
+  assert.deepEqual(await res.json(), { total: 7, currentMonth: 0 });
+});
+
+test("wins del mes actual → {currentMonth: suma}", async () => {
+  const db = makeDb({ user: { id: 1 }, pastTotal: 0, currentTotal: 3 });
+  const res = await onRequestGet({
+    request: makeRequest(await makeHmacCookie("u1")),
+    env: makeEnv(db),
+  });
+  assert.deepEqual(await res.json(), { total: 0, currentMonth: 3 });
 });

@@ -37,10 +37,10 @@ Los tests viven en `tests/` (versionados, excluidos del deploy vía `.assetsigno
 | tests/api/admin/cards.test.js | functions/api/admin/cards.js | 5 | ✅ |
 | tests/api/admin/battle-pass.test.js | functions/api/admin/battle-pass.js | 4 | ✅ |
 | tests/api/shop/inventory.test.js | functions/api/shop/inventory.js | 3 | ✅ |
-| tests/api/shop/pending-wgt.test.js | functions/api/shop/pending-wgt.js | 3 | ✅ |
+| tests/api/shop/pending-wgt.test.js | functions/api/shop/pending-wgt.js | 4 | ✅ |
 | tests/api/admin/shop-listings.test.js | functions/api/admin/shop-listings.js | 8 | ✅ |
 | tests/api/shop/listings.test.js | functions/api/shop/listings.js | 2 | ✅ |
-| **Total** | | **191** | ✅ |
+| **Total** | | **192** | ✅ |
 
 ## Pendiente (diferido)
 

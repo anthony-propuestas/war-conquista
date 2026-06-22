@@ -86,6 +86,11 @@
           <div class="stat-label">WGT por reclamar</div>
           <div class="stat-value" id="wgt-pending">—</div>
         </div>
+        <div class="stat-box">
+          <div class="stat-label">Acumulado este mes</div>
+          <div class="stat-value" id="wgt-current">—</div>
+          <div class="claim-note" id="wgt-next-date" style="margin-top:.3rem;font-size:.72rem;"></div>
+        </div>
         <div style="display:flex;flex-direction:column;gap:.5rem;">
           <button class="btn" id="btn-claim" disabled>Reclamar WGT</button>
           <div class="claim-note">Solo wins de meses anteriores</div>
@@ -179,9 +184,14 @@
         ]);
         document.getElementById('wgt-balance').textContent = formatUnits(balance, 18) + ' WGT';
         if (pendingResp.ok) {
-          const { total } = await pendingResp.json();
+          const { total, currentMonth } = await pendingResp.json();
           document.getElementById('wgt-pending').textContent = total + ' WGT';
           document.getElementById('btn-claim').disabled = total === 0;
+          document.getElementById('wgt-current').textContent = currentMonth + ' WGT';
+          const now = new Date();
+          const nextFirst = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+          const label = nextFirst.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+          document.getElementById('wgt-next-date').textContent = `Disponible el ${label}`;
         }
       } catch (e) {
         console.error('refreshBalances', e);

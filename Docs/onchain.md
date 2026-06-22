@@ -6,10 +6,10 @@ usa **ethers v6**.
 
 La wallet cumple dos roles: **identidad de jugador** en el multijugador, y **método
 de autenticación** (firma + verificación server-side, ver "Login y vinculación"). Desde
-2026-06, WAR tiene contratos vivos en **Base Sepolia** (testnet) para el ciclo
+2026-06, WAR tiene contratos vivos en **Base** (mainnet, chain 8453) para el ciclo
 WGT ↔ tienda de items.
 
-## Contratos desplegados — Base Sepolia (chain 84532)
+## Contratos desplegados — Base Mainnet (chain 8453)
 
 | Contrato | Dirección |
 |---|---|
@@ -17,7 +17,6 @@ WGT ↔ tienda de items.
 | `ItemShop.sol` | `0x197c835cc303088713c1ea3549ef1fb76a3786ca` |
 | Minter role (wallet del Worker) | `0x966C7f05D8415f00e33d68825A2d37F52e086246` |
 
-Deploy en mainnet pendiente (paso 9 de `planONCHAIN.md`).
 
 ## Carga de `ethers`
 

@@ -11,11 +11,18 @@ export async function onRequestGet({ request, env }) {
   const now = new Date();
   const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-  const row = await env.DB.prepare(`
-    SELECT COALESCE(SUM(wins), 0) as total
-    FROM user_monthly_wins
-    WHERE user_id = ? AND claimed_at IS NULL AND year_month < ?
-  `).bind(user.id, currentYearMonth).first();
+  const [row, currentRow] = await Promise.all([
+    env.DB.prepare(`
+      SELECT COALESCE(SUM(wins), 0) as total
+      FROM user_monthly_wins
+      WHERE user_id = ? AND claimed_at IS NULL AND year_month < ?
+    `).bind(user.id, currentYearMonth).first(),
+    env.DB.prepare(`
+      SELECT COALESCE(SUM(wins), 0) as total
+      FROM user_monthly_wins
+      WHERE user_id = ? AND year_month = ?
+    `).bind(user.id, currentYearMonth).first(),
+  ]);
 
-  return Response.json({ total: row?.total ?? 0 });
+  return Response.json({ total: row?.total ?? 0, currentMonth: currentRow?.total ?? 0 });
 }

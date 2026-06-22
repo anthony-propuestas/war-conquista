@@ -288,11 +288,13 @@ procesar el ciclo on-chain. Todos requieren cookie `war_session`. Los contratos 
 | Caso | Status | Body |
 |---|---|---|
 | Sin cookie / cookie inválida / usuario no en DB | `200` | `{ "total": 0 }` |
-| Éxito | `200` | `{ "total": N }` |
+| Éxito | `200` | `{ "total": N, "currentMonth": N }` |
 
 `total` es la suma de `wins` en `user_monthly_wins` donde `claimed_at IS NULL` y
-`year_month < mes actual`. Solo meses ya cerrados son reclamables; el mes en curso
-no cuenta hasta que cierre.
+`year_month < mes actual` (solo meses ya cerrados son reclamables).
+`currentMonth` es la suma de `wins` del mes en curso (`year_month = mes actual`),
+sin filtro de `claimed_at` — informa al usuario cuánto podrá reclamar el 1 del
+mes siguiente.
 
 ## `GET /api/shop/inventory` — inventario de items del jugador
 

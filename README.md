@@ -25,7 +25,7 @@ instalar nada.
 - 🔐 **Login con Google o wallet MetaMask** para vincular tus victorias a tu cuenta.
 - 🃏 **Sistema de cartas**: recibe cartas como recompensa diaria del battle pass y úsalas en partida (Refuerzos Extra, Doble Ataque, Escudo).
 - 📅 **Battle pass diario**: calendar mensual de recompensas; reclama la carta del día en `/battle-pass`.
-- 🪙 **Tienda on-chain (WGT)**: gana tokens WGT por victorias en modo online y canjéalos por items en la tienda (`/shop`). Contratos en Base Sepolia.
+- 🪙 **Tienda on-chain (WGT)**: gana tokens WGT por victorias en modo online y canjéalos por items en la tienda (`/shop`). Contratos en Base (mainnet, chain 8453).
 - 📱 Interfaz responsive, sin librerías JS ni frameworks. Dependencias externas en
   runtime: las fuentes **Cinzel** y **Oswald** de Google Fonts, y **ethers**/**pixi.js**
   cargados desde esm.sh (CDN) vía `importmap`.
@@ -69,6 +69,8 @@ npm run db:create                 # crea la DB "war-scores"
 wrangler d1 execute war-scores --remote --file migrations/0001_users.sql
 wrangler d1 execute war-scores --remote --file migrations/0002_items.sql
 wrangler d1 execute war-scores --remote --file migrations/0003_onchain.sql
+wrangler d1 execute war-scores --remote --file migrations/0004_shop_listings.sql
+wrangler d1 execute war-scores --remote --file migrations/0005_shop_price.sql
 ```
 
 ### 2. Configurar secrets
@@ -159,7 +161,10 @@ WAR/
 │   └── session.js          # firma y verifica cookie war_session (HMAC-SHA256)
 ├── functions/api/cards/    # inventory.js · use.js · delete.js
 ├── functions/api/battle-pass/ # status.js · claim.js
-├── functions/api/admin/    # cards.js · battle-pass.js (requieren ADMIN_EMAILS)
+├── functions/api/admin/    # cards.js · battle-pass.js · shop-listings.js (requieren ADMIN_EMAILS)
+├── functions/api/shop/     # inventory.js · listings.js · pending-wgt.js
+├── functions/api/claim-wgt.js # mintea WGT al usuario autenticado (Base mainnet)
+├── functions/api/deliver-item.js # registra compra on-chain en D1 (idempotente)
 ├── functions/api/game-room.js # Pages Function: routing de /api/game-room al Durable Object
 ├── worker/                 # Worker separado "war-game-room" que aloja el Durable Object
 ├── migrations/             # migraciones D1 (estado actual del esquema)
