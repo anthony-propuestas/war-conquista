@@ -192,15 +192,17 @@ export class UI {
     mapEl.addEventListener("pointerdown", (e) => {
       if (e.button !== 0) return;
       this._panMoved = false;
-      _pan = { x: e.clientX, y: e.clientY, tx: this._vp.tx, ty: this._vp.ty };
-      mapEl.setPointerCapture(e.pointerId);
+      _pan = { x: e.clientX, y: e.clientY, tx: this._vp.tx, ty: this._vp.ty, id: e.pointerId, captured: false };
     });
     mapEl.addEventListener("pointermove", (e) => {
       if (!_pan) return;
       const rect = wrap.getBoundingClientRect();
       const dx = (e.clientX - _pan.x) / rect.width  * 1000;
       const dy = (e.clientY - _pan.y) / rect.height * 560;
-      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) this._panMoved = true;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        this._panMoved = true;
+        if (!_pan.captured) { mapEl.setPointerCapture(_pan.id); _pan.captured = true; }
+      }
       this._vp.tx = _pan.tx + dx;
       this._vp.ty = _pan.ty + dy;
       applyTransform();
